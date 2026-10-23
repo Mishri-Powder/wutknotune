@@ -35,7 +35,7 @@ class SamplerEngine {
         fun decodeToSample(uri: Uri, context: android.content.Context, name: String): Sample? {
             val extractor = MediaExtractor()
             var codec: MediaCodec? = null
-            try {
+            return try {
                 context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
                     extractor.setDataSource(pfd.fileDescriptor)
                 } ?: return null
@@ -102,7 +102,7 @@ class SamplerEngine {
                 }
                 val rate = runCatching { format.getInteger(MediaFormat.KEY_SAMPLE_RATE) }.getOrDefault(44100)
                 if (pcm.isEmpty()) return null
-                return Sample(name, ShortArray(pcm.size) { pcm[it] }, rate)
+                Sample(name, ShortArray(pcm.size) { pcm[it] }, rate)
             } catch (e: Exception) {
                 null
             } finally {

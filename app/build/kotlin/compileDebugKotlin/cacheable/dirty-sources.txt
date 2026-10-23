@@ -1,0 +1,14 @@
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\ui\screens\EditorScreen.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\ui\theme\Theme.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\data\MusicRepository.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\MainActivity.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\ui\AppState.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\ui\screens\SamplerScreen.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\sampler\SamplerEngine.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\ui\ArtworkLoader.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\ui\screens\LibraryScreen.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\player\MusicPlayer.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\ui\wall\PosterWall.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\editor\AudioEditor.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\data\Song.kt
+C:\Users\ButterCup\Documents\GitHub\wutknotune\app\src\main\java\com\example\musicapp\ui\wall\WallSolver.kt
