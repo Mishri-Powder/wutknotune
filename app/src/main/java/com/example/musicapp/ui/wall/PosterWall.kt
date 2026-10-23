@@ -9,6 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,14 +48,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.PointerVelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFrameClock
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,10 +65,13 @@ import com.example.musicapp.data.Song
 import com.example.musicapp.ui.ArtworkLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.android.asFrameClock
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -95,11 +104,27 @@ private const val VISIBLE_ROW_PAD = 2
  *  keeps derivedStateOf from producing a new list identity unless membership changed. */
 private data class VisibleTile(val tile: WallTile, val rx: Int, val ry: Int)
 
+/** Choreographer-backed frame clock (replacement for the removed LocalFrameClock). */
+private suspend inline fun awaitFrame(crossinline action: (frameTimeNanos: Long) -> Unit) =
+    suspendCancellableCoroutine { cont ->
+        val callback = android.view.Choreographer.FrameCallback { frameTimeNanos ->
+            cont.resumeWith(
+                runCatching { action(frameTimeNanos) }.fold(
+                    onSuccess = { Result.success(Unit) },
+                    onFailure = { Result.failure(it) }
+                )
+            )
+        }
+        cont.invokeOnCancellation { android.view.Choreographer.getInstance().removeFrameCallback(callback) }
+        android.view.Choreographer.getInstance().postFrameCallback(callback)
+    }
+
 /** Public stand-in for Compose's private awaitEachGesture (same semantics):
  *  runs [block] once per gesture; when the block returns, consumes all remaining
  *  pointers so the next gesture starts clean. */
 private suspend fun AwaitPointerEventScope.awaitEachGestureWall(block: suspend AwaitPointerEventScope.() -> Unit) {
     while (true) {
+        awaitFirstDown(requireUnconsumed = false)
         block()
         var event = currentEvent
         while (event.changes.any { it.pressed }) {
