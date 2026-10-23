@@ -58,3 +58,18 @@ minSdk 24 · target/compile 34 · Kotlin 1.9.22 · Compose BOM 2024.02 · Materi
 2. Playlists persisted in Room.
 3. EQ via `android.media.audiofx.Equalizer` attached to `player.audioSessionId`.
 4. Pad slicing/choke/reverse (Kwala pro features) — all pure PCM ops, easy to add to AudioEditor.
+
+## Poster Wall (Iris Music feature — integrated)
+
+The only Iris Music feature kept: the infinite **Poster Wall** album-art browser.
+
+| File | Role | Depends on |
+|---|---|---|
+| `ui/wall/WallSolver.kt` | Pure layout math ported from Iris's PosterWall: `packWall` (gapless 1x1/2x1/1x2/2x2 mosaic, deterministic seed, one tile per song) + `solveWall` (make-way solver: active card grows to 2x2, neighbors shrink/relocate/recursive-push/hole-fill; rolls back on failure) | nothing (zero Android deps → runs on Dispatchers.Default, unit-testable) |
+| `ui/ArtworkLoader.kt` | 3-layer artwork cache ported from Iris: memory LRU → disk thumbnails in cacheDir (keyed by path\|size\|mtime) → downsampled MediaMetadataRetriever decode; in-flight dedup, failed-path memo | MediaMetadataRetriever, cacheDir |
+| `ui/wall/PosterWall.kt` | Compose wall: pan/pinch camera on one graphicsLayer, 4-direction infinite tiling with cancellable vsync fling, row-bucketed visibility culling, tile move animations, haptic quarter-cell ticks, nearest-first artwork warm-up, tap-to-play + drag-seek progress on the active card | WallSolver, ArtworkLoader, player (position/seek/queue), Material3 |
+
+Wiring: bottom-nav tab **Wall** (`Tab.WALL`) in `MainActivity`; `AppState.init` calls
+`ArtworkLoader.init()` and bumps `playerVersion` on every player state change so the
+wall recomposes when play/pause/skip happens. Tap a poster → plays that song; tap the
+active poster → toggles pause/resume.

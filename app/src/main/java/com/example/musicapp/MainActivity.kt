@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,7 @@ import com.example.musicapp.ui.screens.EditorScreen
 import com.example.musicapp.ui.screens.LibraryScreen
 import com.example.musicapp.ui.screens.SamplerScreen
 import com.example.musicapp.ui.theme.MusicAppTheme
+import com.example.musicapp.ui.wall.PosterWall
 
 class MainActivity : ComponentActivity() {
     private lateinit var appState: AppState
@@ -52,6 +54,12 @@ class MainActivity : ComponentActivity() {
                                 label = { Text("Library") }
                             )
                             NavigationBarItem(
+                                selected = appState.tab == Tab.WALL,
+                                onClick = { appState.tab = Tab.WALL },
+                                icon = { Icon(Icons.Default.PhotoLibrary, null) },
+                                label = { Text("Wall") }
+                            )
+                            NavigationBarItem(
                                 selected = appState.tab == Tab.SAMPLER,
                                 onClick = { appState.tab = Tab.SAMPLER },
                                 icon = { Icon(Icons.Default.GraphicEq, null) },
@@ -70,6 +78,29 @@ class MainActivity : ComponentActivity() {
                     Surface(modifier = content, color = MaterialTheme.colorScheme.background) {
                         when (appState.tab) {
                             Tab.LIBRARY -> LibraryScreen(appState)
+                            // read playerVersion so the wall recomposes on play/pause/skip
+                            Tab.WALL -> {
+                                @Suppress("UNUSED_EXPRESSION") appState.playerVersion
+                                PosterWall(
+                                    songs = appState.songs,
+                                    currentId = appState.player.currentSong?.id,
+                                    isPlaying = appState.player.isPlaying,
+                                    positionProvider = {
+                                        appState.player.positionMs to appState.player.durationMs
+                                    },
+                                    seekProvider = { frac ->
+                                        val dur = appState.player.durationMs
+                                        if (dur > 0) appState.player.seekTo((frac * dur).toLong())
+                                    },
+                                    onSelect = { song ->
+                                        appState.playFrom(appState.songs, appState.songs.indexOfFirst { it.id == song.id })
+                                    },
+                                    onToggle = {
+                                        if (appState.player.isPlaying) appState.player.pause()
+                                        else appState.player.resumeOrStart()
+                                    }
+                                )
+                            }
                             Tab.SAMPLER -> SamplerScreen(appState)
                             Tab.EDITOR -> EditorScreen(appState)
                         }

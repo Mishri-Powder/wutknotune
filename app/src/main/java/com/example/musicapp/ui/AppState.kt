@@ -18,7 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.File
 
-enum class Tab { LIBRARY, SAMPLER, EDITOR }
+enum class Tab { LIBRARY, WALL, SAMPLER, EDITOR }
 
 /**
  * Single app-wide state holder. Deliberately simple (no DI framework) for stability:
@@ -30,6 +30,17 @@ class AppState(val application: Application) {
     val sampler = SamplerEngine()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    init {
+        // Poster Wall artwork disk cache lives in cacheDir; async, never blocks startup.
+        ArtworkLoader.init(application)
+        // Recompose every screen when playback state changes — the Wall reads
+        // currentSong/isPlaying directly from the player and needs this nudge.
+        player.onStateChange = { playerVersion++ }
+    }
+
+    /** bump to force recomposition on any player state change */
+    var playerVersion by mutableStateOf(0); private set
 
     var songs by mutableStateOf<List<Song>>(emptyList()); private set
     var albums by mutableStateOf<List<Album>>(emptyList()); private set
