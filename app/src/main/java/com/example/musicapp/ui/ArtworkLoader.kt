@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -14,7 +15,6 @@ import java.io.File
 import java.security.MessageDigest
 import java.util.LinkedHashMap
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CompletableDeferred
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -179,12 +179,12 @@ object ArtworkLoader {
     /** LRU-by-mtime eviction so the cache directory can only ever hold ~6MB. */
     private fun trimDiskBlocking(dir: File) {
         runCatching {
-            val files = dir.listFiles()?.sortedBy { it.lastModified() } ?: return
-            var total = files.sumOf { it.length }
+            val files = dir.listFiles()?.sortedBy { it.lastModified() } ?: return@runCatching
+            var total = files.sumOf { it.length() }
             val target = (DISK_MAX_BYTES * DISK_TRIM_RATIO).toLong()
             for (f in files) {
                 if (total <= target) break
-                total -= f.length
+                total -= f.length()
                 f.delete()
             }
             diskBytes.set(total.coerceAtLeast(0L))

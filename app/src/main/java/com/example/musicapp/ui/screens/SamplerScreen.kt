@@ -36,13 +36,15 @@ fun SamplerScreen(state: AppState) {
                     PadButton(
                         index = idx,
                         label = { state.samplerVersion; state.sampler.padLabel(idx) }(),
-                        modifier = Modifier.weight(1f).fillMaxHeight()
-                    ) {
-                        state.sampler.triggerPad(idx)
-                    } onLongPress = {
-                        targetPad = idx
-                        picker.launch(arrayOf("audio/*"))
-                    }
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onPress = {
+                            state.sampler.triggerPad(idx)
+                        },
+                        onLongPress = {
+                            targetPad = idx
+                            picker.launch(arrayOf("audio/*"))
+                        }
+                    )
                 }
             }
             Spacer(Modifier.height(10.dp))
