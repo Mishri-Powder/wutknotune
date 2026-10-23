@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <!-- Dependency entry points follow the offline Interpreter/model capability policy.
+             Authority: https://wiki.271.pics/Riff/LATEST/runtime-architecture#packaged-android-permissions -->
+        <provider android:name="androidx.startup.InitializationProvider" android:exported="false" tools:node="merge">
+            <meta-data android:name="androidx.work.WorkManagerInitializer" tools:node="remove" />
+        </provider>
+        <service android:name="com.google.android.play.core.assetpacks.AssetPackExtractionService" tools:node="remove" />
+        <service android:name="com.google.android.play.core.assetpacks.ExtractionForegroundService" tools:node="remove" />
+        <receiver android:name="com.google.android.play.core.assetpacks.SessionStateBroadcastReceiver" tools:node="remove" />
+        <!-- Removal markers may name optional WorkManager classes absent from this dependency
+             edition. They prohibit entry points; they do not register missing components. -->
+        <service android:name="androidx.work.impl.background.systemalarm.SystemAlarmService" tools:node="remove" tools:ignore="MissingClass" />
+        <service android:name="androidx.work.impl.background.systemjob.SystemJobService" tools:node="remove" />
+        <service android:name="androidx.work.impl.foreground.SystemForegroundService" tools:node="remove" />
+        <receiver android:name="androidx.work.impl.utils.ForceStopRunnable$BroadcastReceiver" tools:node="remove" />
+        <receiver android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryChargingProxy" tools:node="remove" tools:ignore="MissingClass" />
+        <receiver android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryNotLowProxy" tools:node="remove" tools:ignore="MissingClass" />
+        <receiver android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$StorageNotLowProxy" tools:node="remove" tools:ignore="MissingClass" />
+        <receiver android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$NetworkStateProxy" tools:node="remove" tools:ignore="MissingClass" />
+        <receiver android:name="androidx.work.impl.background.systemalarm.RescheduleReceiver" tools:node="remove" />
+        <receiver android:name="androidx.work.impl.background.systemalarm.ConstraintProxyUpdateReceiver" tools:node="remove" tools:ignore="MissingClass" />
+        <receiver android:name="androidx.work.impl.diagnostics.DiagnosticsReceiver" tools:node="remove" />
+        <service
+            android:name="link.roadio.riff.indexer.android.process.IndexerProcessService"
+            android:exported="false"
+            android:process=":indexer" />
+    </application>
+</manifest>

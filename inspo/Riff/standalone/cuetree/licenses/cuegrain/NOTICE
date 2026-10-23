@@ -1,0 +1,8 @@
+Cuegrain
+Copyright 2026 Cuegrain contributors
+
+The MP4 chapter reader and conservative mojibake repair are adapted from
+Riff, with Apache-2.0 relicensing authorized by the project owner.
+Optional compact_enc_det is Copyright Google Inc., Apache-2.0.
+Gradle wrapper is Copyright Gradle, Inc., Apache-2.0.
+External media and CUE research corpora are not part of this license grant.

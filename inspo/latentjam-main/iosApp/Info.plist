@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>LatentJam</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ar</string>
+		<string>de</string>
+		<string>es</string>
+		<string>fr</string>
+		<string>he</string>
+		<string>hi</string>
+		<string>id</string>
+		<string>it</string>
+		<string>ja</string>
+		<string>ko</string>
+		<string>pl</string>
+		<string>pt-BR</string>
+		<string>pt-PT</string>
+		<string>ro</string>
+		<string>ru</string>
+		<string>tr</string>
+		<string>uk</string>
+		<string>zh-Hans</string>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!--
+	  Compose Multiplatform REFUSES TO START without this: PlistSanityCheck
+	  throws during composition and the process aborts on launch. It also
+	  unlocks the full 120 Hz on ProMotion displays, which iOS otherwise caps
+	  at 60 for apps that have not opted in.
+	-->
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+
+	<!--
+	  How music gets into the app at all: together these put LatentJam under
+	  "On My iPhone" in Files.app, so the user can drag albums straight into
+	  the Documents folder the library scans.
+	-->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+
+	<!--
+	  Device-only access: enumerate and play the user's existing Music library.
+	  This is the development-language value and the fallback for every language
+	  without a translation; the localized copies sit next to the app sources in
+	  iosApp/iosApp/<language>.lproj/InfoPlist.strings, one per language declared
+	  in CFBundleLocalizations above, and must be kept in sync with this string.
+	-->
+	<key>NSAppleMusicUsageDescription</key>
+	<string>LatentJam uses your on-device music library to organize tracks and make private recommendations locally.</string>
+
+	<!-- Keep playing once the screen locks, like any music player should. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+</dict>
+</plist>

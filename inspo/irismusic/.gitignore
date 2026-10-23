@@ -1,0 +1,71 @@
+# ===== 构建产物 =====
+app/build/
+build/
+.gradle/
+local.properties
+
+# ===== 签名密钥与凭据：绝不入库 =====
+keystore/
+keystore.properties
+*.jks
+*.keystore
+
+# ===== 历史产物归档：体积巨大，只留本地 =====
+# hist/ 内有 600MB+ 历史 zip 与各版本 APK，不进 git
+hist/
+
+# ===== APK / 打包产物 =====
+*.apk
+*.aab
+*.apks
+
+# ===== 临时与反编译目录 =====
+_recover/
+*_temp/
+*.bak
+*.bak.*
+*.orig
+*.rej
+
+# ===== IDE =====
+.idea/
+*.iml
+.DS_Store
+*.swp
+
+# ===== 工作区备份 =====
+.backup/
+
+# ===== 本地开发笔记与凭据（仅自用，不上 GitHub）=====
+docs/DEVNOTES.md
+docs/rules_note.md
+
+# ===== 宣传视频素材：体积大，仅本地 =====
+publicity/*.mp4
+publicity/*.mov
+
+# 内部自省草稿，仅本地
+docs/改进.md
+
+# AI 开工须知与本地脚本（含内部约定，不入库）
+AGENTS.md
+Tools/
+design/*.html
+
+# 本地数据导出（含个人听歌历史与路径），绝不入库
+irismusic-default-data.json
+
+# 本地设计稿与宣传素材，仅本地
+publicity/
+
+# 音效素材工作目录（审核中，通过后转入 res/raw）
+sfx/
+
+# ===== 本机媒体库索引屏蔽（空文件，仅本机有用） =====
+.nomedia
+
+# 截图原 jpg（带 EXIF、README 未引用）仅留本机，发布物只用 _f.png
+docs/screenshots/*.jpg
+
+# 源码归档 zip 不进库（发布物只含源码）
+*.zip

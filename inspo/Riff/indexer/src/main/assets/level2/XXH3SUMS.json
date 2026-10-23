@@ -1,0 +1,26 @@
+{
+  "NOTICES.txt": {
+    "xxh3": "af24d8a42273c560",
+    "bytes": 808
+  },
+  "calibrators.json": {
+    "xxh3": "fe7b7da597ea77df",
+    "bytes": 280496
+  },
+  "manifest.json": {
+    "xxh3": "c8b2d2d0982c1b58",
+    "bytes": 3861
+  },
+  "reference-vector.npz": {
+    "xxh3": "c6daf91422893563",
+    "bytes": 713141
+  },
+  "riff-level2-efficientat-eval-v2.tflite": {
+    "xxh3": "951b6eefc54f488a",
+    "bytes": 28241012
+  },
+  "validation-report.json": {
+    "xxh3": "ae057866809e6279",
+    "bytes": 4327
+  }
+}

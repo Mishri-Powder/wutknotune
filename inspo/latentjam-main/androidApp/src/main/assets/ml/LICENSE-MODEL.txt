@@ -1,0 +1,156 @@
+LatentJam bundled model licences
+================================
+
+The LatentJam-produced weights below are licensed under the Apache License,
+Version 2.0, included in the repository root:
+
+  mnv4_audio.onnx
+  artist_knowledge.bin
+  artist_adapter.bin
+  text_encoder.onnx
+  text_vocab.txt
+
+Copyright (c) 2026 LatentJam Project
+
+mnv4_audio.onnx is a pruned copy of a 960-dimensional MobileNetV4-Conv-M
+student initialized from the previous EfficientAT MN10 distillation, then
+retrieval-distilled with MN10 preservation, EfficientAT DyMN20 relational
+supervision, and public playlist-transition supervision. This experimental
+weight file has not yet passed the training-data rights review required for a
+public release.
+The pruned copy keeps half of the expanded channels of each of its 21
+inverted-residual blocks and half of the head convolution's 1,280 hidden
+units: those with the largest mean activation on calibration audio, weighted
+by the size of the weights that read them. Its log-mel DFT is computed as a
+four-step FFT (two 32-point stages of matrix products) instead of a
+convolution over stored kernels; the math is the same. Its 45 pointwise
+convolutions and its final projection hold symmetric 4-bit weights and run on
+LatentJam's own operator (core/ort-ops): the 44 convolutions over time and
+frequency with a float scale per output channel over a clipping range learned
+in training, the head convolution and the projection, which run once per
+window, in blocks of 32 inputs with a bfloat16 scale each. The pruned network
+was trained by quantization-aware distillation, learning to reproduce the
+unpruned float encoder's embeddings of 10 s windows from 8,222 Free Music
+Archive tracks released under CC BY, CC0 or public domain (no share-alike or
+no-derivatives licence), then fine-tuned for five epochs against the same
+float encoder with the graph's INT8 convolutions and uint8 activations
+simulated, on one 10 s crop from each of 15,000 tracks: 1,734 Free Music
+Archive tracks under the same licences and 13,266 Million Playlist Dataset
+preview clips outside the evaluation libraries. The graph is built from it by
+tools/research/model_diet/qat_audio.py, distill_audio_cached.py and
+make_q4_encoder.py. Its other convolution weights are INT8 (per-channel); its
+activation ranges are the ones learned in that fine-tune where the training
+simulates them, and otherwise calibrated on the first 10 s of 200 Free Music
+Archive tracks under CC BY, CC BY-SA, CC0 or public domain; no audio is stored
+in the model. Its track embeddings sit at a mean cosine of 0.992 to the
+unpruned float encoder's, against 0.997 for the previous, unpruned 4-bit
+graph.
+universal_semantic_head.onnx is a compact 27-label routing head over those
+960-dimensional embeddings. It preserves the calibrated FMA genre branch and
+the EfficientAT MN10 hidden projection while pruning the AudioSet teacher from
+527 outputs to the 59 source concepts needed for genre, mood, energy, speech,
+sound effects, novelty-proxy, and instrumental scores. Its FMA-derived branch
+has not passed the source-audio rights review required for public
+redistribution. The novelty output is only a weak acoustic proxy and the app
+requires metadata corroboration before naming a meme/viral mix. Its two
+largest matrices are 4-bit blocks (ONNX Runtime's MatMulNBits), fine-tuned to
+reproduce the FP16 head's outputs on audio vectors of libraries assembled from
+Million Playlist Dataset playlists and their preview audio, and of Free Music
+Archive tracks. That preview audio, like the music encoder's training data,
+has not passed the rights review required for a public release.
+universal_semantic_head.onnx combines parameters trained by LatentJam, licensed
+Apache-2.0, with parameters copied from the EfficientAT MN10 checkpoint, licensed
+MIT as reproduced below.
+The student implementation used PyTorch Image Models (timm), licensed
+Apache-2.0. EfficientAT code and published weights are licensed MIT:
+
+  Copyright (c) 2022 Florian Schmid
+  https://github.com/fschmid56/EfficientAT
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+artist_knowledge.bin holds one product-quantized 384-dimensional vector per
+artist of music_entities_250k.bin, so the two files ship together. Each vector
+is the MiniLM text encoder's embedding (sentence-transformers/all-MiniLM-L6-v2,
+Apache-2.0, run offline) of a one-line description of
+the artist that DeepSeek-V4.1-Flash wrote from the artist's name alone; the
+description text is not included. Each record also keeps a 16-bit fingerprint
+of the artist's normalized name, up to two language indices, the middle of the
+decades the model says the artist was most active in, and the model's own
+confidence; the file keeps records only for the artists whose confidence the
+app accepts. artist_adapter.bin is a two-layer network trained by LatentJam
+that guesses such a vector from a track's metadata vector when the pack does
+not cover the artist. It was trained only on metadata strings synthesized from
+the same model's structured artist attributes (languages, decades, genres),
+never on a listener's library. Its weights are 4-bit codes (groups of 32
+rotated by a Walsh-Hadamard matrix, a Lloyd-Max codebook and an FP16 length
+per group), quantized after training. DeepSeek's terms of use permit using its
+outputs, including for training.
+
+music_entities_250k.bin is a hash index over artist names and aliases: the
+250,000 MusicBrainz artists with the most artist credits, then musicians,
+singers and groups from Wikidata that have a Wikipedia article and fall
+outside that list, ranked by article count. MusicBrainz core data and Wikidata
+are both CC0. The index stores only 40-bit name hashes and integer ids, never
+the names themselves.
+
+text_encoder.onnx is a three-layer, 256-wide BERT that LatentJam trained to
+reproduce the mean-pooled sentence vectors of
+sentence-transformers/all-MiniLM-L6-v2 (Apache-2.0,
+https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2); it contains
+none of MiniLM's weights. text_vocab.txt is its own WordPiece vocabulary. The
+training strings were artist names and aliases from the entity corpus above
+(CC0), metadata strings synthesized from the DeepSeek artist attributes,
+search-style phrases built from templates, MiniLM's vocabulary words, and
+search phrases DeepSeek-V4.1-Flash translated into twenty languages. No
+listener's library went into it. Its word embeddings are 4-bit blocks (ONNX
+Runtime's GatherBlockQuantized), quantized after training, and its other
+weights dynamic INT8.
+
+No non-commercial model weights and no offline per-track descriptor table are
+included in the application.
+
+The models execute locally with Microsoft ONNX Runtime, licensed MIT:
+
+  Copyright (c) Microsoft Corporation
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+LatentJam's 4-bit operator (core/ort-ops) includes matrix-multiplication
+kernels from Arm KleidiAI, licensed Apache-2.0 (the licence text is the
+LICENSE file in the repository root):
+
+  Copyright 2024-2026 Arm Limited and/or its affiliates
+  <open-source-office@arm.com>

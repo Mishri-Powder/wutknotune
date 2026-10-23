@@ -1,0 +1,687 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import io.github.nikitasud.latentjam.history.Favorites
+import io.github.nikitasud.latentjam.history.ListeningHistory
+import io.github.nikitasud.latentjam.history.RecentSearches
+import io.github.nikitasud.latentjam.history.ForYouImpressions
+import io.github.nikitasud.latentjam.history.SmartExclusions
+import io.github.nikitasud.latentjam.history.listeningHistoryModule
+import io.github.nikitasud.latentjam.library.MusicLibrary
+import io.github.nikitasud.latentjam.library.Playlists
+import io.github.nikitasud.latentjam.library.musicLibraryModule
+import io.github.nikitasud.latentjam.library.nowMillis
+import io.github.nikitasud.latentjam.playback.NextTrackChooser
+import io.github.nikitasud.latentjam.playback.PlaybackController
+import io.github.nikitasud.latentjam.playback.SleepTimerController
+import io.github.nikitasud.latentjam.playback.EqualizerController
+import io.github.nikitasud.latentjam.playback.equalizerModule
+import io.github.nikitasud.latentjam.playback.playbackModule
+import io.github.nikitasud.latentjam.smart.IndexStore
+import io.github.nikitasud.latentjam.smart.SimilarityEngine
+import io.github.nikitasud.latentjam.smart.SmartEngineConfig
+import io.github.nikitasud.latentjam.smart.EngineError
+import io.github.nikitasud.latentjam.smart.TrackDescriptor
+import io.github.nikitasud.latentjam.smart.TrackId
+import io.github.nikitasud.latentjam.smart.di.smartEngineModule
+import io.github.nikitasud.latentjam.smart.di.smartLayoutQualifier
+import io.github.nikitasud.latentjam.smart.di.smartMapLayoutDispatcherQualifier
+import io.github.nikitasud.latentjam.smart.smartChainInputsModule
+import io.github.nikitasud.latentjam.smart.smartEngineBackendModule
+import io.github.nikitasud.latentjam.smart.text.smartTextEncoderModule
+import io.github.nikitasud.latentjam.smart.text.MusicEntityResolver
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.koin.core.Koin
+import org.koin.core.KoinApplication
+import org.koin.core.module.Module
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
+
+/**
+ * The app's single composition root, shared verbatim by the Android and iOS
+ * entry points.
+ *
+ * A SCOPED Koin application (not the `startKoin` global) — nothing else in
+ * the process can collide with it. Each platform entry point calls [start]
+ * exactly once before touching [engine]/[library], passing whatever platform
+ * bindings its modules need (Android contributes an `android.content.Context`
+ * for the MediaStore-backed library; iOS passes nothing).
+ *
+ * [start] is idempotent but not thread-safe by design: both entry points call
+ * it from the platform's main thread during launch, before any concurrent
+ * access exists.
+ *
+ * Resolving [engine]/[library] is allocation-only (all heavy work hides
+ * behind their suspend functions), so both are safe to read while building
+ * the very first UI frame.
+ */
+object AppGraph {
+    internal val normalizationStatus = MutableStateFlow(NormalizationStatus())
+
+    internal val lyricsSearchCache = LyricsSearchCache()
+
+    private var koinApp: KoinApplication? = null
+
+    /**
+     * App-lifetime scope for work that must outlive any single composition
+     * (e.g. library indexing). Dies with the process; WorkManager-grade
+     * scheduling is a later roadmap item.
+     */
+    val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private val mutableAutomaticIndexing = MutableStateFlow(AutomaticIndexingState())
+    val automaticIndexing: StateFlow<AutomaticIndexingState> =
+        mutableAutomaticIndexing.asStateFlow()
+    private val mutableHistoryRevision = MutableStateFlow(0L)
+
+    /**
+     * What the current queue was started from — set by the surface that starts a queue, shown as
+     * the player's "Playing from" line, and persisted with the resume session so the label
+     * survives a restart. Null means unknown, which simply shows nothing.
+     */
+    val queueSource = MutableStateFlow<QueueSource?>(null)
+
+    /**
+     * The playlists the listener marked "keep together in SMART", as bare id-set groups. Kept
+     * current by the App whenever playlists change; read by every SMART queue planner.
+     */
+    val smartCompanionGroups = MutableStateFlow<List<Set<TrackId>>>(emptyList())
+    /** Advances after each accepted listening event so For You can apply feedback next time it opens. */
+    val historyRevision: StateFlow<Long> = mutableHistoryRevision.asStateFlow()
+    private val historyFlushRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private var automaticIndexingKey: AutomaticIndexingRequest? = null
+    private var automaticIndexingJob: Job? = null
+
+    /** Initializes the graph. Call once from the platform entry point. */
+    fun start(platformModule: Module = module { }) {
+        if (koinApp == null) {
+            koinApp = koinApplication {
+                modules(
+                    platformModule,
+                    smartEngineModule,
+                    smartEngineBackendModule(),
+                    // The SMART chain's text model and inputs. Bound separately from the embedding
+                    // backend because a platform can have one without the other. No learned
+                    // predictor is bound: the chain plans on its own terms (0.8.1 dropped the
+                    // state and scorer nets).
+                    smartTextEncoderModule(),
+                    smartChainInputsModule(),
+                    musicLibraryModule(),
+                    playbackModule(),
+                    equalizerModule(),
+                    appSettingsModule(),
+                    appPermissionsModule(),
+                    indexingNotifierModule(),
+                    loudnessMeterModule(),
+                    listeningHistoryModule(),
+                    module {
+                        // Retrieval-distilled MNv4 audio (pruned, 4-bit) + learned optional
+                        // text, fully local.
+                        single {
+                            SmartEngineConfig(
+                                embeddingDim = 960,
+                                modelLocator = "ml/mnv4_audio.onnx",
+                                // Must match assets/ml/embedding_version.txt;
+                                // keys the persisted index snapshot, so a new encoder
+                                // re-indexes the library instead of mixing two spaces.
+                                modelVersion = "mnv4-960-retrieval-distill-v1-p50q4aq",
+                                // EXPERIMENT CONCLUDED, off. Two weeks live at 0.3f
+                                // (2026-07-27 → 08-12): SMART skip rate 0.469 pre vs 0.463
+                                // post over 783/363 events, Fisher p=0.90, with the
+                                // non-SMART control moving the same amount. Typicality
+                                // PREDICTS keeps (AUC 0.633 on 717 transitions) but boosting
+                                // it does not CAUSE them — the prediction was carried by
+                                // familiarity, not by queue fit. The term and snapshot axis
+                                // stay for future experiments; re-enable only with a new
+                                // hypothesis and its own before/after window.
+                                typicalityWeight = 0f,
+                                // Queues spend the pick's neighbourhood before moving on, across the
+                                // plans the queue is topped up with. Against 0.7.1 on held-out MPD
+                                // libraries (450 starts each, docs/model-diet-fixes-2026-10-06.md): more
+                                // tracks from the pick's playlists (+1.0 pp top-up, +1.5 at length 10),
+                                // smoother transitions and fewer abrupt ones at every queue length.
+                                // Thematic libraries (the owner's) lose playlist share; history-mode
+                                // evidence exists only for that library.
+                                continueAfterExhaustion = true,
+                                // The correction learned from a listening judge, a sound floor and a soft
+                                // penalty for runs of one artist. Against the mode above on held-out and
+                                // fresh MPD libraries both judges prefer it (+0.26/+0.15 and +0.13/+0.10),
+                                // playlist share +1.3/+0.7 pp, harsh transitions -0.5 pp, a blind listener
+                                // panel 12:6; the owner's library +5 pp playlist share. The listener's
+                                // artist-variety setting replaces the default penalty at startup (App).
+                                judgedScoring = true,
+                                artistRunPenalty = ARTIST_VARIETY_PENALTIES[DEFAULT_ARTIST_VARIETY],
+                            )
+                        }
+                        // The single point where playback meets the engine.
+                        single<NextTrackChooser> {
+                            EngineNextTrackChooser(
+                                engine = get(),
+                                history = get(),
+                                companionGroups = { smartCompanionGroups.value },
+                            )
+                        }
+                    },
+                )
+            }
+            if (playbackGainControlsAvailable) {
+                // Volume normalization measures lazily as tracks play and pushes the gain map.
+                LoudnessNormalizer(
+                    settings = settings,
+                    playback = playback,
+                    meter = koin.get(),
+                    onStatus = { normalizationStatus.value = it },
+                ).start(appScope)
+                // Boundary fades follow the preference where the platform implements them.
+                if (boundaryFadeControlsAvailable) appScope.launch {
+                    settings.crossfadeSeconds.collect { playback.setCrossfadeSeconds(it) }
+                }
+            }
+            // History observes playback for the app's whole lifetime.
+            appScope.launchPlaybackHistoryRecorder(
+                playback = playback,
+                history = history,
+                enabled = settings.saveListeningHistory,
+                flushRequests = historyFlushRequests,
+                parentId = { queueSource.value?.parentCollectionId() },
+                onRecorded = { mutableHistoryRevision.value += 1L },
+            )
+            // Remembers where listening stood, so the next launch reopens with the same track
+            // parked in the player and the same shuffle mode — SMART stays on across restarts.
+            // Ignore the empty launch state until playback has a session to restore or create.
+            // Later empty states clear the saved queue. While playing, bucket position to 10 s
+            // so the ~2 Hz ticker does not become 2 Hz disk writes; pause/seek keeps exact time.
+            appScope.launch {
+                // Android's ticker reuses immutable queue snapshots between actual queue edits.
+                // Preserve their projected ids too: otherwise a 10k-row queue allocates 20k string
+                // references every half-second merely because playback position advanced.
+                var cachedLiveQueue: List<TrackDescriptor>? = null
+                var cachedLiveQueueIds: List<String> = emptyList()
+                var cachedSourceQueue: List<TrackDescriptor>? = null
+                var cachedSourceQueueIds: List<String> = emptyList()
+                combine(playback.state, queueSource) { now, source ->
+                    if (now.track == null) {
+                        // Release a stopped session's potentially 10k-row descriptor graphs.
+                        cachedLiveQueue = null
+                        cachedLiveQueueIds = emptyList()
+                        cachedSourceQueue = null
+                        cachedSourceQueueIds = emptyList()
+                    }
+                    now.track?.let { track ->
+                        val persistableLiveQueue = now.queue
+                            .takeIf { it.size in 1..MAX_RESUME_QUEUE }
+                        val liveQueueIds = if (persistableLiveQueue == null) {
+                            cachedLiveQueue = null
+                            cachedLiveQueueIds = emptyList()
+                            cachedLiveQueueIds
+                        } else if (persistableLiveQueue === cachedLiveQueue) {
+                            cachedLiveQueueIds
+                        } else {
+                            cachedLiveQueue = persistableLiveQueue
+                            persistableLiveQueue.mapTo(ArrayList(persistableLiveQueue.size)) {
+                                it.id.value
+                            }.also { cachedLiveQueueIds = it }
+                        }
+                        // Empty is a real source after every original playlist row was deleted;
+                        // null means an oversized source was deliberately omitted and restore must
+                        // use its backward-compatible fallback instead.
+                        val persistedSourceQueue = now.sourceQueue
+                            .takeIf { it.size <= MAX_RESUME_QUEUE }
+                        val sourceQueueIds = if (persistedSourceQueue == null) {
+                            cachedSourceQueue = null
+                            cachedSourceQueueIds = emptyList()
+                            cachedSourceQueueIds
+                        } else if (persistedSourceQueue === cachedSourceQueue) {
+                            cachedSourceQueueIds
+                        } else {
+                            cachedSourceQueue = persistedSourceQueue
+                            persistedSourceQueue.mapTo(ArrayList(persistedSourceQueue.size)) {
+                                it.id.value
+                            }.also { cachedSourceQueueIds = it }
+                        }
+                        ResumePlayback(
+                            trackId = track.id.value,
+                            shuffleMode = now.shuffleMode.name,
+                            positionMs = resumePositionMs(now.positionMs, now.isPlaying),
+                            sourceKind = source?.kind?.name,
+                            sourceName = source?.name,
+                            sourceReference = source?.reference,
+                            // The queue itself, so a restart resumes the playlist that was
+                            // actually playing. A whole-library queue is exactly what the
+                            // fallback restore rebuilds anyway, so oversized ones are skipped.
+                            queueTrackIds = liveQueueIds,
+                            queueIndex = now.queueIndex.takeIf { liveQueueIds.isNotEmpty() } ?: -1,
+                            // SMART's live queue is a generated path, not its durable source. Save
+                            // the latter independently so SMART -> OFF after restart returns to the
+                            // originating playlist/collection instead of the recommendation tail.
+                            sourceQueueTrackIds = sourceQueueIds,
+                            sourceQueuePersisted = persistedSourceQueue != null,
+                            smartContinuationIds = if (persistableLiveQueue == null) emptySet() else {
+                                now.smartContinuationIds.mapTo(HashSet()) { it.value }
+                            },
+                            smartPlanPositions = if (persistableLiveQueue == null) emptyMap() else {
+                                now.smartPlanPositions.mapKeys { (id, _) -> id.value }
+                            },
+                        )
+                    }
+                }
+                    .resumePlaybackWrites()
+                    .collect(settings::setResumePlayback)
+            }
+        }
+    }
+
+    /**
+     * Asks the history recorder to finalize the in-progress listening session — called when the
+     * app leaves the foreground. Without this the log only gained a session when playback moved
+     * OFF a track, so the last track of every sitting was lost to a process kill. The recorder
+     * ignores the request while sound is still playing (the foreground service keeps the
+     * eventual transition recording intact); backgrounding while paused is what ends a sitting.
+     */
+    fun flushListeningSession() {
+        historyFlushRequests.tryEmit(Unit)
+    }
+
+    /** The process-wide similarity engine. */
+    val engine: SimilarityEngine
+        get() = koin.get()
+
+    /** The local listening record. */
+    val history: ListeningHistory
+        get() = koin.get()
+
+    /** Where the Map's 2-D layout is cached between visits. */
+    val layoutStore: IndexStore
+        get() = koin.get(smartLayoutQualifier)
+
+    /** Dedicated low-priority serial lane for the Map's potentially minute-long O(n²) layout. */
+    val mapLayoutDispatcher: CoroutineDispatcher
+        get() = koin.get(smartMapLayoutDispatcherQualifier)
+
+    /** Previously searched queries. */
+    val recentSearches: RecentSearches
+        get() = koin.get()
+
+    /** Hearted tracks, newest first; device-local like the rest of the listening data. */
+    val favorites: Favorites
+        get() = koin.get()
+
+    /** Tracks/artists kept in the library but explicitly excluded from SMART suggestions. */
+    val smartExclusions: SmartExclusions
+        get() = koin.get()
+
+    /** What For You actually offered, per track and local day — cooldowns and honest eval. */
+    val forYouImpressions: ForYouImpressions
+        get() = koin.get()
+
+    /** CC0 aliases and artist/group relationships, loaded in the background and queried locally. */
+    val musicEntities: MusicEntityResolver
+        get() = koin.get()
+
+    /** The user's playlists. */
+    val playlists: Playlists
+        get() = koin.get()
+
+    /** The device music collection. */
+    val library: MusicLibrary
+        get() = koin.get()
+
+    /** Shell-level user preferences (theme). */
+    val settings: AppSettings
+        get() = koin.get()
+
+    /** Verified tag edits whose songs keep their audio analysis at the next index sync (spec §6.5). */
+    internal val audioCarryOvers: AudioCarryOverStore by lazy {
+        AudioCarryOverStore(settings::readAudioCarryOversPayload, settings::writeAudioCarryOversPayload)
+    }
+
+    /** Operating-system permission state plus durable recovery destinations. */
+    val permissions: AppPermissions
+        get() = koin.get()
+
+    /** The system equalizer attached to our audio output. */
+    val equalizer: EqualizerController
+        get() = koin.get()
+
+    /** The playback controller (media-session-backed on Android). */
+    val playback: PlaybackController
+        get() = koin.get()
+
+    /**
+     * One process-lifetime timer shared by every Activity/composition recreation. Keeping it here
+     * prevents a rotation, theme change, or temporary UI teardown from silently cancelling an
+     * active timer while playback itself continues in the platform media session.
+     */
+    val sleepTimer: SleepTimerController by lazy {
+        SleepTimerController(playback = playback, scope = appScope, nowMillis = ::nowMillis)
+    }
+
+    /** Reports long-running library analysis to the platform's notification surface. */
+    val indexingNotifier: IndexingNotifier
+        get() = koin.get()
+
+    /**
+     * Starts (or resumes) the library's automatic local analysis outside the UI lifecycle.
+     *
+     * A Compose effect is only responsible for handing us the latest library. The actual model
+     * work lives in [appScope], while Android's [IndexingNotifier] promotes the process to a
+     * foreground service. Consequently changing screen, locking the phone, or swiping the task
+     * away does not cancel a half-finished library scan.
+     *
+     * Work stays in small interactive chunks, while full snapshots are checkpointed at a bounded
+     * cadence. A genuine process death can therefore lose at most one checkpoint window; the next
+     * launch presents the same key again and already-persisted tracks are skipped.
+     */
+    fun ensureAutomaticIndexing(
+        tracks: List<TrackDescriptor>,
+        librarySnapshotAuthoritative: Boolean,
+        notificationTitle: String,
+        force: Boolean = false,
+        notificationText: suspend (done: Int, total: Int, etaMinutes: Int?) -> String,
+    ) {
+        val key = AutomaticIndexingRequest(
+            tracks = tracks,
+            librarySnapshotAuthoritative = librarySnapshotAuthoritative,
+        )
+        val trackIds = tracks.map(TrackDescriptor::id)
+        val existing = automaticIndexingJob
+        if (!force &&
+            automaticIndexingKey == key &&
+            (existing?.isActive == true || automaticIndexing.value.complete)
+        ) {
+            return
+        }
+
+        automaticIndexingKey = key
+        automaticIndexingJob = appScope.launch {
+            // Library changes are uncommon, but if one arrives mid-scan the obsolete worker must
+            // finish cancellation (including removing its notification) before the replacement
+            // announces itself. Otherwise the old finally block can erase the new progress bar.
+            existing?.cancelAndJoin()
+
+            val notifier = indexingNotifier
+            val failures = LinkedHashMap<TrackId, EngineError>()
+            val total = tracks.size
+            var reportProgress = false
+            val eta = IndexingEta(nowMillis())
+            val progress = AnalysisProgress(total)
+            val checkpointCadence = AutomaticIndexCheckpointCadence(
+                tracksPerCheckpoint = AUTOMATIC_INDEX_CHECKPOINT_TRACKS,
+            )
+            mutableAutomaticIndexing.value = AutomaticIndexingState(
+                trackIds = trackIds,
+                running = true,
+            )
+            runAutomaticIndexingSafely(
+                checkpoint = { engine.persistPendingAnalysis() },
+                finishNotification = { if (reportProgress) notifier.finish() },
+                cancelNotificationPrompt = { permissions.cancelNotificationPrompt() },
+                onStopped = {
+                    // Cancellation and failure are not completion. A retry must be allowed to
+                    // continue from the persisted chunks, even when notification cleanup failed.
+                    if (!mutableAutomaticIndexing.value.complete) {
+                        mutableAutomaticIndexing.value = mutableAutomaticIndexing.value.copy(
+                            running = false,
+                            failures = failures.toMap(),
+                        )
+                    }
+                },
+            ) {
+                engine.initialize().getOrThrow()
+                // A denied/not-yet-resolved permission is represented by an empty (or on iOS,
+                // partial app-owned-files-only) scan. Index the rows we can see, but do not let
+                // that ambiguous snapshot erase durable vectors or remembered decode failures.
+                // The authority bit belongs to this exact scan and participates in the dedup key,
+                // so a later granted, genuinely empty rescan still reaches reconciliation.
+                // A verified tag edit left the audio as it was: re-key its vector before the sync
+                // below would discard it for the file's new revision (spec §6.5).
+                val carryOvers = audioCarryOvers.pending()
+                if (carryOvers.isNotEmpty()) {
+                    audioCarryOvers.settle(carryOvers, engine.carryOverAudio(tracks, carryOvers))
+                }
+                engine.synchronizeLibrary(
+                    library = tracks,
+                    pruneMissing = librarySnapshotAuthoritative,
+                )
+                if (force) engine.retryFailedTracks(trackIds)
+                // The foreground service and its notification are only warranted when audio
+                // embedding will actually run. The dedup key lives in process memory, so every
+                // cold start re-enters this job — and used to flash a "0 of N" notification at
+                // an already-complete library on every single launch. Promotion still happens
+                // BEFORE the first audio batch, which is the work the service protects; the
+                // window during model loading is seconds and carries no batch to lose.
+                val missing = if (total > 0) engine.missingFromIndex(trackIds) else 0
+                // Counted before the metadata phase: a pass that only re-encodes text vectors (a
+                // year learned after an upgrade) must not read as analysis lost.
+                progress.started(missing)
+                mutableAutomaticIndexing.value = mutableAutomaticIndexing.value.copy(
+                    done = progress.analysed,
+                    progressKnown = true,
+                )
+                if (missing > 0) {
+                    reportProgress = true
+                    // This signal only offers a rationale in the active UI. It never waits for or
+                    // requires permission: indexing remains fully functional after "Not now".
+                    permissions.backgroundAnalysisNeedsNotifications()
+                    notifier.show(
+                        title = notificationTitle,
+                        text = notificationText(progress.analysed, total, null),
+                        done = progress.analysed,
+                        total = total,
+                    )
+                }
+                tracks.chunked(AUTOMATIC_INDEX_CHUNK_SIZE).forEach { chunk ->
+                    val added = engine.stageMetadataVectors(chunk)
+                    checkpointCadence.afterBatch(chunk.size, engine::persistPendingAnalysis)
+                    if (added > 0) delay(AUTOMATIC_INDEX_YIELD_MS)
+                }
+                // metadataReady promises more than an in-memory process cache: a restart should
+                // see every vector encoded by this phase, including a short final window.
+                checkpointCadence.flush(engine::persistPendingAnalysis)
+                mutableAutomaticIndexing.value = mutableAutomaticIndexing.value.copy(
+                    metadataReady = true,
+                )
+
+                var visited = 0
+                // Spread over the library rather than in title order, so the SMART pool is
+                // representative long before a big library finishes (see analysisOrder).
+                analysisOrder(tracks).chunked(AUTOMATIC_INDEX_CHUNK_SIZE).forEach { chunk ->
+                    val missingBefore = engine.missingFromIndex(chunk.map(TrackDescriptor::id))
+                    val report = engine.stageLibraryIndex(chunk)
+                    failures.putAll(report.errors)
+                    visited += chunk.size
+                    progress.visited(missingBefore)
+                    checkpointCadence.afterBatch(chunk.size, engine::persistPendingAnalysis)
+                    // The pass's own pace: tracks already analysed cost it nothing.
+                    val remaining = eta.remainingMs(visited, total, nowMillis())
+                    if (reportProgress) {
+                        notifier.show(
+                            title = notificationTitle,
+                            text = notificationText(
+                                progress.analysed,
+                                total,
+                                remaining?.let(IndexingEta::minutesFrom),
+                            ),
+                            done = progress.analysed,
+                            total = total,
+                        )
+                    }
+                    mutableAutomaticIndexing.value = mutableAutomaticIndexing.value.copy(
+                        done = progress.analysed,
+                        failures = failures.toMap(),
+                    )
+                    // A short scheduling gap also gives thermal management a chance to settle;
+                    // 75 ms per model batch is invisible beside audio inference but materially
+                    // improves gesture latency on mid-range phones.
+                    if (report.indexed > 0 || report.failed > 0) {
+                        delay(AUTOMATIC_INDEX_YIELD_MS)
+                    }
+                }
+                // Completion is published only after the short final checkpoint is durable.
+                checkpointCadence.flush(engine::persistPendingAnalysis)
+                mutableAutomaticIndexing.value = mutableAutomaticIndexing.value.copy(
+                    running = false,
+                    complete = true,
+                    done = total,
+                    failures = failures.toMap(),
+                )
+            }
+        }
+    }
+
+    /** Stops the process-lifetime scan when the platform withdraws its execution budget. */
+    fun cancelAutomaticIndexing() {
+        automaticIndexingJob?.cancel()
+    }
+
+    private val koin: Koin
+        get() = checkNotNull(koinApp) {
+            "AppGraph.start() must be called by the platform entry point before use"
+        }.koin
+}
+
+/**
+ * Optional background analysis must not crash playback when storage or foreground promotion
+ * fails. SupervisorJob isolates siblings, but an uncaught launch exception still reaches the
+ * platform's uncaught-exception handler. Keep cancellation observable and independently release
+ * every resource so one cleanup failure cannot leave the UI permanently reporting a running job.
+ */
+internal suspend fun runAutomaticIndexingSafely(
+    checkpoint: suspend () -> Unit,
+    finishNotification: () -> Unit,
+    cancelNotificationPrompt: () -> Unit,
+    onStopped: () -> Unit,
+    work: suspend () -> Unit,
+) {
+    try {
+        work()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        println("SMART: automatic indexing interrupted: $failure")
+    } finally {
+        // A batch can be cancelled after installing vectors but before reaching its checkpoint.
+        // Persist that dirty window before allowing a replacement worker to acquire its resources.
+        withContext(NonCancellable) {
+            try {
+                checkpoint()
+            } catch (failure: Exception) {
+                // The engine retains dirty flags; a retry still attempts the outstanding save.
+                println("SMART: final indexing checkpoint failed: $failure")
+            }
+        }
+        try {
+            finishNotification()
+        } catch (failure: Exception) {
+            println("SMART: could not dismiss indexing notification: $failure")
+        }
+        try {
+            cancelNotificationPrompt()
+        } catch (failure: Exception) {
+            println("SMART: could not dismiss indexing permission prompt: $failure")
+        } finally {
+            onStopped()
+        }
+    }
+}
+
+/** A completed UI library scan plus whether it proves which durable SMART rows are still live. */
+internal data class AutomaticIndexingRequest(
+    val tracks: List<TrackDescriptor>,
+    val librarySnapshotAuthoritative: Boolean,
+)
+
+data class AutomaticIndexingState(
+    val trackIds: List<TrackId> = emptyList(),
+    val running: Boolean = false,
+    val metadataReady: Boolean = false,
+    val complete: Boolean = false,
+    /** Tracks of the library analysed so far, those analysed before this pass included ([AnalysisProgress]). */
+    val done: Int = 0,
+    /** Whether [done] has been counted yet; until then this pass has nothing true to show. */
+    val progressKnown: Boolean = false,
+    val failures: Map<TrackId, EngineError> = emptyMap(),
+)
+
+/**
+ * "N of M tracks analysed" for one analysis pass: the library's tracks that need no more audio
+ * work, whether analysed before this pass or by it. A pass starts from those it finds already
+ * analysed, and each chunk it visits adds only the tracks that still needed work. A new pass (an
+ * upgrade's re-enrichment re-encodes text vectors and visits the library in a spread order) never
+ * restarts the count near zero while every fingerprint is kept; it never drops, and ends at [total].
+ */
+internal class AnalysisProgress(private val total: Int) {
+    var analysed: Int = 0
+        private set
+
+    /** The pass found [missing] tracks still needing audio analysis. */
+    fun started(missing: Int) {
+        analysed = (total - missing).coerceIn(0, total)
+    }
+
+    /** A chunk was visited; [missingBefore] of its tracks still needed analysis. */
+    fun visited(missingBefore: Int) {
+        analysed = (analysed + missingBefore.coerceAtLeast(0)).coerceAtMost(total)
+    }
+}
+
+// The engine serialises a batch under its model/index lock. Eight bounds how long an interactive
+// SMART/search request can wait; the separate cadence coalesces four such batches per snapshot.
+private const val AUTOMATIC_INDEX_CHUNK_SIZE = 8
+private const val AUTOMATIC_INDEX_CHECKPOINT_TRACKS = 32
+private const val AUTOMATIC_INDEX_YIELD_MS = 75L
+
+/** Coalesces small model-lock batches without allowing an unbounded crash-loss window. */
+internal class AutomaticIndexCheckpointCadence(
+    private val tracksPerCheckpoint: Int,
+) {
+    private var tracksSinceCheckpoint: Int = 0
+
+    init {
+        require(tracksPerCheckpoint > 0)
+    }
+
+    suspend fun afterBatch(
+        trackCount: Int,
+        checkpoint: suspend () -> Unit,
+    ) {
+        require(trackCount in 0..tracksPerCheckpoint)
+        tracksSinceCheckpoint += trackCount
+        if (tracksSinceCheckpoint >= tracksPerCheckpoint) {
+            checkpoint()
+            tracksSinceCheckpoint = 0
+        }
+    }
+
+    /** Always attempts a checkpoint so partially completed/cancelled batches are included too. */
+    suspend fun flush(checkpoint: suspend () -> Unit) {
+        checkpoint()
+        tracksSinceCheckpoint = 0
+    }
+}
+
+/** Queues beyond this are effectively "the whole library" and are cheaper to rebuild than store. */
+// Keep this aligned with the collision-safe decoder cap. A 10k-id source is still a modest
+// preferences value (opaque ids dominate size), and persisting it is more truthful than inferring
+// the order of a shuffled/sorted/multi-selected Tracks or Search queue after restart.
+private const val MAX_RESUME_QUEUE = 10_000

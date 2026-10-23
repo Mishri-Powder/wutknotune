@@ -1,0 +1,679 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.playback
+
+import io.github.nikitasud.latentjam.smart.TrackDescriptor
+import io.github.nikitasud.latentjam.smart.TrackId
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+internal class PlaybackQueueTransitionsTest {
+
+    @Test
+    fun provisionalSessionMetadataMakesAnExternalCurrentTrackVisible() {
+        val track = provisionalTrackDescriptor(
+            mediaId = "external-42",
+            title = "External track",
+            artist = "Artist",
+            album = "Album",
+            genre = "Genre",
+            durationMs = 123_000,
+            audioUri = "content://media/external-42",
+            artworkUri = "content://art/external-42",
+            year = 2026,
+        )
+
+        assertEquals(TrackId("external-42"), track?.id)
+        assertEquals("content://media/external-42", track?.audioUri)
+        assertEquals(123_000, track?.durationMs)
+        assertNull(
+            provisionalTrackDescriptor("", null, null, null, null, null, null, null, null),
+        )
+    }
+
+    private val a = track("a")
+    private val b = track("b")
+    private val c = track("c")
+    private val manual = track("manual")
+
+    @Test
+    fun `library removal retains the exact current duplicate occurrence`() {
+        assertEquals(1, retainedQueueIndex(listOf(a, b, a, c), 2, setOf(a.id, c.id)))
+    }
+
+    @Test
+    fun `library removal skips deleted rows without skipping surviving next tracks`() {
+        assertEquals(0, retainedQueueIndex(listOf(a, b, c, manual), 1, setOf(c.id, manual.id)))
+        assertEquals(0, retainedQueueIndex(listOf(a, b), 1, setOf(a.id)))
+        assertEquals(-1, retainedQueueIndex(listOf(a, b), 0, emptySet()))
+        assertEquals(-1, retainedQueueIndex(emptyList(), -1, setOf(a.id)))
+    }
+
+    @Test
+    fun `shuffle off restores source order when current belongs to source`() {
+        assertEquals(
+            PlaybackQueueOrder(tracks = listOf(a, b, c), currentIndex = 1),
+            sourceOrderKeepingCurrent(source = listOf(a, b, c), current = b),
+        )
+    }
+
+    @Test
+    fun `shuffle off keeps an out of pool current item at the playhead`() {
+        assertEquals(
+            PlaybackQueueOrder(tracks = listOf(manual, a, b, c), currentIndex = 0),
+            sourceOrderKeepingCurrent(source = listOf(a, b, c), current = manual),
+        )
+    }
+
+    @Test
+    fun `seamless source restoration splices rows around the existing current item`() {
+        assertEquals(
+            PlaybackQueueSplice(
+                beforeCurrent = listOf(a),
+                current = b,
+                afterCurrent = listOf(c),
+            ),
+            playbackQueueSplice(
+                PlaybackQueueOrder(tracks = listOf(a, b, c), currentIndex = 1),
+            ),
+        )
+        assertEquals(
+            PlaybackQueueSplice(
+                beforeCurrent = listOf(c, a),
+                current = manual,
+                afterCurrent = emptyList(),
+            ),
+            playbackQueueSplice(
+                PlaybackQueueOrder(tracks = listOf(c, a, manual), currentIndex = 2),
+            ),
+        )
+    }
+
+    @Test
+    fun `saved shuffled traversal restores without randomizing rows again`() {
+        val saved = listOf(c, a, manual, b)
+        val snapshot = playbackQueueSnapshot(saved, restoredOnIdentityTraversal(saved.size), 2)
+        assertEquals(saved, snapshot.rows)
+        assertEquals(2, snapshot.currentRowIndex)
+        assertEquals(b, snapshot.rows[snapshot.currentRowIndex + 1])
+        assertContentEquals(intArrayOf(), restoredOnIdentityTraversal(-1))
+    }
+
+    @Test
+    fun `smart to off requests the complete source queue at the current track`() {
+        assertEquals(
+            PlaybackQueueOrder(tracks = listOf(a, b, c), currentIndex = 1),
+            sourceOrderForShuffleTransition(
+                previousMode = ShuffleMode.SMART,
+                requestedMode = ShuffleMode.OFF,
+                source = listOf(a, b, c),
+                current = b,
+            ),
+        )
+    }
+
+    @Test
+    fun `resume retains the complete smart queue and its independent playlist source`() {
+        assertEquals(
+            PlaybackResumePlan(
+                liveQueue = listOf(a, manual, c),
+                sourceQueue = listOf(a, b, c),
+                currentIndex = 1,
+            ),
+            playbackResumePlan(
+                liveQueue = listOf(a, manual, c),
+                currentIndex = 1,
+                sourceQueue = listOf(a, b, c),
+            ),
+        )
+    }
+
+    @Test
+    fun `legacy resume treats the saved live queue as its source`() {
+        assertEquals(
+            PlaybackResumePlan(
+                liveQueue = listOf(a, b),
+                sourceQueue = listOf(a, b),
+                currentIndex = 1,
+            ),
+            playbackResumePlan(
+                liveQueue = listOf(a, b),
+                currentIndex = 99,
+                sourceQueue = null,
+            ),
+        )
+    }
+
+    @Test
+    fun `restored continuations consume the budget before the first top up`() {
+        val live = listOf(a, b, c, manual)
+        val savedIds = mutableSetOf(b.id, c.id, manual.id)
+        val resumed = playbackResumePlan(live, 0, listOf(a), savedIds)
+        savedIds.clear()
+
+        assertEquals(setOf(b.id, c.id, manual.id), resumed.smartContinuationIds)
+        assertFalse(
+            smartMayContinue(live.size, resumed.currentIndex) { index ->
+                live[index].id in resumed.smartContinuationIds
+            },
+        )
+        assertTrue(
+            smartMayContinue(live.size, 1) { index ->
+                live[index].id in resumed.smartContinuationIds
+            },
+        )
+    }
+
+    @Test
+    fun `resume drops continuation labels for deleted and source-only rows`() {
+        val resumed = playbackResumePlan(
+            liveQueue = listOf(a, manual),
+            currentIndex = 0,
+            sourceQueue = listOf(a, b),
+            smartContinuationIds = setOf(b.id, c.id, manual.id),
+        )
+        assertEquals(setOf(manual.id), resumed.smartContinuationIds)
+    }
+
+    @Test
+    fun `resume keeps SMART's plan positions only for rows still in the live queue`() {
+        val resumed = playbackResumePlan(
+            liveQueue = listOf(a, b),
+            currentIndex = 0,
+            sourceQueue = listOf(a),
+            smartPlanPositions = mapOf(b.id to 2, c.id to 3),
+        )
+        assertEquals(mapOf(b.id to 2), resumed.smartPlanPositions)
+    }
+
+    @Test
+    fun `resume preserves a known source that became empty after deletion`() {
+        assertEquals(
+            PlaybackResumePlan(
+                liveQueue = listOf(manual),
+                sourceQueue = emptyList(),
+                currentIndex = 0,
+            ),
+            playbackResumePlan(
+                liveQueue = listOf(manual),
+                currentIndex = 0,
+                sourceQueue = emptyList(),
+            ),
+        )
+    }
+
+    @Test
+    fun `smart recommendation remains current ahead of restored source queue`() {
+        assertEquals(
+            PlaybackQueueOrder(tracks = listOf(manual, a, b, c), currentIndex = 0),
+            sourceOrderForShuffleTransition(
+                previousMode = ShuffleMode.SMART,
+                requestedMode = ShuffleMode.OFF,
+                source = listOf(a, b, c),
+                current = manual,
+            ),
+        )
+    }
+
+    @Test
+    fun `smart to off with a deleted empty source keeps only current`() {
+        assertEquals(
+            PlaybackQueueOrder(tracks = listOf(manual), currentIndex = 0),
+            sourceOrderForShuffleTransition(
+                previousMode = ShuffleMode.SMART,
+                requestedMode = ShuffleMode.OFF,
+                source = emptyList(),
+                current = manual,
+            ),
+        )
+    }
+
+    @Test
+    fun `ordinary shuffle off restores canonical source after a materialized resume`() {
+        assertEquals(
+            PlaybackQueueOrder(tracks = listOf(a, b, c), currentIndex = 1),
+            sourceOrderForShuffleTransition(
+                previousMode = ShuffleMode.ON,
+                requestedMode = ShuffleMode.OFF,
+                source = listOf(a, b, c),
+                current = b,
+            ),
+        )
+    }
+
+    @Test
+    fun `play next becomes part of source order immediately after current`() {
+        assertEquals(
+            listOf(a, b, manual, c),
+            sourceQueueAfterManualInsert(
+                source = listOf(a, b, c),
+                currentId = b.id,
+                track = manual,
+                insertion = SourceQueueInsertion.PLAY_NEXT,
+            ),
+        )
+    }
+
+    @Test
+    fun `play next appends when current is external and never duplicates an existing id`() {
+        assertEquals(
+            listOf(a, b, manual),
+            sourceQueueAfterManualInsert(
+                source = listOf(a, b),
+                currentId = TrackId("external"),
+                track = manual,
+                insertion = SourceQueueInsertion.PLAY_NEXT,
+            ),
+        )
+        assertEquals(
+            listOf(a, b),
+            sourceQueueAfterManualInsert(
+                source = listOf(a, b, a),
+                currentId = a.id,
+                track = b.copy(title = "new metadata"),
+                insertion = SourceQueueInsertion.PLAY_NEXT,
+            ),
+        )
+    }
+
+    @Test
+    fun `add to queue appends a missing identity to source order`() {
+        assertEquals(
+            listOf(a, b, manual),
+            sourceQueueAfterManualInsert(
+                source = listOf(a, b),
+                currentId = a.id,
+                track = manual,
+                insertion = SourceQueueInsertion.APPEND,
+            ),
+        )
+    }
+
+    @Test
+    fun `off reorder becomes canonical source order`() {
+        assertEquals(
+            listOf(c, a, b),
+            sourceQueueAfterVisibleReorder(
+                source = listOf(a, b, c),
+                visibleQueue = listOf(c, a, b),
+                mode = ShuffleMode.OFF,
+            ),
+        )
+    }
+
+    @Test
+    fun `smart reorder does not replace the original source with generated traversal`() {
+        assertEquals(
+            listOf(a, b, c),
+            sourceQueueAfterVisibleReorder(
+                source = listOf(a, b, c),
+                visibleQueue = listOf(c, manual, a),
+                mode = ShuffleMode.SMART,
+            ),
+        )
+    }
+
+    @Test
+    fun `smart retains actual shuffled history through current`() {
+        // Physical [a,b,c,manual], actual traversal [c,a,manual,b], current manual.
+        assertEquals(
+            listOf(c, a, manual),
+            traversalHistoryThroughCurrent(
+                rows = listOf(c, a, manual, b),
+                currentRowIndex = 2,
+            ),
+        )
+        assertEquals(
+            emptyList(),
+            traversalHistoryThroughCurrent(rows = listOf(a, b), currentRowIndex = -1),
+        )
+    }
+
+    @Test
+    fun `smart policy invalidation preserves history and current but removes future`() {
+        assertEquals(
+            listOf(a, b, c),
+            smartHistoryThroughCurrent(
+                rows = listOf(a, b, c, manual),
+                currentRowIndex = 2,
+            ),
+        )
+        assertEquals(
+            listOf(a),
+            smartHistoryThroughCurrent(rows = listOf(a, b), currentRowIndex = -1),
+        )
+        assertEquals(emptyList(), smartHistoryThroughCurrent(emptyList(), currentRowIndex = -1))
+    }
+
+    @Test
+    fun `restored smart queue invokes chooser only when its saved future is short`() {
+        assertFalse(smartQueueNeedsTopUp(queueSize = 21, currentIndex = 0, lookahead = 20))
+        assertTrue(smartQueueNeedsTopUp(queueSize = 20, currentIndex = 0, lookahead = 20))
+        assertTrue(smartQueueNeedsTopUp(queueSize = 21, currentIndex = 1, lookahead = 20))
+        assertFalse(smartQueueNeedsTopUp(queueSize = 0, currentIndex = -1, lookahead = 20))
+    }
+
+    @Test
+    fun `smart append commits only against the exact queue snapshot`() {
+        val queue = listOf(a, b)
+        val guard = SmartAppendGuard(queueGeneration = 7L, queueSize = 2, tailId = b.id)
+
+        assertTrue(canCommitSmartAppend(ShuffleMode.SMART, 7L, queue, guard, c.id))
+        assertFalse(canCommitSmartAppend(ShuffleMode.OFF, 7L, queue, guard, c.id))
+        assertFalse(canCommitSmartAppend(ShuffleMode.SMART, 8L, queue, guard, c.id))
+        assertFalse(canCommitSmartAppend(ShuffleMode.SMART, 7L, listOf(a), guard, c.id))
+        assertFalse(canCommitSmartAppend(ShuffleMode.SMART, 7L, listOf(b, a), guard, c.id))
+        assertFalse(canCommitSmartAppend(ShuffleMode.SMART, 7L, queue, guard, a.id))
+    }
+
+    @Test
+    fun `load traversal skips forward without wrapping`() {
+        assertContentEquals(
+            intArrayOf(1, 2, 3),
+            playbackQueueTraversal(queueSize = 4, startIndex = 1, direction = 1, wrap = false),
+        )
+    }
+
+    @Test
+    fun `load traversal wraps once and remains bounded`() {
+        assertContentEquals(
+            intArrayOf(3, 0, 1, 2),
+            playbackQueueTraversal(queueSize = 4, startIndex = 3, direction = 1, wrap = true),
+        )
+        assertContentEquals(
+            intArrayOf(3, 2, 1, 0),
+            playbackQueueTraversal(queueSize = 4, startIndex = -1, direction = -1, wrap = true),
+        )
+    }
+
+    @Test
+    fun `load traversal rejects an invalid direction`() {
+        assertFailsWith<IllegalArgumentException> {
+            playbackQueueTraversal(queueSize = 4, startIndex = 0, direction = 0, wrap = false)
+        }
+    }
+
+    @Test
+    fun `error recovery advances once through remaining rows`() {
+        assertContentEquals(
+            intArrayOf(2, 3),
+            playbackErrorRecoveryTraversal(queueSize = 4, failedIndex = 1, repeatAll = false),
+        )
+        assertContentEquals(
+            intArrayOf(3, 0, 1),
+            playbackErrorRecoveryTraversal(queueSize = 4, failedIndex = 2, repeatAll = true),
+        )
+        assertContentEquals(
+            intArrayOf(0, 3, 1),
+            playbackErrorRecoveryTraversal(
+                queueSize = 4,
+                failedIndex = 2,
+                repeatAll = true,
+                traversalOrder = intArrayOf(2, 0, 3, 1),
+            ),
+        )
+        assertContentEquals(
+            intArrayOf(),
+            playbackErrorRecoveryTraversal(queueSize = 1, failedIndex = 0, repeatAll = true),
+        )
+    }
+
+    @Test
+    fun `error recovery remembers failed identities across reordered indices`() {
+        assertEquals(
+            3,
+            nextPlaybackErrorRecoveryIndex(
+                mediaIds = listOf("d", "a", "b", "c"),
+                failedIndex = 1,
+                repeatAll = true,
+                traversalOrder = intArrayOf(1, 2, 3, 0),
+                failedIds = setOf("a", "b"),
+            ),
+        )
+        assertEquals(
+            null,
+            nextPlaybackErrorRecoveryIndex(
+                mediaIds = listOf("a", "b"),
+                failedIndex = 0,
+                repeatAll = true,
+                traversalOrder = intArrayOf(0, 1),
+                failedIds = setOf("a", "b"),
+            ),
+        )
+    }
+
+    @Test
+    fun `linked shuffle traversal becomes a bounded permutation`() {
+        val successors = mapOf(2 to 0, 0 to 3, 3 to 1, 1 to -1)
+
+        assertContentEquals(
+            intArrayOf(2, 0, 3, 1),
+            boundedQueueOrder(queueSize = 4, firstIndex = 2) { successors[it] ?: -1 },
+        )
+    }
+
+    @Test
+    fun `malformed linked shuffle traversal falls back to natural order`() {
+        assertContentEquals(
+            intArrayOf(0, 1, 2, 3),
+            boundedQueueOrder(queueSize = 4, firstIndex = 2) { 2 },
+        )
+        assertContentEquals(
+            intArrayOf(0, 1, 2, 3),
+            boundedQueueOrder(queueSize = 4, firstIndex = 9) { -1 },
+        )
+    }
+
+    @Test
+    fun `queue snapshot maps shuffled rows back to physical media indices`() {
+        val snapshot = playbackQueueSnapshot(
+            physicalRows = listOf(a, null, b, c),
+            traversalOrder = intArrayOf(2, 0, 3, 1),
+            currentMediaItemIndex = 3,
+        )
+
+        assertEquals(listOf(b, a, c), snapshot.rows)
+        assertEquals(listOf(2, 0, 3), snapshot.mediaItemIndices)
+        assertEquals(2, snapshot.currentRowIndex)
+    }
+
+    @Test
+    fun `play next extends shuffle order immediately after current`() {
+        assertContentEquals(
+            intArrayOf(2, 0, 4, 3, 1),
+            shuffleOrderAppendingNext(
+                existingOrder = intArrayOf(2, 0, 3, 1),
+                currentMediaItemIndex = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun `fresh shuffle starts at its selected song and retains every remaining row`() {
+        val nativeOrder = intArrayOf(2, 0, 3, 1)
+        val anchored = shuffleOrderStartingAt(nativeOrder, currentMediaItemIndex = 3)
+        assertContentEquals(intArrayOf(3, 1, 2, 0), anchored)
+        assertContentEquals(intArrayOf(2, 0, 3, 1), nativeOrder)
+        val source = listOf(a, b, c, manual)
+        val first = playbackQueueSnapshot(source, anchored, currentMediaItemIndex = 3)
+        assertEquals(0, first.currentRowIndex)
+        assertEquals(listOf(manual, b, c, a), first.rows)
+        // Advancing follows the same native order. Do not move each new current song to the top.
+        val next = playbackQueueSnapshot(source, anchored, currentMediaItemIndex = 1)
+        assertEquals(first.rows, next.rows)
+        assertEquals(1, next.currentRowIndex)
+    }
+
+    @Test
+    fun `fresh shuffle can start at every position including native last`() {
+        val original = intArrayOf(4, 1, 3, 0, 2)
+        for (seed in original) {
+            val order = shuffleOrderStartingAt(original, seed)
+            assertEquals(seed, order.first())
+            assertEquals(original.toSet(), order.toSet())
+            assertEquals(original.size, order.size)
+        }
+    }
+
+    @Test
+    fun `fresh shuffle retains duplicate song occurrences by their physical indices`() {
+        val order = shuffleOrderStartingAt(intArrayOf(0, 2, 1), 2)
+        val snapshot = playbackQueueSnapshot(listOf(a, b, a), order, 2)
+        assertEquals(0, snapshot.currentRowIndex)
+        assertEquals(listOf(a, b, a), snapshot.rows)
+        assertEquals(listOf(2, 1, 0), snapshot.mediaItemIndices)
+    }
+
+    @Test
+    fun `fresh shuffle safely normalizes invalid orders and missing selections`() {
+        assertContentEquals(intArrayOf(2, 0, 1), shuffleOrderStartingAt(intArrayOf(1, 1, 8), 2))
+        assertContentEquals(intArrayOf(1, 0), shuffleOrderStartingAt(intArrayOf(1, 0), -1))
+        assertContentEquals(intArrayOf(0), shuffleOrderStartingAt(intArrayOf(0), 0))
+        assertContentEquals(intArrayOf(), shuffleOrderStartingAt(intArrayOf(), 0))
+    }
+
+    @Test
+    fun `append in shuffle preserves every existing row and puts new occurrence last`() {
+        val old = intArrayOf(2, 0, 3, 1)
+        val appended = shuffleOrderAppendingNext(old, currentMediaItemIndex = -1)
+        assertContentEquals(intArrayOf(2, 0, 3, 1, 4), appended)
+        val snapshot = playbackQueueSnapshot(listOf(a, b, c, manual, a), appended, 0)
+        assertEquals(1, snapshot.currentRowIndex)
+        assertEquals(listOf(c, a, manual, b, a), snapshot.rows)
+        assertContentEquals(intArrayOf(2, 0, 3, 1), old)
+        assertContentEquals(intArrayOf(0), shuffleOrderAppendingNext(intArrayOf(), -1))
+    }
+
+    @Test
+    fun `shuffle reorder preserves the loaded occurrence including duplicate tracks`() {
+        val rows = listOf(a, b, a, c)
+        val old = intArrayOf(2, 0, 3, 1)
+        val reordered = shuffleOrderMovingRow(old, fromMediaItemIndex = 1, toMediaItemIndex = 0)
+        assertContentEquals(intArrayOf(2, 1, 0, 3), reordered)
+        val snapshot = playbackQueueSnapshot(rows, reordered, currentMediaItemIndex = 0)
+        assertEquals(2, snapshot.currentRowIndex)
+        assertEquals(listOf(a, b, a, c), snapshot.rows)
+        assertContentEquals(old, shuffleOrderMovingRow(reordered, 1, 3))
+        assertContentEquals(old, shuffleOrderMovingRow(old, -1, 0))
+        assertContentEquals(old, shuffleOrderMovingRow(old, 2, 2))
+    }
+
+    @Test
+    fun `all shuffled moves retain a complete permutation and the selected occurrence`() {
+        val original = intArrayOf(3, 1, 4, 0, 2)
+        for (from in original) for (to in original) for (current in original) {
+            val result = shuffleOrderMovingRow(original, from, to)
+            assertEquals(original.toSet(), result.toSet())
+            assertEquals(original.size, result.size)
+            val snapshot = playbackQueueSnapshot(original.indices.toList(), result, current)
+            assertEquals(current, snapshot.rows[snapshot.currentRowIndex])
+        }
+    }
+
+    @Test
+    fun `play next normalizes a malformed existing shuffle order`() {
+        assertContentEquals(
+            intArrayOf(0, 1, 3, 2),
+            shuffleOrderAppendingNext(
+                existingOrder = intArrayOf(0, 0, 2),
+                currentMediaItemIndex = 1,
+            ),
+        )
+    }
+
+    @Test
+    fun `a consumed audio segment restarts but a paused segment resumes`() {
+        assertFalse(shouldRestartConsumedSegment(pausedFrame = 41L, fileLength = 100L))
+        assertTrue(shouldRestartConsumedSegment(pausedFrame = 100L, fileLength = 100L))
+    }
+
+    @Test
+    fun `only the current playback item generation may publish completion`() {
+        assertTrue(isCurrentPlaybackItemGeneration(expected = 9L, current = 9L))
+        assertFalse(isCurrentPlaybackItemGeneration(expected = 8L, current = 9L))
+    }
+
+    @Test
+    fun `previous wraps at the first row only for repeat all`() {
+        assertEquals(2, previousPlaybackQueueIndex(3, 0, 0L, RepeatMode.ALL))
+        assertEquals(0, previousPlaybackQueueIndex(3, 0, 0L, RepeatMode.OFF))
+        assertEquals(0, previousPlaybackQueueIndex(3, 0, 0L, RepeatMode.ONE))
+        assertEquals(0, previousPlaybackQueueIndex(1, 0, 0L, RepeatMode.ALL))
+    }
+
+    @Test
+    fun `previous restarts only after the shared position threshold`() {
+        for (mode in RepeatMode.entries) {
+            assertEquals(0, previousPlaybackQueueIndex(3, 1, PREVIOUS_RESTART_THRESHOLD_MS, mode))
+            assertEquals(1, previousPlaybackQueueIndex(3, 1, PREVIOUS_RESTART_THRESHOLD_MS + 1L, mode))
+        }
+        assertEquals(0, previousPlaybackQueueIndex(3, 0, PREVIOUS_RESTART_THRESHOLD_MS + 1L, RepeatMode.ALL))
+    }
+
+    @Test
+    fun `previous ignores empty and stale queue positions`() {
+        assertEquals(-1, previousPlaybackQueueIndex(0, -1, 0L, RepeatMode.ALL))
+        assertEquals(-1, previousPlaybackQueueIndex(3, -1, 0L, RepeatMode.ALL))
+        assertEquals(-1, previousPlaybackQueueIndex(3, 3, 0L, RepeatMode.ALL))
+    }
+
+    private fun track(id: String): TrackDescriptor = TrackDescriptor(TrackId(id), title = id)
+
+    @Test
+    fun smartEntryKeepsOnlyTheImmediateWindow() {
+        // Tap row 900 of a library queue and reach SMART (the UI cycles through ON): neither
+        // the source layout above the row nor a freshly minted shuffle permutation is played
+        // history. Retaining it all bloated the queue to library size and banned those rows
+        // from recommendation — everything queued is excluded from the candidate pool.
+        val rows = (0..900).map { "t$it" }
+        val kept = smartRetainedHistory(
+            traversal = rows,
+            currentRowIndex = 900,
+            recentWindow = 10,
+        )
+        assertEquals(rows.takeLast(11), kept)
+        assertEquals("t900", kept.last())
+    }
+
+    @Test
+    fun smartEntryShortHistoryStaysWhole() {
+        val rows = listOf("a", "b", "c")
+        val kept = smartRetainedHistory(
+            traversal = rows,
+            currentRowIndex = 2,
+            recentWindow = 10,
+        )
+        assertEquals(rows, kept)
+    }
+
+    @Test
+    fun smartEntryWithUnresolvedCurrentKeepsNothing() {
+        assertEquals(
+            emptyList(),
+            smartRetainedHistory(
+                traversal = listOf("a", "b"),
+                currentRowIndex = -1,
+                recentWindow = 10,
+            ),
+        )
+    }
+
+    @Test
+    fun policyChangeKeepsTheRestOfACuratedStart() {
+        val rows = listOf("r1", "r2", "r3", "s1", "s2")
+        // Playing r1 of a For You row (r1..r3) with SMART rows s1, s2 after it: only SMART's own
+        // future goes, the row the listener picked stays.
+        assertEquals(2, smartFutureKeepThrough(rows.size, 0, "r3") { rows[it] })
+        // Once the row is behind the playhead, a policy change prunes from the current row as usual.
+        assertEquals(3, smartFutureKeepThrough(rows.size, 3, "r3") { rows[it] })
+        assertEquals(0, smartFutureKeepThrough(rows.size, 0, null) { rows[it] })
+        assertEquals(0, smartFutureKeepThrough(rows.size, -1, "missing") { rows[it] })
+    }
+}

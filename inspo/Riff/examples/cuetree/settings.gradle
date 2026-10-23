@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == 'org.jetbrains.kotlin.jvm') {
+                useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:${requested.version}")
+            }
+        }
+    }
+}
+dependencyResolutionManagement {
+    repositories { mavenCentral() }
+}
+
+// This consumer has its own build; the Android/Riff build is never included.
+includeBuild('../../standalone/cuetree') {
+    dependencySubstitution {
+        substitute module('link.roadio.cuetree:cuetree-core') using project(':core')
+    }
+}
+includeBuild('../../standalone/cuegrain') {
+    dependencySubstitution {
+        substitute module('link.roadio.cuegrain:cuegrain-core') using project(':core')
+    }
+}
+rootProject.name = 'cuetree-example'

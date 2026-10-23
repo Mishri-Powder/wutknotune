@@ -1,0 +1,124 @@
+# Shared equalizer DSP
+
+Android Media3 and iOS file playback use this C++17 core. The ten peaking bands, independent
+100 Hz bass shelf, boost headroom, transitions, linked sample-peak limiter and response chart
+share the same design. Signalsmith DSP 1.7.0 is vendored at commit
+`ca390d28c41ea5108a528e2e81faa4088f2f8ac8`; its unmodified headers and MIT notice are under
+`src/main/cpp/vendor/signalsmith`. The notice is also included in the shared Compose resources.
+No network download is needed to build it.
+
+## Processing contract
+
+- Create, destroy and reset only after rendering stops. One audio consumer and one serialized
+  settings producer own a stream; iOS serializes control calls outside the render callback.
+- Settings cross a fixed-size triple buffer. Two stable filter banks crossfade for 20 ms;
+  intermediate updates coalesce while a fade is running. Coefficients are never interpolated.
+- Signalsmith uses double-precision Direct Form I cookbook filters. Q=1.4 peaking bands and
+  Q=sqrt(0.5) bass shelf retain the previous Android RBJ response and preset interpretation.
+- Processing and settings publication allocate no heap memory. There is no render mutex.
+  Buffers and filter histories are allocated at stream creation. Android JNI processes a
+  complete direct PCM buffer per call; iOS renders in C++ without a Kotlin audio callback.
+- Float entry points retain a fixed `max(1, sampleRate / 200)` frame delay, even in bypass.
+  Media3's PCM16 adapter removes the initial delay and drains exactly the pending input frames
+  at EOS. iOS advertises this latency to AVAudioPlayerNode's DataPlayedBack completion. iOS
+  therefore retains up to 5 ms of priming silence after a seek/segment start; its source playhead
+  precedes the delayed audio by that amount.
+- The limiter uses 5 ms lookahead, 20 ms peak hold, 100 ms release and a linked -0.5 dBFS
+  sample-peak ceiling while filters are active. It is not a true-peak/oversampled limiter.
+  Fixed boost headroom is at most 2 dB; flat and cut-only curves have no fixed reduction. Bypass
+  preserves finite Float32 samples within ±1 exactly after its delay. Float decoder overshoots
+  outside this range still activate the sample limiter; bypass is not transparent above full scale.
+- Supported streams have 1–32 channels and a positive sample rate up to 768 kHz. Tests cover
+  common rates through 192 kHz. Band gain spans ±15 dB on both platforms, preserving the common
+  Android legacy range during migration. Bands at or above 45% of the current sample rate are
+  omitted (for example 4/8/16 kHz bands at 8 kHz PCM); they resume at a supported sample rate.
+- Response points use the same Signalsmith configuration, including static headroom. Limiter
+  attenuation is a separate meter, polled by UI at 10 Hz while observed.
+
+Android currently converts decoded high-resolution/float PCM to PCM16 in DefaultAudioSink.
+iOS uses decoded Float32 before its mixer resamples to the output route. Same input and sample
+rate have the same DSP response; decoding, quantization, mixer pan law and system output can
+still differ. Android always decodes locally, including with EQ off, so live tone edits work on
+all routes; compressed passthrough and offload are intentionally unavailable. Protected Music.app playback does not enter this graph and reports EQ unavailable.
+
+## Builds and tests
+
+Android uses `:core:audio-dsp` / NDK 28.2.13676358 and CMake 3.22.1, with static libc++ and
+16 KiB ELF page alignment. iOS uses `tools/release/build-native-eq.py` through playback's Gradle
+cinterop tasks; the static library includes the Objective-C++ Audio Unit adapter and requires
+AVFoundation, AudioToolbox, Foundation and libc++. JVM tests build a host JNI library with the
+same script, using the current JDK's JNI headers and an installed C++17 compiler.
+
+```sh
+./gradlew :core:playback:testAndroidHostTest :core:playback:iosSimulatorArm64Test
+ANDROID_SERIAL=DEVICE_SERIAL ./gradlew :core:playback:connectedAndroidDeviceTest
+cmake -S core/audio-dsp/src/main/cpp -B /tmp/lj-eq-tests -DLJ_EQ_TESTS=ON
+cmake --build /tmp/lj-eq-tests
+ctest --test-dir /tmp/lj-eq-tests --output-on-failure
+```
+
+CMake tests check PCM16 frame/bypass preservation, float bypass, limiter ceiling/stereo linking,
+zero processing allocations and concurrent settings updates. The portable CMake suite runs without
+CoreAudio services. To opt into the Apple host integration suite, configure with
+`-DLJ_EQ_APPLE_TESTS=ON` on a host with working CoreAudio. Sandboxed/headless hosts may reject
+AVAudioEngine or Audio Unit creation; that does not substitute for an iOS simulator/device run.
+The optional tests compare
+an actual AVAudioEngine Audio Unit render with the C core at 44.1/48 kHz, 1/2/6 channels,
+boosted/bypass, including the delayed end. Direct engine output isolates DSP from mixer pan law.
+The Kotlin iOS simulator suite independently exercises the Audio Unit and persisted controls.
+
+For native memory/race checks build separate binaries (do not combine ASan and TSan):
+
+```sh
+clang++ -std=c++17 -O1 -g -ffp-contract=off -fno-fast-math -pthread \
+  -fsanitize=address,undefined -Icore/audio-dsp/src/main/cpp \
+  core/audio-dsp/src/main/cpp/lj_equalizer.cpp \
+  core/audio-dsp/src/main/cpp/tests/lj_equalizer_test.cpp -o /tmp/lj-eq-asan
+/tmp/lj-eq-asan
+# Repeat with -fsanitize=thread and another output path for the settings stress test.
+```
+
+Device throughput compares three warmed runs of the old Kotlin reference and C++ block
+processing. It measures DSP elapsed time, not full decoder CPU usage, battery or route latency.
+The old Kotlin processor remains a test reference; production playback and response use C++.
+
+## Integrated loudness measurement
+
+The same native library now includes libebur128 1.2.6 pinned at
+`67b33abe1558160ed76ada1322329b0e9e058b02`. Unmodified source hashes and MIT/BSD
+notices live in `src/main/cpp/vendor/libebur128`; notices are also bundled in Compose
+resources and the source tree is included in the augmented CycloneDX inventory.
+This meter runs only on a background decoder, never in the render callback.
+
+`lj_loudness_*` accepts original-rate, interleaved mono/stereo PCM at 8–192 kHz in
+blocks of at most 4,096 frames. It measures integrated LUFS and maximum true peak
+in dBTP using libebur128's BS.1770 estimator: 4× interpolation below 96 kHz, 2× below
+192 kHz, and the original samples at 192 kHz. Like the standard's 192 kHz method, this is an
+estimate, not a mathematical bound on the reconstructed waveform (especially ultrasonic
+content). It must not be treated as a guarantee against every subsequent resampling/codec peak.
+Histogram mode uses fixed 0.1 LU bins instead of accumulating one record
+per audio block, keeping native memory independent of programme length. Upstream
+1.2.6 rewrites shared histogram constants on construction; the wrapper serializes
+all library calls, including reads, so concurrent meter creation is race-free.
+
+Android streams through MediaExtractor/MediaCodec; iOS reads Float32 PCM through
+AVAudioFile. Channels are retained, without RMS downmix or resampling to 16 kHz.
+Only a complete decode reaching EOS/expected frame count produces a result. A
+large duration mismatch, unsupported/ambiguous layout, corrupt PCM, cancellation,
+6-hour programme cap or 120-second wall budget produces no cache entry. Android
+also abandons a decoder that makes no PCM progress for 5 seconds. System decoder
+calls themselves remain subject to the OS; cancellation is checked between calls
+and every bounded PCM block. All handles/descriptors are released in `finally`.
+
+The initial supported scope is mono/stereo local files. Multichannel layouts,
+rates above 192 kHz and protected Music.app playback retain original volume. This
+is an explicit refusal, not a guessed channel map or a misleading mono LUFS value.
+
+The `r128-v1` cache contains LUFS, dBTP and an audio source identity. Older RMS
+records are discarded. Analysis remains lazy, opt-in and one-track-at-a-time;
+there is no launch-time library scan. Android and iOS local-file playback apply
+attenuation toward -14 LUFS, with additional source headroom to -1 dBTP, and never
+boost a quiet track. New results ramp over 400 ms; cached gains are installed at
+track boundaries. The source true-peak margin is not a promise about peaks after
+EQ: the existing EQ limiter is still a sample-peak limiter. Protected Music.app
+items bypass the app-owned gain stage. iOS boundary fades remain unavailable.

@@ -1,0 +1,534 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import io.github.nikitasud.latentjam.history.TrackStats
+import io.github.nikitasud.latentjam.smart.ScoredTrack
+import io.github.nikitasud.latentjam.smart.TrackDescriptor
+import io.github.nikitasud.latentjam.smart.TrackId
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+
+class HybridSearchTest {
+
+    private val exact = track("exact", "Rock", "Different Artist")
+    private val prefix = track("prefix", "Rockstar", "Different Artist")
+    private val semantic = track("semantic", "Unrelated title", "Guitar Band")
+    private val weak = track("weak", "Another title", "Someone")
+
+    /**
+     * Pad a head of scored rows into a full, score-descending candidate list with a low background
+     * band, so the absolute confidence gate has the >= [SemanticGate.BG_HI] rows it needs. Padding
+     * ids are fake and never resolve to a track, so only the head can appear in results.
+     */
+    private fun ranked(
+        head: List<ScoredTrack>,
+        background: Float = 0.05f,
+        total: Int = 160,
+    ): List<ScoredTrack> {
+        val list = head.toMutableList()
+        var i = 0
+        while (list.size < total) {
+            list.add(ScoredTrack(TrackId("bg-$i"), background))
+            i++
+        }
+        return list.sortedByDescending { it.score }
+    }
+
+    @Test
+    fun `lexical matches lead semantic expansion`() {
+        val result = hybridSearch(
+            songs = listOf(weak, prefix, semantic, exact),
+            query = "Rock",
+            semantic = ranked(
+                listOf(
+                    ScoredTrack(semantic.id, 0.70f),
+                    ScoredTrack(exact.id, 0.68f),
+                ),
+            ),
+        )
+
+        assertEquals(listOf(exact.id, prefix.id, semantic.id), result.map { it.id })
+    }
+
+    @Test
+    fun `a confident semantic cluster expands beyond literal search`() {
+        val result = hybridSearch(
+            songs = listOf(semantic),
+            query = "energetic guitars",
+            semantic = ranked(listOf(ScoredTrack(semantic.id, 0.61f))),
+        )
+
+        assertEquals(listOf(semantic.id), result.map { it.id })
+    }
+
+    @Test
+    fun `a diffuse semantic section is gated by margin`() {
+        // Top-1 clears 0.45 but the whole band sits just below it — a diffuse blob, not a cluster.
+        val result = hybridSearch(
+            songs = listOf(semantic, weak),
+            query = "energetic guitars",
+            semantic = ranked(listOf(ScoredTrack(semantic.id, 0.60f)), background = 0.50f),
+        )
+
+        assertEquals(emptyList(), result.map { it.id })
+    }
+
+    @Test
+    fun `a weak top-1 semantic section is gated by threshold`() {
+        val result = hybridSearch(
+            songs = listOf(semantic),
+            query = "energetic guitars",
+            semantic = ranked(listOf(ScoredTrack(semantic.id, 0.40f))),
+        )
+
+        assertEquals(emptyList(), result.map { it.id })
+    }
+
+    @Test
+    fun `too few semantic candidates decline`() {
+        val result = hybridSearch(
+            songs = listOf(semantic),
+            query = "energetic guitars",
+            semantic = listOf(ScoredTrack(semantic.id, 0.90f)), // one row, no background band
+        )
+
+        assertEquals(emptyList(), result.map { it.id })
+    }
+
+    @Test
+    fun `multilingual semantic result expands Cyrillic morphology without a word rule`() {
+        val girl = track(
+            id = "girl",
+            title = "О том, как девочка Алёна стала женщиной",
+            artist = "GSPD",
+        )
+        val kino = track("kino", "Перемен", "КИНО")
+
+        val result = hybridSearch(
+            songs = listOf(kino, girl),
+            query = "девушки",
+            // Kino sits below the background floor, so a fired section never reaches it.
+            semantic = ranked(
+                listOf(
+                    ScoredTrack(girl.id, 0.82f),
+                    ScoredTrack(kino.id, 0.02f),
+                ),
+            ),
+        )
+
+        assertEquals(listOf(girl.id), result.map { it.id })
+        assertFalse(result.any { it.id == kino.id })
+    }
+
+    @Test
+    fun `Cyrillic query without evidence returns no script based guess`() {
+        val kino = track("kino", "Перемен", "КИНО")
+
+        val result = hybridSearch(
+            songs = listOf(kino),
+            query = "девушки",
+            semantic = emptyList(),
+        )
+
+        assertEquals(emptyList(), result)
+    }
+
+    @Test
+    fun `script alone never implies a language or genre`() {
+        val kino = track("kino", "Группа крови", "КИНО", genre = "Post-Punk")
+        val ukrainian = track("uk", "Пісня", "Український гурт", genre = "Pop")
+
+        assertEquals(
+            emptyList(),
+            hybridSearch(listOf(ukrainian, kino), "русский", semantic = emptyList()),
+        )
+    }
+
+    @Test
+    fun `a folded Latin query reaches a Cyrillic name`() {
+        val kino = track("kino", "Перемен", "КИНО")
+        val other = track("other", "Hello", "World")
+
+        val result = hybridSearch(listOf(other, kino), "kino", semantic = emptyList())
+
+        assertEquals(listOf(kino.id), result.map { it.id })
+    }
+
+    @Test
+    fun `a one-edit typo still reaches the artist via fuzzy`() {
+        val eminem = track("eminem", "Stan", "Eminem")
+        val other = track("other", "Hello", "World")
+
+        val result = hybridSearch(listOf(other, eminem), "eminm", semantic = emptyList())
+
+        assertEquals(listOf(eminem.id), result.map { it.id })
+    }
+
+    @Test
+    fun `within a lexical tier a played match outranks a rarely played one and prefix stays pinned`() {
+        val now = 1_000L * 24 * 60 * 60 * 1000
+        val pinned = track("pin", "Rock Anthem", "A") // prefix match — highest tier
+        val played = track("played", "Prock Loud", "B") // substring tier, played often
+        val rare = track("rare", "Prock Quiet", "C") // substring tier, played once, long ago
+        val stats = mapOf(
+            played.id to TrackStats(plays = 50, completions = 50, skips = 0, totalPlayedMs = 0, lastPlayedAtMs = now),
+            rare.id to TrackStats(
+                plays = 1, completions = 1, skips = 0, totalPlayedMs = 0,
+                lastPlayedAtMs = now - 365L * 24 * 60 * 60 * 1000,
+            ),
+        )
+
+        val result = hybridSearch(
+            songs = listOf(rare, played, pinned),
+            query = "rock",
+            semantic = emptyList(),
+            stats = stats,
+            nowMs = now,
+        )
+
+        assertEquals(listOf(pinned.id, played.id, rare.id), result.map { it.id })
+    }
+
+    private fun track(
+        id: String,
+        title: String,
+        artist: String? = null,
+        album: String? = null,
+        genre: String? = null,
+        year: Int? = null,
+    ) = TrackDescriptor(
+        id = TrackId(id),
+        title = title,
+        artist = artist,
+        album = album,
+        genre = genre,
+        year = year,
+    )
+
+    @Test
+    fun `artist and title terms can match across fields in either order`() {
+        val song = track("song", "Mockingbird", "Eminem")
+        val other = track("other", "Stan", "Eminem")
+        for (query in listOf("eminem mockingbird", "mockingbird eminem", "eminem mock")) {
+            assertEquals(listOf(song.id), hybridSearch(listOf(other, song), query, emptyList()).map { it.id })
+        }
+    }
+
+    @Test
+    fun `combined title match leads songs that only match the album`() {
+        val song = track("song", "Thriller", "Michael Jackson", album = "Thriller")
+        val sibling = track("sibling", "Beat It", "Michael Jackson", album = "Thriller")
+        assertEquals(
+            listOf(song.id, sibling.id),
+            hybridSearch(listOf(sibling, song), "michael jackson thriller", emptyList()).map { it.id },
+        )
+    }
+
+    @Test
+    fun `multiword exact title keeps literal alternatives without typo filler`() {
+        val song = track("song", "Blue Moon", "Singer")
+        val version = track("version", "Blue Moon Live", "Singer")
+        val typo = track("typo", "Blue Mood", "Other")
+        val result = hybridSearch(listOf(typo, version, song), "blue moon", emptyList())
+        assertEquals(listOf(song.id, version.id), result.map { it.id })
+    }
+
+    @Test
+    fun `a bare title that reads as a description keeps its confident semantic matches below it`() {
+        val song = track("song", "Summer Vibes", "Singer")
+        val typo = track("typo", "Summer Vibe", "Other")
+        val result = hybridSearch(
+            listOf(semantic, typo, song), "summer vibes",
+            ranked(listOf(ScoredTrack(semantic.id, 0.8f))),
+        )
+        assertEquals(listOf(song.id, semantic.id), result.map { it.id })
+    }
+
+    @Test
+    fun `naming the artist with the title leaves out semantic matches`() {
+        val song = track("song", "Mockingbird", "Eminem")
+        val result = hybridSearch(
+            listOf(semantic, song), "eminem mockingbird",
+            ranked(listOf(ScoredTrack(semantic.id, 0.8f))),
+        )
+        assertEquals(listOf(song.id), result.map { it.id })
+    }
+
+    @Test
+    fun `combined Cyrillic and Latin metadata use the same fold`() {
+        val song = track("song", "Группа крови", "Кино")
+        assertEquals(
+            listOf(song.id),
+            hybridSearch(listOf(song), "kino gruppa krovi", emptyList()).map { it.id },
+        )
+    }
+
+    @Test
+    fun `unmatched tokens and genre tags cannot complete an identity query`() {
+        val song = track("song", "Mockingbird", "Eminem", genre = "Rock")
+        for (query in listOf("eminem mockingbird missing", "mockingbird rock")) {
+            assertEquals(emptyList(), hybridSearch(listOf(song), query, emptyList()))
+        }
+    }
+
+    @Test
+    fun `artist and album search works without a title match`() {
+        val song = track("song", "Style", "Taylor Swift", album = "1989")
+        assertEquals(
+            listOf(song.id),
+            hybridSearch(listOf(song), "taylor swift 1989", emptyList()).map { it.id },
+        )
+    }
+
+    @Test
+    fun `an exact title outside the requested decade cannot suppress its semantic matches`() {
+        val modern = track("modern", "Heavy Guitars", year = 2020)
+        val old = track("old", "Thunder", year = 1985)
+        val result = hybridSearch(
+            listOf(modern, old), "heavy guitars 80s",
+            ranked(listOf(ScoredTrack(old.id, 0.8f))),
+        )
+        assertEquals(listOf(old.id), result.map { it.id })
+    }
+
+    @Test
+    fun `a decade keeps results to its years and a title that is the query still leads`() {
+        val takeOnMe = track("take", "Take On Me", "a-ha", year = 1985)
+        val rockSong = track("rock", "Rock Song", "Band", genre = "Rock", year = 1987)
+        val rockNow = track("now", "Rock Now", "Band", genre = "Rock", year = 2015)
+        val song1985 = track("1985", "1985", "Bowling for Soup", year = 2004)
+        val lights = track("lights", "Blinding Lights", "The Weeknd", year = 2019)
+        val songs = listOf(takeOnMe, rockSong, rockNow, song1985, lights)
+
+        assertEquals(listOf(rockSong.id, takeOnMe.id), hybridSearch(songs, "80s", emptyList()).map { it.id })
+        assertEquals(listOf(rockSong.id, takeOnMe.id), hybridSearch(songs, "песни 80-х", emptyList()).map { it.id })
+        assertEquals(listOf(rockSong.id), hybridSearch(songs, "rock 80s", emptyList()).map { it.id })
+        assertEquals(listOf(song1985.id, takeOnMe.id), hybridSearch(songs, "1985", emptyList()).map { it.id })
+    }
+
+    @Test
+    fun `year filtering happens before the result limit`() {
+        val modern = (1..100).map { track("modern-$it", "Rock $it", year = 2020) }
+        val eighties = track("eighties", "Rock Yesterday", year = 1985)
+
+        assertEquals(
+            listOf(eighties.id),
+            hybridSearch(modern + eighties, "rock 80s", emptyList()).map { it.id },
+        )
+    }
+
+    @Test
+    fun `year filtering happens before the semantic top ten limit`() {
+        val modern = (1..10).map { track("modern-$it", "New $it", year = 2020) }
+        val eighties = track("eighties", "Yesterday", year = 1985)
+        val result = hybridSearch(
+            songs = modern + eighties,
+            query = "energetic guitars 80s",
+            semantic = ranked(modern.map { ScoredTrack(it.id, 0.8f) } + ScoredTrack(eighties.id, 0.7f)),
+        )
+
+        assertEquals(listOf(eighties.id), result.map { it.id })
+    }
+
+    @Test
+    fun `a year shows its confident semantic matches but not rows from the background`() {
+        val modern = (1..10).map { track("modern-$it", "New $it", year = 2020) }
+        val strong = track("strong", "Yesterday", year = 1985)
+        val faint = (1..9).map { track("faint-$it", "Faint $it", year = 1986) }
+        val result = hybridSearch(
+            songs = modern + strong + faint,
+            query = "energetic guitars 80s",
+            semantic = ranked(
+                modern.map { ScoredTrack(it.id, 0.8f) } + ScoredTrack(strong.id, 0.7f) +
+                    faint.map { ScoredTrack(it.id, 0.02f) },
+            ),
+        )
+
+        assertEquals(listOf(strong.id), result.map { it.id })
+    }
+
+    @Test
+    fun `a confident modern match cannot make a weak eighties match confident`() {
+        val modern = (1..10).map { track("modern-$it", "New $it", year = 2020) }
+        val unrelated = track("unrelated", "Yesterday", year = 1985)
+        val result = hybridSearch(
+            songs = modern + unrelated,
+            query = "energetic guitars 80s",
+            semantic = ranked(modern.map { ScoredTrack(it.id, 0.8f) } + ScoredTrack(unrelated.id, 0.02f)),
+        )
+
+        assertFalse(result.any { it.id == unrelated.id })
+    }
+
+    @Test
+    fun `in a time-only search the most played tracks of those years come first`() {
+        val quiet = track("quiet", "A Song", year = 1983)
+        val loved = track("loved", "B Song", year = 1981)
+        val stats = mapOf(
+            loved.id to TrackStats(plays = 9, completions = 9, skips = 0, totalPlayedMs = 0L, lastPlayedAtMs = 1_000L),
+        )
+
+        assertEquals(
+            listOf(loved.id, quiet.id),
+            hybridSearch(listOf(quiet, loved), "80s", emptyList(), stats = stats, nowMs = 1_000L).map { it.id },
+        )
+    }
+
+    @Test
+    fun `a number that turns out to name something falls back to the ordinary search`() {
+        val style = track("style", "Style", "Taylor Swift", album = "1989", year = 2014)
+        val result = hybridSearch(
+            songs = listOf(style),
+            query = "Taylor Swift 1989",
+            semantic = ranked(listOf(ScoredTrack(style.id, 0.8f))),
+        )
+
+        assertEquals(listOf(style.id), result.map { it.id })
+    }
+
+    @Test
+    fun `a title match outranks any artist or album match`() {
+        // The reported case: "young" must surface "Forever Young" before the discography of
+        // an artist NAMED Young — where the query matched beats how well it matched.
+        val results = hybridSearch(
+            songs = listOf(
+                track("1", title = "Bad Guy", artist = "Young Thug"),
+                track("2", title = "Forever Young", artist = "Alphaville"),
+                track("3", title = "Something", album = "Young Hearts"),
+            ),
+            query = "young",
+            semantic = emptyList(),
+        )
+        assertEquals("2", results.first().id.value)
+        assertEquals(setOf("1", "3"), results.drop(1).map { it.id.value }.toSet())
+    }
+
+    @Test
+    fun `artist and album share a tier and genre sits below them`() {
+        val results = hybridSearch(
+            songs = listOf(
+                track("g", title = "Track G", genre = "Phonk"),
+                track("a", title = "Track A", artist = "Phonk Killa"),
+            ),
+            query = "phonk",
+            semantic = emptyList(),
+        )
+        assertEquals(listOf("a", "g"), results.map { it.id.value })
+    }
+
+    @Test
+    fun `within the title tier quality still orders`() {
+        val results = hybridSearch(
+            songs = listOf(
+                track("substr", title = "Ayoung"),
+                track("exact", title = "Young"),
+                track("prefix", title = "Youngblood"),
+                track("token", title = "Forever Young"),
+            ),
+            query = "young",
+            semantic = emptyList(),
+        )
+        assertEquals(listOf("exact", "prefix", "token", "substr"), results.map { it.id.value })
+    }
+
+    @Test
+    fun `highlight ranges address the original text through the fold`() {
+        assertEquals(listOf(8..12), searchHighlightRanges("Forever Young", "young"))
+        assertEquals(listOf(0..4), searchHighlightRanges("Young Thug", "YOUNG"))
+        // Transliteration changes lengths; the range still addresses the Cyrillic original.
+        assertEquals(listOf(0..2), searchHighlightRanges("Цой жив", "tsoi"))
+        // A fuzzy-only match must NOT pretend to be literal.
+        assertEquals(emptyList(), searchHighlightRanges("Forever Young", "yuong"))
+    }
+
+    @Test
+    fun `an alias identification outranks typo-family and substring guesses`() {
+        // The reported failure: "tsoi" resolves to Кино through the member index — an exact
+        // identification — yet every Кино track sat under fuzz. Knowledge beats chance now;
+        // confident lexical tiers (a real token prefix) still lead.
+        val results = hybridSearch(
+            songs = listOf(
+                track("fuzz", title = "Tsok"),
+                track("kino", title = "Группа крови", artist = "Кино"),
+                track("strong", title = "Tsoi Forever"),
+            ),
+            query = "tsoi",
+            semantic = emptyList(),
+            aliasMatches = { query, artist -> query == "tsoi" && artist == "Кино" },
+        )
+        assertEquals(listOf("strong", "kino", "fuzz"), results.map { it.id.value })
+    }
+
+    @Test
+    fun `typographic apostrophes cannot mint orphan tokens`() {
+        // "Can\u2019t Stop" used to tokenize to [can, t, stop]; the orphan "t" then claimed
+        // kinship with every query starting with t.
+        val results = hybridSearch(
+            songs = listOf(track("1", title = "Can\u2019t Stop", artist = "Red Hot Chili Peppers")),
+            query = "tsoi",
+            semantic = emptyList(),
+        )
+        assertEquals(emptyList(), results.map { it.id.value })
+    }
+
+    @Test
+    fun `the apostrophe fold makes the latin query reach the curly title`() {
+        val results = hybridSearch(
+            songs = listOf(track("1", title = "Can\u2019t Stop")),
+            query = "cant stop",
+            semantic = emptyList(),
+        )
+        assertEquals(listOf("1"), results.map { it.id.value })
+    }
+
+    @Test
+    fun `an initial in the artist is not kin to every t-word`() {
+        val results = hybridSearch(
+            songs = listOf(track("1", title = "Sex Bomb", artist = "Tom Jones & Mousse T.")),
+            query = "tsunami",
+            semantic = emptyList(),
+        )
+        assertEquals(emptyList(), results.map { it.id.value })
+    }
+
+    @Test
+    fun `Cyrillic phonk finds the Phonk genre exactly and ranks it above funk and folk fuzz`() {
+        // «фонк» folds to "fonk", one edit from Funk AND Folk alike — the reported failure had
+        // a polka and a sea shanty above the actual phonk. The ph collapse makes the named
+        // genre an EXACT genre match, which outranks any same-field fuzz.
+        val results = hybridSearch(
+            songs = listOf(
+                track("folk", title = "Tarantella Napoletana", genre = "Folk"),
+                track("phonk", title = "Noite De Esmeralda", genre = "Phonk"),
+                track("funk", title = "Love Rollercoaster", genre = "Funk"),
+            ),
+            query = "\u0444\u043e\u043d\u043a",
+            semantic = emptyList(),
+        )
+        assertEquals("phonk", results.first().id.value)
+    }
+
+    @Test
+    fun `Cyrillic funk still reaches the funk genre through fuzz`() {
+        val results = hybridSearch(
+            songs = listOf(track("funk", title = "Give It Up", genre = "Funk")),
+            query = "\u0444\u0430\u043d\u043a",
+            semantic = emptyList(),
+        )
+        assertEquals(listOf("funk"), results.map { it.id.value })
+    }
+
+    @Test
+    fun `the ph digraph highlights as one unit`() {
+        assertEquals(
+            listOf(0..4),
+            searchHighlightRanges("Phonk Anthem", "\u0444\u043e\u043d\u043a"),
+        )
+        // The trailing '!' is not part of the match and stays unstyled.
+        assertEquals(listOf(0..3), searchHighlightRanges("Fonk!", "phonk"))
+    }
+}

@@ -1,0 +1,866 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2026 LatentJam Project
+  SPDX-License-Identifier: Apache-2.0
+
+  Japanese (ja). Keys and ordering follow values/strings.xml.
+  Apostrophes and quotation marks are RAW; only \uXXXX \n \t \\ are unescaped.
+  "LatentJam" and "SMART" are names — never translated.
+-->
+<resources>
+
+    <!-- ============================================================ actions -->
+    <string name="action_play">再生</string>
+    <string name="action_pause">一時停止</string>
+    <string name="action_next">次の曲</string>
+    <string name="action_previous">前の曲</string>
+    <string name="action_shuffle">シャッフル</string>
+    <string name="action_close">閉じる</string>
+    <string name="action_back">戻る</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="action_delete">削除</string>
+    <string name="action_rename">名前を変更</string>
+    <string name="action_clear">消去</string>
+    <string name="action_track_options">曲のオプション</string>
+    <string name="action_create">作成</string>
+    <string name="action_play_all">すべて再生</string>
+    <string name="action_shuffle_all">すべてシャッフル再生</string>
+    <string name="action_share">共有</string>
+    <string name="action_select_all">すべて選択</string>
+    <string name="action_deselect_all">すべて選択解除</string>
+    <string name="selection_count">選択した曲：%1$d</string>
+    <string name="action_add">追加</string>
+    <string name="cd_more_options">その他のオプション</string>
+    <string name="cd_search_library">ライブラリを検索</string>
+    <string name="cd_alphabet_index">アルファベット索引</string>
+
+    <!-- ======================================================= track labels -->
+    <string name="label_track">曲</string>
+    <string name="track_untitled">タイトルなし</string>
+    <string name="track_unknown_artist">不明なアーティスト</string>
+    <string name="track_unknown_album">不明なアルバム</string>
+    <string name="track_unknown_genre">不明なジャンル</string>
+    <!-- Japanese has no grammatical plural: "other" only. -->
+    <plurals name="count_tracks">
+        <item quantity="other">%1$d曲</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="cd_track_options_for">%1$sのその他のオプション</string>
+    <string name="cd_track_options_generic">この曲のその他のオプション</string>
+
+    <plurals name="count_albums">
+        <item quantity="other">%1$d枚のアルバム</item>
+    </plurals>
+    <plurals name="count_artists">
+        <item quantity="other">%1$d人のアーティスト</item>
+    </plurals>
+    <plurals name="count_genres">
+        <item quantity="other">%1$d個のジャンル</item>
+    </plurals>
+
+    <!-- ======================================================= browse tabs -->
+    <string name="tab_for_you">あなたへ</string>
+    <string name="tab_playlists">プレイリスト</string>
+    <string name="tab_tracks">曲</string>
+    <string name="tab_albums">アルバム</string>
+    <string name="tab_artists">アーティスト</string>
+    <string name="tab_genres">ジャンル</string>
+    <string name="tab_map">マップ</string>
+
+    <!-- ===================================================== library shell -->
+    <string name="library_empty">この端末に音楽が見つかりません。</string>
+    <string name="action_rescan_library">ライブラリを更新</string>
+    <string name="sort_recently_added">最近追加した順</string>
+    <string name="sort_custom_order">カスタム順</string>
+    <string name="sort_name">名前</string>
+    <string name="sort_direction_ascending">昇順</string>
+    <string name="sort_direction_descending">降順</string>
+    <string name="snack_track_deleted">曲を削除しました</string>
+    <string name="snack_track_delete_denied">これらの曲を削除するにはファイルへのアクセスが必要です。</string>
+    <string name="snack_track_delete_failed">ファイルを削除できませんでした</string>
+    <string name="snack_track_delete_summary">削除：%1$d。アクセス拒否：%2$d。失敗：%3$d。キャンセル：%4$d。</string>
+
+    <!-- =========================================================== for you -->
+    <string name="foryou_empty">何曲か再生すると、また聴きたくなるものがここに集まります。</string>
+    <string name="foryou_section_continue">聴きかけ</string>
+    <string name="foryou_section_worth_revisiting">しばらく聴いていない曲</string>
+    <string name="foryou_section_worlds">あなたのミックス</string>
+    <string name="foryou_mix_discovery">ディスカバリーミックス</string>
+    <string name="foryou_section_never_played">未再生</string>
+    <!-- ワールドでできる 2 つのこと。推測せずに選ばせる。 -->
+    <string name="foryou_world_open">曲を表示</string>
+    <string name="foryou_world_smart">似た曲を再生</string>
+    <string name="foryou_kicker_resume">続きから再生</string>
+    <plurals name="foryou_kicker_played_times">
+        <item quantity="other">%1$d回再生しました</item>
+    </plurals>
+    <string name="foryou_kicker_never_played">未再生</string>
+    <plurals name="foryou_caption_played_before">
+        <item quantity="other">以前%1$d回</item>
+    </plurals>
+
+    <!-- =============================================================== map -->
+    <string name="map_lens_worlds">ワールド</string>
+    <string name="map_lens_plays">再生数</string>
+    <string name="map_lens_never_played">未再生</string>
+    <string name="map_lens_skips">スキップ</string>
+
+    <plurals name="count_regions">
+        <item quantity="other">%1$dつの地域</item>
+    </plurals>
+
+    <string name="map_headline_worlds">%1$sが%2$sにまとまりました。タップすると中身を聴けます。</string>
+    <string name="map_headline_worlds_partial">%2$sのうち%1$d曲が%3$sにまとまりました。タップすると中身を聴けます。</string>
+    <string name="map_headline_plays">マップの領域内では、再生の半分が%1$s、領域内の曲の%2$d\u0025に集中しています。</string>
+    <string name="map_headline_never_played">マップの領域内の%2$sのうち%1$d曲は未再生です。「%3$s」は%4$d\u0025が未再生です。</string>
+    <string name="map_headline_skips">「%1$s」がいちばん途中でやめてしまう場所です。再生開始の%2$d\u0025。</string>
+
+    <string name="map_headline_unplayed_total">マップの領域内：%2$s · 再生履歴なし：%1$d。</string>
+    <string name="map_select_region">エリアを選択</string>
+    <string name="map_fullscreen">マップを全画面で開く</string>
+    <string name="map_exit_fullscreen">全画面マップを閉じる</string>
+    <string name="map_gesture_hint">2本の指でマップを移動・拡大できます。</string>
+    <string name="map_reset_view">地図の表示をリセット</string>
+    <string name="map_region_unplayed">ここで未再生: %1$d</string>
+    <string name="map_action_play_unheard">未再生の曲を再生</string>
+    <string name="map_action_play_region">この地域を再生</string>
+    <string name="map_action_smart_here">ここから SMART</string>
+    <string name="map_empty_indexing">まだライブラリを読み込んでいます。インデックス作成が終わるとマップが表示されます。</string>
+    <string name="map_empty_building">ライブラリのマップを作成しています。ライブラリが大きい場合、少し時間がかかることがあります。</string>
+    <string name="map_empty_too_large">ライブラリには%1$sあり、マップが今表示できる%2$sより多くなっています。</string>
+
+    <string name="map_legend_selected">選択中の地域</string>
+    <string name="map_legend_rest">ライブラリの残り</string>
+    <string name="map_dot_outside_hint">最も近い領域: %1$s</string>
+    <string name="map_legend_never">未再生</string>
+    <string name="map_legend_played">1回以上再生</string>
+    <string name="map_legend_never_skips">スキップなし</string>
+    <string name="map_legend_always_skips">常にスキップ</string>
+
+    <!-- ================================================== now playing/queue -->
+    <string name="now_playing_nothing">再生中の曲はありません</string>
+    <string name="now_playing_source">再生元: %1$s</string>
+    <string name="cd_now_playing">再生中</string>
+    <string name="queue_title">再生キュー</string>
+    <!-- %1$d is how many tracks are in the queue -->
+    <string name="queue_title_count">再生キュー · %1$d</string>
+    <string name="queue_row_continuation">おすすめではありません — 再生を続けるための曲</string>
+    <string name="cd_repeat_off">リピートはオフです。タップするとキュー全体をリピートします。</string>
+    <string name="cd_repeat_all">キュー全体をリピート中です。タップすると1曲リピートに切り替わります。</string>
+    <string name="cd_repeat_one">1曲をリピート中です。タップするとリピートがオフになります。</string>
+    <string name="cd_shuffle_off">シャッフルはオフです。タップすると切り替わります。</string>
+    <string name="cd_shuffle_on">シャッフルはオンです。タップすると切り替わります。</string>
+    <string name="cd_shuffle_smart">SMARTシャッフルがオンです。タップすると切り替わります。</string>
+
+    <!-- ============================================================= search -->
+    <string name="search_placeholder">曲名・アーティスト・歌詞</string>
+    <string name="cd_close_search">検索を閉じる</string>
+    <string name="cd_clear_query">検索キーワードを消去</string>
+    <!-- %1$s is what the user typed -->
+    <string name="search_no_matches">「%1$s」に一致するものはありません。</string>
+    <!-- %1$d is the size of the library -->
+    <plurals name="search_hint_count">
+        <item quantity="other">ライブラリの%1$d曲から検索できます。</item>
+    </plurals>
+    <string name="search_recent_title">最近の検索</string>
+    <!-- %1$s is a past search term being removed from history -->
+    <string name="cd_forget_search">「%1$s」を履歴から削除</string>
+
+    <!-- ========================================================== playlists -->
+    <string name="playlists_empty">プレイリストはまだありません。+ をタップして作成できます。</string>
+    <string name="playlist_name_placeholder">プレイリスト名</string>
+    <string name="playlist_new">新規プレイリスト</string>
+    <!-- %1$s is a playlist name -->
+    <string name="cd_playlist_options">%1$sのオプション</string>
+    <!-- Sheet header. %1$s is a track title; the generic form is used when the
+         track has no title at all. -->
+    <string name="playlist_add_to_title">「%1$s」の追加先</string>
+    <string name="playlist_add_to_title_generic">曲の追加先</string>
+    <string name="playlist_rename_title">プレイリストの名前を変更</string>
+    <string name="action_change_playlist_cover">カバーを変更</string>
+    <string name="action_reset_playlist_cover">自動カバーを使用</string>
+    <string name="playlist_cover_error">プレイリストのカバーを変更できませんでした。別の画像をお試しください。</string>
+    <string name="snack_playlist_created">「%1$s」を作成しました</string>
+    <string name="snack_playlist_deleted">「%1$s」を削除しました</string>
+    <string name="snack_added_to_playlist">「%1$s」に追加しました</string>
+    <string name="auto_playlist_favorites">お気に入り</string>
+    <string name="auto_playlist_recently_added">最近追加した曲</string>
+    <string name="auto_playlist_most_played">よく再生した曲</string>
+    <string name="auto_playlist_recently_played">最近再生した曲</string>
+    <string name="auto_playlist_never_played">未再生</string>
+    <string name="auto_playlist_rediscover">再発見</string>
+
+    <!-- ============================================== track actions + sheet -->
+    <string name="action_play_next">次に再生</string>
+    <string name="action_add_to_queue">キューに追加</string>
+    <string name="action_add_to_playlist">プレイリストに追加</string>
+    <string name="action_add_favorite">お気に入りに追加</string>
+    <string name="action_remove_favorite">お気に入りから削除</string>
+    <string name="action_add_all_favorites">すべてお気に入りに追加</string>
+    <plurals name="snack_favorites_added">
+        <item quantity="other">%1$d曲をお気に入りに追加しました</item>
+    </plurals>
+    <plurals name="snack_favorites_removed">
+        <item quantity="other">%1$d曲をお気に入りから削除しました</item>
+    </plurals>
+    <plurals name="snack_favorites_already">
+        <item quantity="other">%1$d曲はすでにお気に入りにありました</item>
+    </plurals>
+    <string name="action_remove_from_playlist">このプレイリストから削除</string>
+    <string name="snack_playlist_track_removed">"%1$s"から削除しました</string>
+    <plurals name="playlist_unavailable_tracks">
+        <item quantity="other">このプレイリストの%1$d曲がこの端末にありません。</item>
+    </plurals>
+    <string name="action_go_to_album">アルバムを表示</string>
+    <string name="action_go_to_artist">アーティストを表示</string>
+    <string name="action_show_on_map">マップに表示</string>
+    <string name="action_export_m3u">M3Uとして書き出す</string>
+    <string name="action_smart_keep_together">SMARTでまとめて再生</string>
+    <string name="action_import_m3u">M3Uを読み込む</string>
+    <plurals name="snack_m3u_imported_all">
+        <item quantity="other">%1$d曲を読み込みました</item>
+    </plurals>
+    <plurals name="snack_m3u_imported_partial">
+        <item quantity="other">%2$d曲中%1$d曲を読み込みました</item>
+    </plurals>
+    <string name="snack_m3u_import_failed">プレイリストを読み込めませんでした</string>
+    <plurals name="m3u_import_found">
+        <item quantity="other">%2$d曲中%1$d曲が見つかりました</item>
+    </plurals>
+    <plurals name="m3u_import_playlists">
+        <item quantity="other">%1$d個のプレイリスト</item>
+    </plurals>
+    <plurals name="m3u_import_skipped_files">
+        <item quantity="other">%1$d個のファイルをスキップしました</item>
+    </plurals>
+    <string name="m3u_import_playlists_partial">作成したプレイリスト: %2$d個中%1$d個。残りは保存できませんでした。</string>
+    <plurals name="playlist_new_count">
+        <item quantity="other">%1$d個の新規プレイリスト</item>
+    </plurals>
+    <string name="playlist_imported_name">読み込んだプレイリスト</string>
+    <string name="action_information">情報</string>
+    <string name="action_delete_from_device">デバイスから削除</string>
+    <string name="dialog_delete_tracks_message">選択した%1$d曲をこのデバイスから削除します。この操作は取り消せません。</string>
+    <string name="dialog_delete_track_title">この曲を削除しますか？</string>
+    <plurals name="dialog_delete_tracks_title">
+        <item quantity="other">%1$d曲を削除しますか？</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="dialog_delete_track_message">「%1$s」をこのデバイスから削除します。この操作は取り消せません。</string>
+    <string name="dialog_delete_track_message_generic">この曲をこのデバイスから削除します。この操作は取り消せません。</string>
+
+    <!-- ======================================================== track info -->
+    <string name="info_title">タイトル</string>
+    <string name="info_artist">アーティスト</string>
+    <string name="info_album">アルバム</string>
+    <string name="info_genre">ジャンル</string>
+    <string name="info_year">年</string>
+    <string name="info_duration">再生時間</string>
+    <string name="info_location">保存場所</string>
+    <string name="info_not_set">未設定</string>
+    <string name="info_edit">タグを編集</string>
+    <string name="info_save">保存</string>
+    <string name="info_cancel">キャンセル</string>
+    <string name="editor_discard_title">変更を破棄しますか？</string>
+    <string name="editor_discard">破棄</string>
+    <string name="editor_keep_editing">編集を続ける</string>
+    <string name="info_saving">保存中…</string>
+    <string name="info_edit_note">ファイル自体に保存されるため、すべてのアプリに修正が反映されます。ファイルの変更許可を求められる場合があります。</string>
+    <string name="info_edit_refused">このファイルのタグは安全に書き換えられない形式のため、何も変更されませんでした。</string>
+    <string name="info_edit_failed">このファイルに書き込めませんでした。元のままです。</string>
+    <string name="info_edit_no_space">空き容量が足りず、これらのタグを安全に保存できません。何も変更されていません。</string>
+    <string name="info_edit_recovery_pending">保存が中断されました。次にファイルへの書き込みが許可されたときに、LatentJam が完了するか元に戻します。</string>
+    <string name="tag_recovery_title">タグの保存を完了</string>
+    <plurals name="tag_recovery_body">
+        <item quantity="other">%1$d 個のファイルへのタグの保存中に LatentJam が中断されました。今すぐ変更を完了するか、完了できないファイルは元に戻せます。</item>
+    </plurals>
+    <string name="tag_recovery_finish">完了</string>
+    <string name="tag_recovery_later">後で</string>
+    <string name="tag_problem_unsupported_format">LatentJamはこの種類のファイルを編集できません。</string>
+    <string name="tag_problem_damaged">このファイルは破損しているようなので、そのままにしています。</string>
+    <string name="tag_problem_protected">このファイルはコピー防止されているため、変更できません。</string>
+    <string name="tag_problem_tags_too_large">タグがこのファイルには大きすぎます。</string>
+    <string name="tag_problem_bad_number">曲番号とディスク番号は1〜999の整数にしてください。</string>
+    <string name="tag_problem_number_unreadable">ファイル自体の曲番号またはディスク番号が通常の数値ではないため、合計数だけを変更することはできません。</string>
+    <string name="tag_problem_bad_image">画像がJPEGまたはPNGではありません。</string>
+    <string name="tag_problem_read_only_storage">このファイルは書き込みできないストレージにあります。</string>
+    <string name="tag_problem_music_library">ミュージックライブラリの曲は編集できません。LatentJamに読み込んだ曲のみ編集できます。</string>
+    <string name="tag_problem_unreadable">このファイルを読み取れませんでした。</string>
+    <string name="tag_problem_not_allowed">ファイルの変更が許可されませんでした。</string>
+    <string name="tag_problem_missing">ファイルが見つかりません。</string>
+    <string name="tag_problem_stopped">このファイルの前で停止しました。</string>
+    <string name="tag_problem_cancelled">許可のリクエストが閉じられました。</string>
+    <string name="tag_problem_undone">中断された保存は取り消されました。ファイルは以前の状態に戻っています。</string>
+    <string name="tag_problem_changed_elsewhere">保存が中断された後に別のアプリがファイルを変更したため、そのままにしています。</string>
+    <string name="tag_problem_lost">この保存がどう終わったかを LatentJam は確認できませんでした。ファイルのタグを確認してください。</string>
+
+    <!-- =========================================================== settings -->
+    <string name="settings_title">設定</string>
+    <string name="settings_section_appearance">外観</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="theme_system">システムに合わせる</string>
+    <string name="theme_light">ライト</string>
+    <string name="theme_dark">ダーク</string>
+    <string name="settings_section_playback">再生</string>
+    <string name="settings_equalizer">イコライザ</string>
+    <string name="settings_equalizer_subtitle">このデバイスの音声出力の音質を調整します</string>
+    <string name="settings_intelligence">SMARTエンジン</string>
+    <string name="settings_smart_engine">SMARTエンジン</string>
+    <string name="settings_smart_engine_subtitle">オンデバイスモデルがライブラリについて把握している内容</string>
+    <string name="settings_about_body">LatentJamは、オンデバイスのレコメンド機能を備えたローカル音楽プレーヤーです。再生履歴に関する情報がこのデバイスの外に出ることはありません。</string>
+
+    <!-- ========================================================== equalizer -->
+    <string name="state_on">オン</string>
+    <string name="state_off">オフ</string>
+    <string name="equalizer_presets">プリセット</string>
+    <string name="equalizer_bands">帯域</string>
+    <string name="equalizer_bass_boost">低音ブースト</string>
+    <string name="equalizer_reset">フラットに戻す</string>
+
+    <!-- ======================================================= intelligence -->
+    <string name="intelligence_section_status">ステータス</string>
+    <string name="intelligence_engine">エンジン</string>
+    <string name="intelligence_library">ライブラリ</string>
+    <string name="intelligence_fingerprints">サウンド指紋</string>
+    <!-- %1$d tracks analysed out of %2$d in the library -->
+    <string name="intelligence_indexed_of">%2$d曲中%1$d曲</string>
+    <string name="engine_state_not_started">未開始</string>
+    <string name="engine_state_starting">起動中…</string>
+    <string name="engine_state_ready">準備完了</string>
+    <!-- %1$s is a technical failure reason reported by the engine -->
+    <string name="engine_state_unavailable">利用できません：%1$s</string>
+
+    <!-- ========================================================= permission -->
+    <string name="permission_audio_rationale">ライブラリをスキャンするため、LatentJamは音楽へのアクセスを必要とします。</string>
+    <string name="permission_grant">アクセスを許可</string>
+    <string name="permission_audio_settings_rationale">音楽へのアクセスがブロックされています。システム設定を開き、LatentJamに音楽とオーディオファイルへのアクセスを許可してください。</string>
+    <string name="permission_open_settings">設定を開く</string>
+    <string name="permission_notifications_title">解析の進行状況を表示しますか？</string>
+    <string name="permission_notifications_rationale">SMARTはこのデバイス上でライブラリを解析します。通知を許可すると、進行状況を確認し、解析中にLatentJamへ戻れます。「今はしない」を選んでも解析は続行されます。</string>
+    <string name="permission_not_now">今はしない</string>
+    <string name="permission_continue">続ける</string>
+
+
+    <string name="engine_error_model_unavailable">SMART は同梱モデルを読み込めませんでした。設定を再試行し、続く場合はアプリを再インストールするか報告してください。</string>
+    <string name="engine_error_not_indexed">ライブラリはまだインデックスされていません。</string>
+    <string name="engine_error_audio_unavailable">この曲を読み取りまたはデコードできませんでした。ファイルがまだ利用できることを確認して再試行してください。</string>
+    <string name="engine_error_backend">SMART で内部エラーが発生しました。設定を再試行し、続く場合は問題を報告してください。</string>
+
+    <string name="indexing_notification_title">音楽を解析中</string>
+    <string name="indexing_notification_progress">%2$d曲中%1$d曲</string>
+    <string name="indexing_notification_progress_eta">%2$d曲中%1$d曲 · 残り約%3$d分</string>
+    <!-- =================================================== expanded settings -->
+    <string name="settings_appearance">外観</string>
+    <string name="settings_appearance_subtitle">テーマ、プレーヤーの色、言語</string>
+    <string name="settings_library">ライブラリ</string>
+    <string name="settings_library_subtitle">更新、読み込み、非表示の曲を管理</string>
+    <string name="settings_playback">再生</string>
+    <string name="settings_playback_subtitle">イコライザーとオーディオ設定</string>
+    <string name="settings_privacy">プライバシーとデータ</string>
+    <string name="settings_privacy_subtitle">再生履歴と最近の検索</string>
+    <string name="settings_about">LatentJam について</string>
+    <string name="settings_about_subtitle">ライセンス、ソースコード、サポート</string>
+    <string name="settings_section_library">ライブラリ</string>
+    <string name="settings_section_navigation">ナビゲーション</string>
+    <string name="settings_section_privacy">端末上のデータ</string>
+    <string name="settings_track_colors">プレーヤーの色</string>
+    <string name="settings_page_header">ページ見出し</string>
+    <string name="settings_page_header_dots">ドット</string>
+    <string name="settings_page_header_neighbours">隣のページ</string>
+    <string name="settings_page_header_tabs">タブ</string>
+    <string name="settings_page_header_pills">ピル</string>
+    <string name="settings_page_header_menu">メニュー</string>
+    <string name="settings_color_custom">カスタム</string>
+    <string name="settings_color_custom_body">選んだ色が、再生中の曲に関係なくプレーヤー、雲、ミニプレーヤー、スイッチ、再生ボタンを彩ります。</string>
+    <string name="settings_accent_swatch">色 %1$d / %2$d</string>
+    <string name="settings_pure_black">ピュアブラック</string>
+    <string name="settings_pure_black_body">OLED 画面向け：濃いグレーの代わりに本物の黒</string>
+    <string name="settings_cloud">雲</string>
+    <string name="settings_cloud_off">オフ</string>
+    <string name="settings_cloud_soft">控えめ</string>
+    <string name="settings_cloud_normal">標準</string>
+    <string name="settings_cloud_vivid">鮮やか</string>
+    <string name="settings_cloud_motion">プレーヤーの動き</string>
+    <string name="settings_cloud_motion_body">音楽の再生中、雲がゆっくり漂います</string>
+    <string name="settings_player_background">プレーヤーの背景</string>
+    <string name="settings_player_background_cloud">雲</string>
+    <string name="settings_player_background_cover">ぼかしたジャケット</string>
+    <string name="settings_shape">形</string>
+    <string name="settings_shape_round">丸</string>
+    <string name="settings_shape_soft">やわらか</string>
+    <string name="settings_shape_sharp">シャープ</string>
+    <string name="settings_shape_body">アプリ全体のメニュー、シート、ボタン、チップ、ジャケットの角。</string>
+    <string name="settings_mini_player">ミニプレーヤー</string>
+    <string name="settings_mini_player_card">カード</string>
+    <string name="settings_mini_player_bar">バー</string>
+    <string name="settings_section_handling">操作</string>
+    <string name="settings_left_handed">左手用</string>
+    <string name="settings_left_handed_body">シャッフルボタンと索引を左側に</string>
+    <string name="settings_color_dynamic">アートワーク</string>
+    <string name="settings_color_dynamic_body">アートワークから取得した色を使い、取得できない場合は SMART の色を使います。</string>
+    <string name="settings_color_smart">SMART</string>
+    <string name="settings_color_smart_body">各曲のサウンド指紋から生成した色を使います。</string>
+    <string name="settings_color_theme">テーマ</string>
+    <string name="settings_color_theme_body">曲ごとの色ではなくアプリのテーマを使います。</string>
+    <string name="settings_start_page">開始ページ</string>
+    <string name="settings_start_page_body">次回 LatentJam を開いたときに適用されます。</string>
+    <string name="settings_library_count">ライブラリ内の曲</string>
+    <string name="settings_library_refresh">ライブラリを更新</string>
+    <string name="settings_library_refresh_body">新しく追加された音楽を探し、利用できなくなったファイルの項目を削除します。</string>
+    <string name="settings_library_import">音楽を読み込む</string>
+    <string name="settings_library_import_body">LatentJam にコピーするオーディオファイルを選びます。</string>
+    <string name="settings_library_restore">非表示の曲を復元</string>
+    <string name="settings_library_restore_body">LatentJam から取り除いた曲をすべてライブラリに戻します。端末上のファイルは変更されません。</string>
+    <string name="settings_playlist_relative_paths">書き出すプレイリストで相対パスを使う</string>
+    <string name="settings_playlist_relative_paths_body">各曲のパスをプレイリストのあるフォルダからの相対パス（../Music/…）で書き込み、ほかの端末でも使えるようにします。フォルダのパスがない場所に保存したときは、フルパスのままです。</string>
+    <string name="settings_equalizer_unavailable">このオーディオ出力では利用できません</string>
+    <string name="equalizer_unavailable_body">現在のオーディオ出力では LatentJam からイコライザーを利用できません。別の出力をお試しください。再生は通常どおり行えます。</string>
+    <string name="equalizer_bass_value">%1$d\u0025</string>
+    <string name="equalizer_preset_flat">フラット</string>
+    <string name="equalizer_preset_bass">低音</string>
+    <string name="equalizer_preset_treble">高音</string>
+    <string name="equalizer_preset_vocal">ボーカル</string>
+    <string name="equalizer_preset_electronic">エレクトロニック</string>
+    <string name="intelligence_syncing">ライブラリを同期中…</string>
+    <string name="intelligence_analysis_progress">%2$d 曲中 %1$d 曲を解析済み</string>
+    <string name="intelligence_analysis_failed">解析できなかった曲：%1$d</string>
+    <string name="intelligence_failures_more">ほか %1$d 件</string>
+    <string name="intelligence_retry">SMART の設定を再試行</string>
+    <string name="intelligence_section_recommendations">おすすめ</string>
+    <string name="intelligence_queue_length">SMART キューの長さ</string>
+    <string name="intelligence_queue_length_body">SMART がキューを作るときに追加する曲数を選びます。</string>
+    <string name="intelligence_artist_variety">アーティストの多様性</string>
+    <string name="intelligence_artist_variety_body">同じアーティストの曲を SMART がどれだけ離して並べるか。明らかによく合う曲は、同じアーティストの直後でも再生されます。</string>
+    <string name="intelligence_artist_variety_free">オフ</string>
+    <string name="intelligence_artist_variety_low">低</string>
+    <string name="intelligence_artist_variety_balanced">バランス</string>
+    <string name="intelligence_artist_variety_high">高</string>
+    <string name="intelligence_artist_variety_max">最大</string>
+    <string name="intelligence_include_novelty_mixes">ネタ系ミックスを含める</string>
+    <string name="intelligence_include_novelty_mixes_body">ミーム、バイラル、効果音のミックスを「あなたへ」に別枠で表示します。</string>
+    <string name="foryou_mix_meme_viral">ミーム＆バイラル音源</string>
+    <string name="foryou_mix_sound_effects">効果音</string>
+    <string name="foryou_mix_spoken_audio">トーク・朗読</string>
+    <string name="foryou_mix_instrumental">インストゥルメンタル</string>
+    <string name="intelligence_how_it_works">SMART はこの端末上でサウンド指紋を比較し、音楽的な類似性と再生履歴を組み合わせます。アカウントやインターネット接続は必要ありません。</string>
+    <string name="privacy_local_body">ライブラリ、再生履歴、SMART データはこの端末に保存されます。LatentJam にアカウントはなく、これらのデータをサーバーへ送信しません。</string>
+    <string name="privacy_save_history_body">「おすすめ」と SMART の提案に使用するため、再生とスキップをこのデバイスに保存します。</string>
+    <string name="privacy_remember_searches_body">検索欄が空のときに表示できるよう、検索内容をこのデバイスに保存します。</string>
+    <string name="privacy_disable_history_body">新しい再生履歴の保存を停止します。このデバイスに保存済みの履歴はどうしますか？</string>
+    <string name="privacy_disable_searches_body">新しい検索履歴の保存を停止します。このデバイスに保存済みの検索はどうしますか？</string>
+    <string name="privacy_keep_existing">既存のデータを保持</string>
+    <string name="privacy_delete_existing">既存のデータを削除</string>
+    <string name="privacy_setting_save_failed">このプライバシー設定を保存できませんでした。もう一度お試しください。</string>
+    <string name="privacy_data_clear_failed">このデバイスのデータを消去できませんでした。もう一度お試しください。</string>
+    <string name="privacy_clear_history">再生履歴を消去</string>
+    <string name="privacy_clear_history_body">おすすめの調整に使われる再生とスキップのデータを削除します。</string>
+    <string name="privacy_clear_history_confirm">すべての再生履歴を消去しますか？おすすめは好みを最初から学習し直します。</string>
+    <string name="privacy_history_empty">再生履歴はありません</string>
+    <plurals name="privacy_history_listens">
+        <item quantity="other">%1$d 回再生</item>
+    </plurals>
+    <string name="privacy_recent_searches">最近の検索</string>
+    <string name="privacy_clear_searches">最近の検索を消去</string>
+    <string name="privacy_clear_searches_body">検索欄が空のときに表示される検索語を削除します。</string>
+    <string name="privacy_clear_searches_confirm">最近の検索をすべて消去しますか？</string>
+    <string name="settings_license">ライセンス</string>
+    <string name="settings_license_body">LatentJam は Apache License 2.0 で提供される自由ソフトウェアです。</string>
+    <string name="settings_open_source">ソースコード</string>
+    <string name="settings_open_source_body">GitHub でプロジェクトを見る</string>
+    <string name="settings_report_issue">問題を報告</string>
+    <string name="settings_section_preferences">環境設定</string>
+    <string name="settings_section_music">音楽</string>
+    <string name="settings_section_data_support">データとサポート</string>
+    <string name="privacy_listening_history">再生履歴</string>
+    <string name="settings_version">バージョン</string>
+    <string name="settings_library_loading">ライブラリを読み込み中…</string>
+    <string name="settings_library_refreshing">更新中…</string>
+    <string name="snack_library_refreshed">ライブラリを更新しました</string>
+    <string name="action_exclude_track_from_smart">この曲をおすすめしない</string>
+    <string name="action_exclude_artist_from_smart">このアーティストをおすすめしない</string>
+    <string name="action_include_track_in_smart">この曲を再びおすすめに含める</string>
+    <string name="action_include_artist_in_smart">このアーティストを再びおすすめに含める</string>
+    <string name="snack_track_excluded_from_smart">曲を SMART のおすすめから除外しました</string>
+    <string name="snack_artist_excluded_from_smart">アーティストを SMART のおすすめから除外しました</string>
+    <string name="snack_track_included_in_smart">曲を SMART のおすすめに戻しました</string>
+    <string name="snack_artist_included_in_smart">アーティストを SMART のおすすめに戻しました</string>
+    <string name="snack_smart_exclusion_failed">SMART のおすすめを更新できませんでした。もう一度お試しください。</string>
+    <string name="action_retry">もう一度試す</string>
+
+    <string name="settings_language">言語</string>
+    <string name="settings_language_body">システム設定で言語を変更します。</string>
+    <string name="settings_audio_access">音楽へのアクセス</string>
+    <string name="settings_audio_access_allowed">許可済み</string>
+    <string name="settings_audio_access_blocked">ブロック中</string>
+    <string name="settings_audio_access_not_requested">未要求</string>
+    <string name="settings_audio_access_not_required">不要</string>
+    <string name="settings_sources">音楽ソース</string>
+    <string name="settings_sources_body">LatentJam に表示するフォルダーや端末のコレクションを選びます。端末上のファイルは変更されません。</string>
+    <string name="settings_sources_empty">管理できる音楽ソースが見つかりませんでした。</string>
+    <string name="settings_source_unnamed">端末の音楽</string>
+    <string name="settings_source_music_library">ミュージックライブラリ</string>
+    <string name="settings_hidden_tracks">非表示の曲</string>
+    <string name="settings_hidden_tracks_body">LatentJam 内でのみ非表示にした曲です。ファイルを変更せずに個別に復元できます。</string>
+    <string name="settings_hidden_tracks_empty">LatentJam で非表示になっている曲はありません。</string>
+    <string name="settings_interrupted_saves">中断された保存</string>
+    <plurals name="settings_interrupted_saves_body">
+        <item quantity="other">%1$d 個のファイルへのタグの保存が中断されました。ファイルへの書き込みが許可され次第、LatentJam が完了するか元に戻します。</item>
+    </plurals>
+    <string name="settings_interrupted_finish">今すぐ完了</string>
+    <string name="settings_interrupted_being_repaired">修復中: 完了するまで再生されません</string>
+    <string name="settings_interrupted_forget">破棄</string>
+    <string name="settings_interrupted_forget_title">この保存を破棄しますか？</string>
+    <string name="settings_interrupted_forget_body">ファイルは今の状態のまま残り、LatentJam は保存の完了や取り消しを試みなくなります。この操作は元に戻せません。</string>
+    <string name="settings_interrupted_forget_damaged_body">この保存は途中で止まりました。ファイルが壊れていて再生できない可能性があります。破棄すると、LatentJam が修復に使えるコピーも削除されます。この操作は元に戻せません。</string>
+    <string name="settings_duplicates">音声の重複</string>
+    <string name="settings_duplicates_body">タグに関係なく、同じ録音のコピーを音で見つけます</string>
+    <string name="settings_duplicates_scanning">全トラックを比較中…</string>
+    <string name="settings_duplicates_empty">重複はありません — どのトラックも固有の音です</string>
+    <string name="settings_restore">復元</string>
+    <string name="settings_restore_all">すべて復元</string>
+    <string name="settings_library_manage_failed">ライブラリを更新できませんでした。もう一度お試しください。</string>
+    <string name="settings_lyrics_folders">.lrc ファイルのフォルダ</string>
+    <string name="settings_lyrics_folders_body">許可するフォルダを Android が尋ねます。曲と同じ名前の .lrc ファイルがその曲の歌詞として使われます。</string>
+    <string name="settings_lyrics_folders_add">フォルダを追加</string>
+    <string name="settings_lyrics_folders_remove">解除</string>
+    <string name="settings_lyrics_folders_failed">このフォルダは使用できません。このデバイスのストレージ内のフォルダを選んでください。</string>
+
+    <string name="settings_licenses">オープンソースライセンス</string>
+    <string name="settings_licenses_body">LatentJam、同梱モデル、サードパーティ製ソフトウェアに関する表示</string>
+    <string name="settings_license_models">オーディオおよび SMART モデル</string>
+    <string name="settings_license_models_body">LatentJam が作成した MobileNetV4 オーディオモデルの重みは Apache-2.0 です。生徒モデルは timm（Apache-2.0）を使用し、EfficientAT（MIT、copyright © 2022 Florian Schmid）から蒸留されています。</string>
+    <string name="settings_license_text_model">テキストモデル</string>
+    <string name="settings_license_text_model_body">同梱のテキストエンコーダーと語彙は、sentence-transformers/all-MiniLM-L6-v2 (Apache-2.0) を再現するよう LatentJam が学習させたもので、Apache-2.0 です。</string>
+    <string name="settings_license_runtime">ONNX Runtime</string>
+    <string name="settings_license_runtime_body">端末上のモデル推論には、MIT License の Microsoft ONNX Runtime を使用しています。Copyright © Microsoft Corporation.</string>
+    <string name="settings_license_aliases">MusicBrainz と Wikidata</string>
+    <string name="settings_license_aliases_body">同梱のアーティスト別名検索データは MusicBrainz と Wikidata から派生し、CC0 で提供されています。</string>
+    <string name="settings_license_libraries">サードパーティ製ライブラリ</string>
+    <string name="settings_license_libraries_body">LatentJam は、寛容な Apache-2.0 または MIT ライセンスの下で Kotlin、coroutines、Compose Multiplatform、AndroidX Media3、Koin、Coil を使用しています。完全な表示はソース配布物に含まれています。</string>
+
+    <string name="sleep_timer">スリープタイマー</string>
+    <string name="sleep_timer_off">オフ</string>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d分</item>
+        <item quantity="other">%1$d分</item>
+    </plurals>
+    <string name="sleep_timer_end_of_track">現在の曲の終了時</string>
+    <string name="sleep_timer_active_minutes">残り%1$d分</string>
+    <string name="sleep_timer_active_end_of_track">この曲の後に停止します</string>
+
+    <string name="intelligence_problems">解析の問題</string>
+    <string name="intelligence_problems_body">SMART が解析できなかった曲です。音楽は引き続き再生できます。</string>
+    <string name="intelligence_no_problems">解析の問題はありません</string>
+    <string name="intelligence_manage_exclusions">おすすめからの除外</string>
+    <string name="intelligence_manage_exclusions_body">SMART がおすすめしない曲とアーティスト</string>
+    <string name="intelligence_exclusions_empty">おすすめからの除外はありません</string>
+    <string name="intelligence_excluded_tracks">除外した曲</string>
+    <string name="intelligence_excluded_artists">除外したアーティスト</string>
+    <string name="intelligence_rebuild">SMART 解析を再構築</string>
+    <string name="intelligence_rebuild_body">ローカルのサウンド指紋を削除し、表示中のライブラリをもう一度解析します。</string>
+    <string name="intelligence_rebuild_confirm">SMART 解析をすべて再構築しますか？音楽ファイル、プレイリスト、再生履歴は変更されません。</string>
+    <string name="intelligence_how_title">SMART の仕組み</string>
+    <string name="intelligence_notifications">解析通知</string>
+    <string name="intelligence_notifications_body">LatentJam の外でもインデックス作成の進行状況を表示します</string>
+    <string name="intelligence_exclusions_clear">すべての除外を解除</string>
+
+    <string name="settings_backup">ローカルバックアップ</string>
+    <string name="settings_backup_body">プレイリスト、お気に入り、設定、履歴、非表示の曲、SMART の除外、重複検出の判断をエクスポートまたは復元します。音楽ファイルとモデルデータは含まれません。</string>
+    <string name="backup_export">バックアップをエクスポート</string>
+    <string name="backup_import">バックアップをインポート</string>
+    <string name="backup_import_title">ローカルバックアップを復元</string>
+    <string name="backup_import_body">インポートしたデータを、この端末にあるデータと組み合わせる方法を選びます。</string>
+    <string name="backup_section_duplicate_decisions">重複検出の判断</string>
+    <string name="backup_merge">統合</string>
+    <string name="backup_replace">置き換え</string>
+    <string name="backup_replace_warning">選択したアプリデータをこのバックアップで置き換えますか？音楽ファイルは変更されません。</string>
+    <string name="backup_export_success">バックアップをエクスポートしました</string>
+    <string name="backup_import_success">バックアップを復元しました</string>
+    <string name="backup_import_success_unmatched">バックアップを復元しましたが、このデバイスで %1$d 件の曲参照を照合できませんでした。</string>
+    <plurals name="backup_import_decisions_not_kept">
+        <item quantity="other">このデバイスに重複検出の判断 %1$d 件を保存できませんでした。</item>
+    </plurals>
+    <string name="backup_import_partial">エラーが発生する前に一部のデータが復元されました。</string>
+    <string name="backup_failed">バックアップ操作を完了できませんでした。</string>
+    <string name="backup_invalid">有効な LatentJam バックアップではありません。</string>
+    <string name="backup_destination_warning">バックアップには非公開のアプリデータが含まれます。システムの選択画面で指定したクラウドまたは他社の保存先に同期される場合があります。</string>
+    <string name="settings_stats">統計</string>
+    <string name="settings_stats_subtitle">数字で見るあなたの再生</string>
+    <string name="stats_period_week">7日間</string>
+    <string name="stats_period_month">30日間</string>
+    <string name="stats_period_all">全期間</string>
+    <string name="stats_time_listened">再生時間</string>
+    <string name="stats_plays">再生回数</string>
+    <string name="stats_distinct_tracks">曲数</string>
+    <string name="stats_streak_current">連続日数</string>
+    <string name="stats_streak_longest">最長記録</string>
+    <string name="stats_days_short">日</string>
+    <string name="stats_hours_short">時間</string>
+    <string name="stats_minutes_short">分</string>
+    <string name="stats_finished_share">最後まで再生</string>
+    <string name="stats_skipped_share">スキップ</string>
+    <string name="stats_empty">この期間はまだ何も再生されていません。</string>
+    <string name="stats_load_failed">再生統計を読み込めませんでした。</string>
+    <string name="settings_normalize_volume">音量ノーマライズ</string>
+    <string name="settings_normalize_volume_subtitle">音量の大きい曲を一定のレベルまで下げます</string>
+    <string name="settings_crossfade">なめらかな曲間</string>
+    <string name="settings_crossfade_subtitle">曲の境目で音量をフェードします</string>
+    <string name="settings_crossfade_value">%1$d 秒</string>
+    <string name="duplicates_keep_this">これを残す</string>
+    <string name="snack_duplicates_merged">重複を統合しました。プレイリストは残したコピーを指します</string>
+    <string name="info_lyrics">歌詞</string>
+    <string name="info_album_artist">アルバムアーティスト</string>
+    <string name="info_track_number">曲番号</string>
+    <string name="info_track_total">総曲数</string>
+    <string name="info_disc_number">ディスク番号</string>
+    <string name="info_disc_total">総ディスク数</string>
+    <string name="info_cover">カバー</string>
+    <string name="info_cover_replace">置き換え</string>
+    <string name="info_cover_remove">削除</string>
+    <string name="info_cover_keep">現在のものを維持</string>
+    <string name="info_cover_new">新しいカバー</string>
+    <string name="info_cover_removed">カバーは削除されます。</string>
+    <plurals name="info_cover_more">
+        <item quantity="other">ファイル内の他の画像 +%1$d 枚はそのまま残ります</item>
+    </plurals>
+    <string name="info_reading_file">ファイルを読み取り中…</string>
+    <string name="action_edit_album">アルバムを編集</string>
+    <string name="action_edit_artist">アーティストを編集</string>
+    <string name="action_favorite_short">お気に入り</string>
+    <string name="action_unfavorite_short">お気に入り解除</string>
+    <plurals name="count_files">
+        <item quantity="other">%1$d件のファイル</item>
+    </plurals>
+    <plurals name="count_fields">
+        <item quantity="other">%1$d項目</item>
+    </plurals>
+    <string name="bulk_save">%2$sで%1$sを変更</string>
+    <string name="bulk_reading">%2$d件中%1$d件を読み取り中…</string>
+    <plurals name="bulk_not_editable">
+        <item quantity="other">%1$d件のファイルは編集できないため、そのまま残します：</item>
+    </plurals>
+    <plurals name="bulk_more_files">
+        <item quantity="other">ほか%1$d件</item>
+    </plurals>
+    <string name="bulk_nothing_editable">これらのファイルはどれも編集できません。</string>
+    <string name="bulk_different">複数の値</string>
+    <plurals name="bulk_removed">
+        <item quantity="other">%1$d件のファイルから削除</item>
+    </plurals>
+    <string name="bulk_remove_field">すべてのファイルから削除</string>
+    <string name="bulk_keep_field">そのままにする</string>
+    <string name="bulk_kept">そのまま：%1$s</string>
+    <string name="bulk_saving">%2$d件中%1$d件を保存済み</string>
+    <string name="bulk_stop">停止</string>
+    <string name="bulk_result">%2$d件中%1$d件を保存しました。</string>
+    <plurals name="bulk_not_changed">
+        <item quantity="other">%1$d件のファイルは変更されませんでした：</item>
+    </plurals>
+    <string name="bulk_done">完了</string>
+    <string name="bulk_file_reason">%1$s：%2$s</string>
+    <plurals name="tags_saved">
+        <item quantity="other">%1$d件のファイルにタグを保存しました</item>
+    </plurals>
+    <string name="tags_saved_partly">%2$d件中%1$d件のファイルにタグを保存しました</string>
+    <plurals name="tag_recovery_done">
+        <item quantity="other">%1$d件のファイルの保存を完了しました</item>
+    </plurals>
+    <plurals name="tag_recovery_undone">
+        <item quantity="other">中断された保存%1$d件を取り消しました。ファイルは以前の状態に戻っています</item>
+    </plurals>
+    <plurals name="tag_recovery_left">
+        <item quantity="other">%1$d件のファイルは別のアプリによって変更されていたため、そのままにしています</item>
+    </plurals>
+    <plurals name="tag_recovery_waiting">
+        <item quantity="other">%1$d件のファイルの保存をまだ完了できていません。設定 → ライブラリをご覧ください。</item>
+    </plurals>
+    <string name="lyrics_not_found">この曲の歌詞が見つかりませんでした。</string>
+    <string name="cd_scroll_to_top">先頭に戻る</string>
+    <string name="foryou_section_daypart_morning">あなたの朝</string>
+    <string name="foryou_section_daypart_day">あなたの昼</string>
+    <string name="foryou_section_daypart_evening">あなたの夜</string>
+    <string name="foryou_section_daypart_night">あなたの深夜</string>
+    <string name="foryou_section_on_a_roll">最近よく聴く：%1$s</string>
+    <string name="foryou_caption_left_turn">%1$sが好きなら</string>
+    <string name="settings_pages">ページ</string>
+    <string name="settings_pages_subtitle">表示、順序、開始ページ</string>
+    <string name="settings_pages_body">ドラッグして並べ替えます。使わないページはオフにできます。</string>
+    <string name="settings_pages_last_visible">少なくとも1つのページをオンにしてください。</string>
+    <string name="settings_page_position">%2$dページ中%1$d番目</string>
+    <string name="settings_page_move_up">%1$sを上に移動</string>
+    <string name="settings_page_move_down">%1$sを下に移動</string>
+    <string name="settings_pages_reset">ページをリセット</string>
+    <string name="settings_pages_reset_body">順序、表示するページ、開始ページを初期設定に戻します。</string>
+    <string name="stats_dashboard_title">あなたのリスニング</string>
+    <string name="stats_recording_off">再生履歴の記録は一時停止中です。保存済みの統計は引き続き表示されます。プライバシー設定で履歴を有効にするまで、新しい再生は追加されません。</string>
+    <string name="stats_comparison_more">その前の%2$d日間より%1$s増加</string>
+    <string name="stats_comparison_less">その前の%2$d日間より%1$s減少</string>
+    <string name="stats_comparison_same">その前の%1$d日間と同じ再生時間</string>
+    <string name="stats_comparison_first">その前の%1$d日間は再生がありません</string>
+    <string name="stats_under_minute">1分未満</string>
+    <string name="stats_activity">毎日のリズム</string>
+    <string name="stats_calendar_days">直近%1$d日間（暦日）・再生時間</string>
+    <string name="stats_today">今日</string>
+    <string name="stats_yesterday">昨日</string>
+    <string name="stats_new_tracks">初めて聴いた曲</string>
+    <string name="stats_smart_detail">SMARTシャッフルが有効な状態で開始した再生の割合</string>
+    <string name="stats_listening_style">あなたの聴き方</string>
+    <string name="stats_recent_empty">この期間にはまだ再生がありません。</string>
+    <string name="stats_history_note">保存済みの履歴に基づき、この端末のタイムゾーンで集計します。曲の終了時や切り替え時に更新されます。リストにはライブラリに残っている曲だけが表示されます。復元したバックアップは見つかった曲だけを保持し、削除した曲でしか知られていないアーティストは新しいアーティストとして表示されることがあります。</string>
+    <string name="stats_chart_day_summary">%1$s: %2$s · %3$s</string>
+    <plurals name="stats_days_ago">
+        <item quantity="other">%1$d日前</item>
+    </plurals>
+    <string name="stats_section_lately">最近のあなた</string>
+    <string name="stats_section_numbers">あなたの数字</string>
+    <string name="stats_section_over_time">これまでの推移</string>
+    <string name="stats_on_repeat">最近リピート中</string>
+    <string name="stats_artists_on_repeat">リピート中のアーティスト</string>
+    <plurals name="stats_on_days">
+        <item quantity="other">再生日数 %1$d日</item>
+    </plurals>
+    <string name="stats_week_days">直近7日間のうち%1$d日</string>
+    <plurals name="stats_days_of_music">
+        <item quantity="other">約%1$d日分の音楽</item>
+    </plurals>
+    <plurals name="stats_activity_last_months">
+        <item quantity="other">直近%1$dか月・再生時間</item>
+    </plurals>
+    <string name="stats_activity_years">年別・再生時間</string>
+    <string name="stats_activity_over_time">これまでのリスニングの推移</string>
+    <string name="stats_this_month">今月</string>
+    <string name="stats_this_year">今年</string>
+    <plurals name="stats_months_ago">
+        <item quantity="other">%1$dか月前</item>
+    </plurals>
+    <plurals name="stats_years_ago">
+        <item quantity="other">%1$d年前</item>
+    </plurals>
+    <string name="stats_new_and_familiar">新しい曲と聴き慣れた曲</string>
+    <string name="stats_familiar">聴き慣れた曲</string>
+    <plurals name="stats_new_tracks_count">
+        <item quantity="other">新しい曲 %1$d曲</item>
+    </plurals>
+    <plurals name="stats_new_artists_count">
+        <item quantity="other">新しいアーティスト %1$d組</item>
+    </plurals>
+    <string name="stats_new_previous">その前の%1$d日間：新しい曲 %2$s</string>
+    <string name="stats_stuck_artists">定着した新しいアーティスト</string>
+    <string name="stats_stuck_artists_recent">定着した新しいアーティスト・直近3か月</string>
+    <plurals name="stats_log_age">
+        <item quantity="other">LatentJamが一緒に聴いて%1$d日</item>
+    </plurals>
+    <string name="stats_new_note">初めて聴いた曲 = LatentJamで初めて再生した曲。ライブラリはアプリより古い場合があります。</string>
+    <plurals name="stats_locked_plays">
+        <item quantity="other">この期間に%1$d回再生すると表示されます</item>
+    </plurals>
+    <string name="stats_when_you_listen">聴く時間帯</string>
+    <string name="stats_night">夜中</string>
+    <string name="stats_morning">朝</string>
+    <string name="stats_afternoon">昼</string>
+    <string name="stats_evening">夜</string>
+    <string name="stats_daypart_peak">最も多いのは%1$s（%2$s）</string>
+    <string name="stats_typical_session">一般的なセッション</string>
+    <string name="stats_longest_session">最長のセッション</string>
+    <string name="stats_locked_sessions">この期間に何回か聴くと表示されます</string>
+    <string name="stats_your_top">あなたのトップ</string>
+    <string name="stats_show_more">10件表示</string>
+    <string name="stats_show_less">5件表示</string>
+    <string name="stats_partly_share">途中まで再生</string>
+    <string name="stats_smart_mode_share">SMARTモードで再生</string>
+    <string name="stats_finish_note">すべての再生開始に対する割合。最後まで再生 = 85%まで聴いた曲、スキップ = 最初の30秒以内に離れた曲。</string>
+    <string name="stats_slipping_away">ご無沙汰の曲</string>
+    <string name="stats_slipping_note">自分でよく選んでいたのに、LatentJamで2か月以上再生していないお気に入りの曲です。</string>
+    <string name="stats_year_ago">1年前</string>
+    <string name="stats_patterns">あなたのパターン</string>
+    <string name="stats_same_artist_picks">同じアーティストを続けて選ぶ</string>
+    <string name="stats_of_100_picks">100回中%1$d回</string>
+    <string name="stats_same_artist_note">次の曲を自分で選んだときの割合。アーティストページからの再生も含みます。</string>
+    <string name="stats_picked_next">よく続けて選ぶ曲</string>
+    <string name="stats_sequence_description">%1$sの後に%2$sを選んだ回数：%4$d回中%3$d回</string>
+    <string name="stats_library">あなたのライブラリ</string>
+    <string name="stats_played_once">1回以上再生</string>
+    <string name="stats_x_of_y">%2$s中%1$s</string>
+    <string name="stats_decades">年代</string>
+    <string name="stats_decade">%1$d年代</string>
+    <string name="stats_more_appears">聴くほどに表示される項目が増えます</string>
+    <string name="stats_unlock_on_repeat">最近リピート中 — 1週間聴くと表示</string>
+    <string name="stats_unlock_slipping">ご無沙汰の曲 — 3か月聴くと表示</string>
+    <string name="stats_part_failed">一部の統計を読み込めませんでした。</string>
+    <string name="stats_playlist_row">プレイリスト</string>
+    <string name="stats_playlists_note">各プレイリストからの再生回数です。SMART が追加した曲と、LatentJam が再生元を記録する前の再生は含みません。</string>
+
+    <!-- Duplicate finder -->
+    <string name="duplicates_summary">グループ: %1$d · 余分なコピー: %2$d · 空けられる容量: %3$s</string>
+    <string name="duplicates_keep_recommended">おすすめのコピーを残す</string>
+    <string name="duplicates_keep_selected">選択したコピーを残す</string>
+    <string name="duplicates_not_duplicates">重複ではない</string>
+    <string name="duplicates_recommended">おすすめ</string>
+    <string name="duplicates_hide_copy">このコピーを非表示</string>
+    <string name="duplicates_hide_files">他のコピーを非表示にする（ファイルは端末に残ります）</string>
+    <string name="duplicates_delete_files">他のファイルを端末から削除する</string>
+    <string name="duplicates_merge_all_confirm">%1$d個すべてのグループでおすすめのコピーを残します。</string>
+    <string name="duplicates_merge_confirm_body">プレイリストとお気に入りは残したコピーを指すようになります。他の%1$d個のコピー:</string>
+    <string name="duplicates_reclaimable">%1$s空けられます</string>
+    <string name="duplicates_kbps">%1$d kbps</string>
+    <string name="unit_megabytes">%1$s MB</string>
+    <string name="snack_duplicates_dismissed">別の録音として記録しました</string>
+    <string name="cd_player_artwork">ジャケット。タップで曲の詳細、長押しで操作、横にスワイプで曲の切り替え、下にドラッグで閉じます。</string>
+    <string name="details_title">曲の詳細</string>
+    <string name="details_language">言語</string>
+    <string name="details_format">形式</string>
+    <string name="details_file">ファイル</string>
+    <string name="details_plays">再生回数</string>
+    <string name="details_plays_none">まだ再生していません</string>
+    <string name="details_original_year">初リリース</string>
+    <string name="cd_details_close">ジャケットに戻る</string>
+    <string name="player_mode_title">再生モード</string>
+    <string name="player_mode_off">順番どおり</string>
+    <string name="player_mode_shuffle">シャッフル</string>
+    <string name="player_mode_smart">SMART</string>
+    <string name="cd_mode_button">再生モード: %1$s。タップで切り替え、長押しで選択します。</string>
+    <string name="cd_seek_position">再生位置</string>
+    <string name="cd_time_toggle">残り時間と合計時間を切り替える</string>
+    <string name="seek_fine_half">½ 速</string>
+    <string name="seek_fine_quarter">¼ 速</string>
+    <string name="cd_skip_next_hold">次の曲。長押しで早送りします。</string>
+    <string name="cd_skip_previous_hold">前の曲。長押しで巻き戻します。</string>
+    <string name="output_phone_speaker">スマートフォンのスピーカー</string>
+    <string name="output_headphones">ヘッドホン</string>
+    <string name="output_bluetooth">Bluetooth</string>
+    <string name="cd_output_route">%1$s で再生中。タップして出力先を選択します。</string>
+    <string name="now_playing_next">次: %1$s</string>
+    <string name="output_title">音声出力</string>
+    <string name="output_current">現在の出力先</string>
+    <string name="output_connect_device">デバイスを接続</string>
+    <string name="output_selection_failed">デバイスを利用できません。接続を確認してください。</string>
+    <string name="queue_reorder">曲を並べ替え</string>
+    <string name="playlists_yours">マイプレイリスト</string>
+    <string name="playlists_empty_body">プレイリストを作成するか、M3Uファイルを読み込んで音楽をまとめましょう。</string>
+    <string name="playlists_automatic">自動</string>
+    <string name="settings_pages_order">順序</string>
+    <string name="settings_opens_on_launch">起動時に開く</string>
+    <string name="settings_reorder_page">%1$s を並べ替え</string>
+    <string name="settings_backup_subtitle">エクスポートまたは復元</string>
+    <string name="duplicates_groups">グループ</string>
+    <string name="duplicates_summary_title">グループ数：%1$d · %2$s</string>
+    <string name="duplicates_summary_extra">余分なコピー：%1$d</string>
+    <string name="duplicates_copy_count">コピー数：%1$d</string>
+    <string name="playlist_reorder_track">ドラッグして%1$sの順序を変更</string>
+    <string name="equalizer_custom">カスタム</string>
+    <string name="equalizer_hint">プリセットを選ぶとオンになります。各帯域を好みに合わせて調整することもできます。</string>
+    <string name="equalizer_reset_short">リセット</string>
+    <string name="equalizer_bands_hint">周波数：Hz · ゲイン：dB · スワイプで他の帯域を表示</string>
+    <string name="normalization_waiting">曲を再生すると音量を測定します。</string>
+    <string name="normalization_measuring">この曲を測定中…</string>
+    <string name="normalization_unavailable">この曲を測定できませんでした。元の音量で再生します。</string>
+    <string name="normalization_unchanged">この曲の音量を下げる必要はありません。静かな曲は増幅しません。</string>
+    <string name="normalization_reduced">この曲の音量を %1$s dB 下げています。</string>
+    <string name="equalizer_response">周波数特性</string>
+    <string name="equalizer_response_preview">%1$s kHz でのプレビュー</string>
+    <string name="equalizer_response_headroom">レベルの余裕：%1$s dB</string>
+    <string name="equalizer_peak_reduction">ピークの減衰：%1$s dB</string>
+    <string name="equalizer_peak_hint">大幅な増幅により、曲全体の音量が下がる場合があります。</string>
+    <string name="map_memory_limited">マップの計算に必要な空きメモリが不足しています。他のアプリを閉じて、マップを開き直してください。</string>
+    <string name="map_unavailable">マップを計算できませんでした。開き直して、もう一度お試しください。</string>
+</resources>

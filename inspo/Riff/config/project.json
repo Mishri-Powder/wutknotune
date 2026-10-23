@@ -1,0 +1,575 @@
+{
+  "releaseDate": "2026-10-18",
+  "releaseChannel": "FINAL",
+  "genreLocales": [
+    "en",
+    "es",
+    "de",
+    "ru",
+    "pt"
+  ],
+  "gnreGeneration": 6,
+  "genreAdditions": {
+    "required": {
+      "Q106833": {
+        "labels": {
+          "en": [
+            "audiobook",
+            "audio book",
+            "talking book",
+            "audiobooks",
+            "Books & Spoken"
+          ],
+          "es": [
+            "audiolibro",
+            "Audio libro",
+            "Audio-libro",
+            "Libros y voz"
+          ],
+          "de": [
+            "Hörbuch",
+            "Audiobook"
+          ],
+          "ru": [
+            "аудиокнига",
+            "аудио-книга",
+            "радиоинсценировка",
+            "аудиокниги",
+            "звукокнига"
+          ],
+          "pt": [
+            "audiolivro",
+            "audiolivros",
+            "livro falado",
+            "Livros e Discursos"
+          ]
+        }
+      },
+      "Q56123235": {
+        "labels": {
+          "en": [
+            "Live",
+            "Live performance",
+            "Live recording"
+          ],
+          "es": [
+            "En vivo",
+            "En directo",
+            "Actuación en vivo",
+            "Actuación en directo",
+            "Grabación en vivo",
+            "Grabación en directo"
+          ],
+          "de": [
+            "Live",
+            "Liveaufnahme",
+            "Live-Aufnahme",
+            "Live-Auftritt"
+          ],
+          "ru": [
+            "Концертная запись",
+            "Живое исполнение",
+            "Живое выступление",
+            "Live"
+          ],
+          "pt": [
+            "Ao vivo",
+            "Gravação ao vivo",
+            "Apresentação ao vivo"
+          ]
+        }
+      }
+    },
+    "mtgEvidence": {
+      "firstId": -100000,
+      "labels": [
+        "60s",
+        "70s",
+        "80s",
+        "90s",
+        "acidjazz",
+        "alternative",
+        "alternativerock",
+        "ambient",
+        "atmospheric",
+        "blues",
+        "bluesrock",
+        "bossanova",
+        "breakbeat",
+        "celtic",
+        "chanson",
+        "chillout",
+        "choir",
+        "classical",
+        "classicrock",
+        "club",
+        "contemporary",
+        "country",
+        "dance",
+        "darkambient",
+        "darkwave",
+        "deephouse",
+        "disco",
+        "downtempo",
+        "drumnbass",
+        "dub",
+        "dubstep",
+        "easylistening",
+        "edm",
+        "electronic",
+        "electronica",
+        "electropop",
+        "ethno",
+        "eurodance",
+        "experimental",
+        "folk",
+        "funk",
+        "fusion",
+        "groove",
+        "grunge",
+        "hard",
+        "hardrock",
+        "hiphop",
+        "house",
+        "idm",
+        "improvisation",
+        "indie",
+        "industrial",
+        "instrumentalpop",
+        "instrumentalrock",
+        "jazz",
+        "jazzfusion",
+        "latin",
+        "lounge",
+        "medieval",
+        "metal",
+        "minimal",
+        "newage",
+        "newwave",
+        "orchestral",
+        "pop",
+        "popfolk",
+        "poprock",
+        "postrock",
+        "progressive",
+        "psychedelic",
+        "punkrock",
+        "rap",
+        "reggae",
+        "rnb",
+        "rock",
+        "rocknroll",
+        "singersongwriter",
+        "soul",
+        "soundtrack",
+        "swing",
+        "symphonic",
+        "synthpop",
+        "techno",
+        "trance",
+        "triphop",
+        "world",
+        "worldfusion"
+      ],
+      "explicitSameAs": {
+        "-100000": null,
+        "-100001": null,
+        "-100002": null,
+        "-100003": null,
+        "-100004": "Q221772",
+        "-100006": "Q11366",
+        "-100014": "Q1062400",
+        "-100016": "Q1076513",
+        "-100018": "Q56351111",
+        "-100020": "Q8011523",
+        "-100022": "Q316930",
+        "-100023": "Q756956",
+        "-100025": "Q874038",
+        "-100028": "Q188994",
+        "-100031": "Q848399",
+        "-100036": "Q205049",
+        "-100040": "Q164444",
+        "-100041": "Q21006644",
+        "-100042": "Q164444",
+        "-100044": "Q83270",
+        "-100049": "Q1049625",
+        "-100052": "Q127471163",
+        "-100053": "Q1650296",
+        "-100055": "Q105527",
+        "-100060": "Q12183214",
+        "-100061": "Q213121",
+        "-100062": "Q187760",
+        "-100064": "Q37073",
+        "-100066": "Q484641",
+        "-100068": "Q7248857",
+        "-100071": "Q11401",
+        "-100073": "Q45981",
+        "-100075": "Q7749",
+        "-100076": "Q488205",
+        "-100080": "Q239582",
+        "-100085": "Q205049",
+        "-100086": "Q4020968"
+      }
+    }
+  },
+  "artifactFiles": {
+    "GNRE": {
+      "flatBufferSchema": 1,
+      "semantic": 1
+    },
+    "MDRG": {
+      "flatBufferSchema": 4,
+      "semantic": 6,
+      "database": "MDRG-DB-V6"
+    }
+  },
+  "leadingArticles": {
+    "en": [
+      "a",
+      "an",
+      "the"
+    ],
+    "es": [
+      "el",
+      "la",
+      "lo",
+      "los",
+      "las",
+      "un",
+      "una",
+      "unos",
+      "unas"
+    ],
+    "de": [
+      "der",
+      "die",
+      "das",
+      "den",
+      "dem",
+      "des",
+      "ein",
+      "eine",
+      "einer",
+      "eines",
+      "einem",
+      "einen"
+    ],
+    "ru": [],
+    "pt": [
+      "o",
+      "a",
+      "os",
+      "as",
+      "um",
+      "uma",
+      "uns",
+      "umas"
+    ]
+  },
+  "catalogVocabulary": {
+    "locales": {
+      "en": {
+        "genericArtists": [
+          "various artists",
+          "various",
+          "va",
+          "v.a.",
+          "v.a",
+          "<unknown>",
+          "unknown",
+          "unknown artist"
+        ],
+        "placeholderArtists": [
+          "artist"
+        ],
+        "placeholderAlbumArtists": [
+          "artist",
+          "album artist"
+        ],
+        "placeholderAlbums": [
+          "album",
+          "unknown album",
+          "<unknown>",
+          "unknown"
+        ],
+        "genericTitles": [
+          "track",
+          "untitled",
+          "unknown",
+          "song",
+          "audio",
+          "lesson",
+          "chapter"
+        ],
+        "versionWords": [
+          "remix",
+          "remixes",
+          "mix",
+          "mixx",
+          "edit",
+          "version",
+          "instrumental",
+          "dub",
+          "acoustic",
+          "extended"
+        ],
+        "protectedWords": [
+          "part",
+          "pt",
+          "volume",
+          "vol",
+          "chapter",
+          "disc",
+          "cd",
+          "movement",
+          "act"
+        ],
+        "setMarkers": [
+          "dj set",
+          "dj mix",
+          "continuous mix",
+          "mixset"
+        ],
+        "discWords": [
+          "cd",
+          "disc",
+          "disk"
+        ]
+      },
+      "es": {
+        "genericArtists": [
+          "varios artistas",
+          "varios",
+          "artistas varios",
+          "artista desconocido",
+          "desconocido"
+        ],
+        "placeholderArtists": [
+          "artista"
+        ],
+        "placeholderAlbumArtists": [
+          "artista",
+          "artista del álbum"
+        ],
+        "placeholderAlbums": [
+          "álbum",
+          "álbum desconocido",
+          "desconocido"
+        ],
+        "genericTitles": [
+          "pista",
+          "sin título",
+          "desconocido",
+          "canción",
+          "audio",
+          "lección",
+          "capítulo"
+        ],
+        "versionWords": [
+          "remezcla",
+          "remezclas",
+          "mezcla",
+          "edición",
+          "versión",
+          "instrumental",
+          "acústico",
+          "extendida"
+        ],
+        "protectedWords": [
+          "parte",
+          "volumen",
+          "capítulo",
+          "disco",
+          "movimiento",
+          "acto"
+        ],
+        "setMarkers": [
+          "mezcla continua",
+          "sesión dj"
+        ],
+        "discWords": [
+          "disco"
+        ]
+      },
+      "de": {
+        "genericArtists": [
+          "verschiedene interpreten",
+          "verschiedene künstler",
+          "unbekannter interpret",
+          "unbekannt"
+        ],
+        "placeholderArtists": [
+          "interpret",
+          "künstler"
+        ],
+        "placeholderAlbumArtists": [
+          "interpret",
+          "künstler",
+          "albuminterpret"
+        ],
+        "placeholderAlbums": [
+          "album",
+          "unbekanntes album",
+          "unbekannt"
+        ],
+        "genericTitles": [
+          "titel",
+          "ohne titel",
+          "unbekannt",
+          "lied",
+          "audio",
+          "lektion",
+          "kapitel"
+        ],
+        "versionWords": [
+          "remix",
+          "mischung",
+          "bearbeitung",
+          "version",
+          "instrumental",
+          "akustisch",
+          "erweitert"
+        ],
+        "protectedWords": [
+          "teil",
+          "band",
+          "kapitel",
+          "disk",
+          "satz",
+          "akt"
+        ],
+        "setMarkers": [
+          "dj set",
+          "dj mix"
+        ],
+        "discWords": [
+          "cd",
+          "disc",
+          "disk",
+          "platte"
+        ]
+      },
+      "ru": {
+        "genericArtists": [
+          "разные исполнители",
+          "неизвестный исполнитель",
+          "неизвестно"
+        ],
+        "placeholderArtists": [
+          "исполнитель"
+        ],
+        "placeholderAlbumArtists": [
+          "исполнитель",
+          "исполнитель альбома"
+        ],
+        "placeholderAlbums": [
+          "альбом",
+          "неизвестный альбом",
+          "неизвестно"
+        ],
+        "genericTitles": [
+          "трек",
+          "без названия",
+          "неизвестно",
+          "песня",
+          "аудио",
+          "урок",
+          "композиция",
+          "глава"
+        ],
+        "versionWords": [
+          "ремикс",
+          "микс",
+          "версия",
+          "инструментал",
+          "акустическая",
+          "расширенная"
+        ],
+        "protectedWords": [
+          "часть",
+          "том",
+          "глава",
+          "диск",
+          "акт"
+        ],
+        "setMarkers": [
+          "диджей сет",
+          "диджей микс",
+          "непрерывный микс"
+        ],
+        "discWords": [
+          "диск"
+        ]
+      },
+      "pt": {
+        "genericArtists": [
+          "vários artistas",
+          "artistas vários",
+          "artista desconhecido",
+          "desconhecido"
+        ],
+        "placeholderArtists": [
+          "artista"
+        ],
+        "placeholderAlbumArtists": [
+          "artista",
+          "artista do álbum"
+        ],
+        "placeholderAlbums": [
+          "álbum",
+          "álbum desconhecido",
+          "desconhecido"
+        ],
+        "genericTitles": [
+          "faixa",
+          "sem título",
+          "desconhecido",
+          "canção",
+          "áudio",
+          "lição",
+          "capítulo"
+        ],
+        "versionWords": [
+          "remistura",
+          "remix",
+          "mistura",
+          "edição",
+          "versão",
+          "instrumental",
+          "acústica",
+          "estendida"
+        ],
+        "protectedWords": [
+          "parte",
+          "volume",
+          "capítulo",
+          "disco",
+          "movimento",
+          "ato"
+        ],
+        "setMarkers": [
+          "mix contínuo",
+          "mistura contínua",
+          "set de dj"
+        ],
+        "discWords": [
+          "disco"
+        ]
+      }
+    },
+    "genreRoles": {
+      "spoken": [
+        106833,
+        108676430,
+        108680236
+      ],
+      "live": [
+        56123235
+      ],
+      "electronic": [
+        9778,
+        817138
+      ]
+    }
+  }
+}

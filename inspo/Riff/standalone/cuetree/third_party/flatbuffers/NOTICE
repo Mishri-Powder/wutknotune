@@ -1,0 +1,5 @@
+FlatBuffers Java runtime
+Upstream: google/flatbuffers v25.12.19, Apache-2.0.
+The Java runtime sources and LICENSE are byte-identical to the upstream release.
+UPSTREAM.json records their origin and SHA-256 hashes.
+The Gradle build file is Cuetree packaging, not an upstream modification.

@@ -1,0 +1,13 @@
+include "common.fbs";
+
+namespace link.roadio.cuetree.fbs;
+
+table Mdia {
+  header: Header (required);
+  nodes: [Node] (required);
+  media: [MediaBucket] (required);
+  attributes: [Attribute] (required);
+}
+
+root_type Mdia;
+file_identifier "MDIA";

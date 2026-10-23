@@ -1,0 +1,41 @@
+plugins { id 'java-library'; id 'maven-publish' }
+group = 'link.roadio.cuetree.thirdparty'
+version = rootProject.property('flatbuffersVersion')
+base { archivesName = 'flatbuffers-java' }
+java { withSourcesJar() }
+
+// Keep imported runtime sources verbatim; this module only supplies a matching unpublished runtime.
+tasks.register('verifyUpstream') {
+    def upstreamRoot = layout.projectDirectory.asFile
+    def runtimeVersion = project.version.toString()
+    def provenance = file('UPSTREAM.json')
+    def upstreamFiles = files(fileTree('src/main/java'), file('LICENSE'))
+    inputs.file(provenance)
+    inputs.files(upstreamFiles)
+    inputs.property('runtimeVersion', runtimeVersion)
+    doLast {
+        def record = new groovy.json.JsonSlurper().parse(provenance)
+        if (record.release != "v${runtimeVersion}") throw new GradleException('FlatBuffers runtime source/version mismatch')
+        def actualPaths = upstreamFiles.files.collect { upstreamRoot.toPath().relativize(it.toPath()).toString().replace(File.separator, '/') }.toSet()
+        if (actualPaths != record.files.keySet()) throw new GradleException('FlatBuffers runtime source file set differs from upstream manifest')
+        record.files.each { path, expected ->
+            def actual = java.security.MessageDigest.getInstance('SHA-256').digest(new File(upstreamRoot, path).bytes).encodeHex().toString()
+            if (actual != expected) throw new GradleException("Modified upstream FlatBuffers file: ${path}")
+        }
+    }
+}
+tasks.named('compileJava') { dependsOn 'verifyUpstream' }
+tasks.named('check') { dependsOn 'verifyUpstream' }
+tasks.withType(Jar).configureEach {
+    from(files('LICENSE', 'NOTICE', 'UPSTREAM.json')) { into 'META-INF/flatbuffers' }
+}
+publishing { publications { library(MavenPublication) {
+    from components.java
+    artifactId = 'flatbuffers-java'
+    pom {
+        name = 'FlatBuffers Java runtime — Cuetree packaging'
+        description = 'Unmodified upstream FlatBuffers Java runtime compiled for Cuetree.'
+        url = 'https://github.com/google/flatbuffers'
+        licenses { license { name = 'Apache License 2.0'; url = 'https://www.apache.org/licenses/LICENSE-2.0' } }
+    }
+} } }

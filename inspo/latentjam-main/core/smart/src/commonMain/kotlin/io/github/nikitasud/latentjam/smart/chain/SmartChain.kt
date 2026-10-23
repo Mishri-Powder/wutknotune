@@ -1,0 +1,1605 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.smart.chain
+
+import io.github.nikitasud.latentjam.smart.TrackId
+import io.github.nikitasud.latentjam.smart.SmartHistoryEvent
+import kotlin.math.abs
+import kotlin.math.exp
+import kotlin.math.ln
+import kotlin.math.sqrt
+import kotlin.math.tanh
+
+/** Every tuned constant of the chain, in one place. */
+internal object ChainConfig {
+
+    /** Bounds the scorer's vote so it can shape ordering but never veto the user's pick. */
+    const val SCORER_SQUASH = 1.5f
+    const val SCORER_TEMP = 2.0f
+
+    /** Local coherence toward the previous pick. */
+    const val COSINE_BLEND_WEIGHT = 3.0f
+
+    /**
+     * Additive nudge toward candidates sharing a listener-marked group (an opted-in playlist)
+     * with the current anchor. Sized as ~0.3 standard deviations of a typical library's cosine
+     * spread (~0.056 raw, measured on a 1063-track device library) times [COSINE_BLEND_WEIGHT]:
+     * enough to decide ties and keep a marked mood together, never enough to outweigh genuine
+     * acoustic distance. Applies ONLY when the caller passes groups — the empty default is the
+     * shipped chain, byte-identical, which is what the recorded parity fixtures pin.
+     */
+    // 0.17 -> 0.50 (2026-08-14): two full-chain sweeps, first over an 847-track snapshot and
+    // then over the live 1062-track export (33 seeds x 24 hops). On fresh data theme share
+    // climbs 0.448 -> 0.470 -> 0.498 for 0.17 -> 0.30 -> 0.50 while seed-cos loses only 0.012
+    // and step-cos 0.009 in total — both within the +-0.01 band accepted for the text channel.
+    // 0.80 still gains theme but starts re-admitting short OST cues (9.2% vs 8.2%), and 1.20
+    // visibly breaks step coherence (0.598 -> 0.569): that is the knee, so 0.50 is the last
+    // step where sound stays first. The same sweeps REJECTED a competitive quota margin twice
+    // (0.6 collapsed theme share to ~0.29 on fresh data) — the unconditional quota carries the
+    // thematic axis and stays.
+    const val COMPANION_BONUS = 0.50f
+
+    /**
+     * How many of the seed's marked-group members may be injected into the candidate pool when
+     * the retrieval channels left them out. Bounded so companions enrich the pool rather than
+     * replace it: the scorer still sees mostly what actually sounds like the seed.
+     */
+    const val COMPANION_POOL_SLOTS = 16
+
+    /**
+     * The bonus scales with the SPECIFICITY of the smallest group two tracks share:
+     * `1 - groupSize/librarySize`, floored here. A 19-track Phonk speaks almost at full
+     * weight; a marked super-playlist holding half the library says nearly nothing about any
+     * particular pair — without this, marking "Anime" (458 of 1064 on a real device) handed
+     * the same bonus to every anime-adjacent track and drowned the sub-playlists inside it.
+     */
+    const val COMPANION_SPECIFICITY_FLOOR = 0.25f
+
+    /**
+     * A marked group whose members (at least this share of them) sit inside another, larger
+     * marked group of the same seed makes that larger group redundant for quota purposes: the
+     * nested playlist is the specific claim, the super-playlist adds no new statement about
+     * these tracks. Without this, marking "Anime" over an already-marked "JoJo" quietly handed
+     * half of a JoJo seed's guaranteed hops to arbitrary anime tracks — a mechanic no listener
+     * should have to understand, let alone manage by un-flagging playlists.
+     */
+    const val COMPANION_NESTING_CONTAINMENT = 0.9f
+
+    /**
+     * Every this-many hops is GUARANTEED to the seed's marked groups when any member is still
+     * available: the bonus orders, the quota represents. Without it, a marked playlist whose
+     * members sit far from the seed acoustically could lose every single hop to closer
+     * outsiders — "keep together" that never actually shows the playlist. Members compete
+     * among themselves on the full score, so the best-sounding companion goes first.
+     */
+    const val COMPANION_QUOTA_STRIDE = 3
+
+    /**
+     * Score distance within which a marked group's champion may claim its quota turn; see
+     * ChainTuning.quotaMargin. Positive infinity = the unconditional quota this shipped with.
+     */
+    val COMPANION_QUOTA_MARGIN = Float.POSITIVE_INFINITY
+
+    /** Pull toward the seed for the whole walk, so one off-genre hop can't capture the chain. */
+    const val CHAIN_SEED_GRAVITY = 4.0f
+
+    /**
+     * Semantic gravity/blend: the descriptor+text analogue of [CHAIN_SEED_GRAVITY] and
+     * [COSINE_BLEND_WEIGHT], measured as pool-relative z-scores (see [SemanticZ]) rather than raw
+     * cosine so a niche seed's true in-cluster candidates — semantic outliers within the retrieved
+     * pool that the audio scorer parks near its tanh floor — are lifted exactly where the audio
+     * geometry cannot see them. Seed gravity dominates the blend, same shape as the audio terms.
+     */
+    const val SEM_CHAIN_SEED_GRAVITY = 3.0f
+    const val SEM_CHAIN_PREV_BLEND = 0.5f
+
+    /**
+     * Audio cosine range over which a semantic bonus earns its weight: none at or below
+     * [SEM_SOUND_GATE_LOW] (about a random pair of tracks), all of it from [SEM_SOUND_GATE_HIGH]
+     * (about the closest tenth). See [soundBackedZ].
+     */
+    const val SEM_SOUND_GATE_LOW = -0.05f
+    const val SEM_SOUND_GATE_HIGH = 0.2f
+
+    const val HUB_CHAIN_DAMP = 0.6f
+    const val HUB_PENALTY_BETA = 1.0f
+
+    // Prefer a different artist when scores are close, but let a substantially better musical
+    // neighbour win despite a recent repeat. Repetition alone does not make a song unsuitable.
+    const val CHAIN_ARTIST_SPACING = 2
+    const val CHAIN_ARTIST_REPEAT_PENALTY = 1.5f
+    const val CHAIN_ARTIST_QUEUE_CAP = 6
+
+    const val ENERGY_DEADBAND = 0.2f
+    const val ENERGY_FLOOR = 0.7f
+
+    const val MULTIPLIER_MIN = 0.05f
+    const val MULTIPLIER_MAX = 2.0f
+}
+
+/**
+ * A built queue plus the candidate pool it was drawn from.
+ *
+ * @param rows snapshot rows to play, in order
+ * @param pool the rows considered, in first-seen retrieval order across any refills — kept for diagnostics and parity checks
+ * @param walk where the walk stands at the end, for the next plan to carry on from; only in the
+ *   continuation mode ([ChainTuning.continueAfterExhaustion])
+ */
+internal data class ChainResult(val rows: List<Int>, val pool: List<Int>, val walk: ChainWalk? = null) {
+    companion object {
+        val EMPTY = ChainResult(emptyList(), emptyList())
+    }
+}
+
+/**
+ * Why one track was picked, for offline diagnosis ([SmartChain.build]'s `trace`); never used to decide.
+ *
+ * @param channel the pool channel that brought the track in this hop: audio, state, text, descriptor or companion
+ * @param inNeighbourhood whether the track was in the continuation mode's neighbourhood of [intentRow]
+ * @param intentMoved whether the reference moved to the latest pick at this hop
+ * @param terms the score's parts: scorer, previous (audio cosine), seed (gravity), semantic, log multiplier,
+ *   artist repeat penalty, other (typicality, companions, bonuses), the learned correction
+ * @param candidates every candidate the hop scored, [CANDIDATE_WIDTH] values each: the row, the score
+ *   without the learned correction, the correction, then the [Rerank] features
+ */
+internal data class PickTrace(
+    val position: Int,
+    val row: Int,
+    val channel: String,
+    val intentRow: Int,
+    val intentMoved: Boolean,
+    val ring: Float,
+    val inNeighbourhood: Boolean,
+    val neighbourhoodSize: Int,
+    val poolSize: Int,
+    val logit: Float,
+    val terms: FloatArray,
+    val candidates: FloatArray = FloatArray(0),
+) {
+    companion object {
+        const val CANDIDATE_WIDTH = 3 + Rerank.FEATURES
+    }
+}
+
+/**
+ * Where a continuation-mode walk stands when a plan ends. The app plans SMART in several requests,
+ * each seeded with the queue's last track; resumed from this, the next plan keeps spending the
+ * neighbourhood of [intent] instead of starting a new one around that last track.
+ *
+ * @param intent the track whose neighbourhood the walk is spending
+ * @param picks the latest picks, in selection order until [followingOrder] saves playback order, at most [WINDOW]: they keep
+ *   the artist cap, the repeated-title check, the artist repeat penalty and the genre-family count
+ *   running as they do inside one chain of the longest queue the app plans. Every pick is spent and
+ *   counts as played; a resume at an earlier pick releases the later picks the plan may offer again,
+ *   which the app discarded to replan ([resumedAt])
+ * @param picksUnderIntent how many retained [picks] were chosen with [intent] as the reference
+ * @param intentPicks those identities explicitly: journey ordering can move them across the old suffix boundary
+ * @param ring the closeness threshold the walk had widened to around [intent]
+ */
+internal data class ChainWalk(
+    val intent: TrackId,
+    val picks: List<TrackId>,
+    val picksUnderIntent: Int,
+    /** The ring the walk had widened to around [intent] ([ChainTuning.ringStep]). */
+    val ring: Float = Reanchor.NICHE_COS,
+    val intentPicks: Set<TrackId> = picks.takeLast(picksUnderIntent.coerceIn(0, picks.size)).toSet(),
+) {
+    /**
+     * Remember the order handed to playback, including the artist run at its tail. The sequencer
+     * permutes this plan only; older carried picks retain their order. Keep intent membership by
+     * identity because the reordered tail need not be the suffix selected under the final intent.
+     */
+    fun followingOrder(orderedPicks: List<TrackId>): ChainWalk {
+        if (orderedPicks.isEmpty()) return this
+        val currentPlan = orderedPicks.toHashSet()
+        val carried = picks.filterNot { it in currentPlan }
+        val retained = (carried + orderedPicks).takeLast(WINDOW)
+        val retainedIntent = intentPicks.intersect(retained.toSet())
+        return copy(
+            picks = retained,
+            picksUnderIntent = retainedIntent.size,
+            intentPicks = retainedIntent,
+        )
+    }
+
+    /**
+     * The walk as it stood when [seed] played, for a plan that goes on from [seed]. Usually [seed] is
+     * the last pick and nothing changes. After the listener removed or moved the queue's last rows,
+     * or the app discarded the queue's future to replan it, [seed] is an earlier pick, and whether
+     * this plan may offer a pick after it ([offered]: the request's candidates) tells what became of
+     * that pick:
+     * - one it may not offer is still in the queue (moved up or put next, however far up) or was
+     *   removed by the listener, which the controllers keep out of every top-up (recordSmartRemoval).
+     *   It stays spent and counts as played — its title, its artist and, where [queuedBefore] shows
+     *   it, its place in the artist run — and the walk ends at [seed] as the queue does. For a
+     *   removal that means a song the listener never heard still counts: the plan errs toward
+     *   keeping it, and other releases of it, out.
+     * - one it may offer is neither queued nor removed: the app discarded it to replan (a new artist
+     *   variety, a newly marked playlist). It is released: it leaves the walk and counts for nothing,
+     *   or the replan would lose the closest tracks and the marked playlist's own.
+     *
+     * [queuedBefore] — the queue's latest tracks before [seed], oldest first; the controllers send
+     * the last ten — only orders what stays: as the queue plays it where it shows the pick, and
+     * everything it does not show ahead of those.
+     *
+     * If [intent] was released the walk re-anchors at [seed], as it does when a neighbourhood runs
+     * out, and a widened [ring] narrows again (the walk widens it again if it must).
+     */
+    fun resumedAt(seed: TrackId, queuedBefore: List<TrackId>, offered: (TrackId) -> Boolean): ChainWalk {
+        val at = picks.lastIndexOf(seed)
+        if (at < 0 || at == picks.lastIndex) return this
+        val queuePosition = HashMap<TrackId, Int>()
+        queuedBefore.forEachIndexed { position, id -> queuePosition[id] = position }
+        val dropped = picks.subList(at + 1, picks.size)
+        val released = dropped.filter(offered).toSet()
+        // A kept pick the queue does not show (moved further up, or removed) goes first: it still
+        // counts, without standing in the run of artists the queue's last rows make.
+        val (shown, unseen) = dropped.filterNot { it in released }.partition { it in queuePosition }
+        val played = unseen + (picks.subList(0, at) + shown).sortedBy { queuePosition[it] ?: -1 } + seed
+        if (intent in released) return copy(picks = played).reanchoredAt(seed)
+        val keptIntent = intentPicks.intersect(played.toSet())
+        return copy(
+            picks = played,
+            picksUnderIntent = keptIntent.size,
+            ring = Reanchor.NICHE_COS,
+            intentPicks = keptIntent,
+        )
+    }
+
+    /**
+     * The walk with [seed], its last pick, as its reference, as when a neighbourhood runs out: the
+     * next plan spends the seed's neighbourhood, nothing picked under it yet.
+     */
+    fun reanchoredAt(seed: TrackId): ChainWalk =
+        copy(intent = seed, picksUnderIntent = 0, ring = Reanchor.NICHE_COS, intentPicks = emptySet())
+
+    companion object {
+        /** The longest queue the app plans in one chain (the SMART queue length setting's maximum). */
+        const val WINDOW = 40
+    }
+}
+
+/**
+ * Builds a SMART queue: a coherent walk through the library starting from the user's pick.
+ *
+ * The shape of the score is the whole design. The learned scorer is squashed into a bounded band
+ * because raw logits span ±5 while the cosine terms are bounded by ~±3 — unbounded, the model's
+ * taste vote simply outshouted the user's explicit choice. Around it sit local coherence (toward
+ * the previous pick), seed gravity (toward the original pick, for the whole walk), and metadata
+ * multipliers applied in log space so a neutral verdict contributes exactly zero. Text is optional
+ * scorer conditioning; it is not added again through a hand-tuned score weight.
+ *
+ * The runtime is optional: without it the chain still walks on its geometric terms alone, which is
+ * how the app plans since 0.8.1 (it binds no runtime).
+ */
+internal class SmartChain(
+    private val snapshot: SmartSnapshot,
+    private val runtime: PredictorRuntime?,
+    /** Rows allowed in the output; history-only rows may inform state without becoming candidates. */
+    private val eligibleRows: BooleanArray = BooleanArray(snapshot.size) { true },
+    /**
+     * Weight on [SmartSnapshot.typicality], in standard deviations of this library. Zero
+     * reproduces the shipped chain exactly, which is what the recorded parity fixtures pin.
+     * Set from `SmartEngineConfig.typicalityWeight`; see TypicalityTest for the evidence.
+     */
+    private val typicalityWeight: Float = 0f,
+    /**
+     * Track groups the listener explicitly asked to keep together — opted-in playlists, passed
+     * as bare id sets so the chain stays ignorant of what a playlist is. Empty (the default)
+     * reproduces the shipped chain exactly.
+     */
+    companionGroups: List<Set<TrackId>> = emptyList(),
+    /**
+     * Experiment/simulation knobs. Production uses the defaults, which reproduce the shipped
+     * chain exactly; the offline harness sweeps them over real libraries before any constant
+     * changes. See ChainTuning.
+     */
+    private val tuning: ChainTuning = ChainTuning(),
+) {
+
+    init {
+        require(eligibleRows.size == snapshot.size) { "eligible row mask must match snapshot" }
+    }
+
+    private val companions = CompanionMembership.build(
+        rowIds = snapshot.tracks.map { it.id },
+        groups = companionGroups,
+    )
+
+    /**
+     * @param seedId the track the user picked
+     * @param length how many tracks to queue after the seed
+     * @param timeFeatures from [PredictorRuntime.timeFeatures] on the real clock
+     * @param resume the walk the previous plan ended with, when this plan continues it from that
+     *   plan's last track, or from an earlier pick, where it goes on as it stood then
+     *   ([ChainWalk.resumedAt]). The engine resumes it with the queue in hand, so [seedId] is already
+     *   its last pick; a walk still ending past [seedId] is resumed here, releasing the picks after the
+     *   seed that are eligible rows again. Ignored outside the continuation mode
+     * @param trace receives one [PickTrace] per pick, for offline diagnosis; it never changes a pick
+     */
+    fun build(
+        seedId: TrackId,
+        length: Int,
+        timeFeatures: FloatArray,
+        sessionFeatures: FloatArray = PredictorRuntime.SESSION_FEATURES_COLD,
+        historyEvents: List<SmartHistoryEvent> = emptyList(),
+        resume: ChainWalk? = null,
+        trace: ((PickTrace) -> Unit)? = null,
+    ): ChainResult {
+        val seedRow = snapshot.rowOf(seedId)
+        if (seedRow < 0 || length <= 0) return ChainResult.EMPTY
+
+        val dim = PredictorRuntime.EMBEDDING_DIM
+        val tokenDim = PredictorRuntime.TOKEN_DIM
+
+        val context = prepareContext(seedRow, historyEvents, sessionFeatures)
+        val history = context.history
+        val medium = context.medium
+        val large = context.large
+        val liveSessionFeatures = context.session
+
+        var live = runtime != null
+        var state = if (live) {
+            runCatching { encode(history, medium, large, timeFeatures, liveSessionFeatures) }
+                .onFailure { live = false }
+                .getOrDefault(FloatArray(0))
+        } else {
+            FloatArray(0)
+        }
+
+        val excludedRows = sessionExclusions(seedRow, context.sessionRows, length)
+        var provenance: HashMap<Int, String>? = if (trace != null) HashMap() else null
+        // The latest reference's cosines and full-library rankings, reused while the reference stays.
+        var cosines: ReferenceCosines? = null
+        fun cosinesFor(reference: Int): ReferenceCosines =
+            cosines?.takeIf { it.reference == reference } ?: referenceCosines(reference).also { cosines = it }
+        var ranking: ReferenceRanking? = null
+        fun rankingFor(reference: Int): ReferenceRanking =
+            ranking?.takeIf { it.reference == reference }
+                ?: referenceRanking(cosinesFor(reference)).also { ranking = it }
+        val initialPool = buildPool(
+            seedRow, state, excludedRows, provenance = provenance, ranking = rankingFor(seedRow),
+        )
+        val seedTitle = snapshot.tracks[seedRow].meta.titleArtistKey
+        // A bounded retrieval can contain only alternate releases of the seed. Search past
+        // those rows before abstaining; leave every productive pool and its scores unchanged.
+        var pool = if (seedTitle != null && initialPool.isNotEmpty() &&
+            initialPool.all { snapshot.tracks[it].meta.titleArtistKey == seedTitle }
+        ) {
+            val duplicateRows = snapshot.tracks.indices.filterTo(HashSet()) {
+                snapshot.tracks[it].meta.titleArtistKey == seedTitle
+            }
+            buildPool(
+                seedRow, state, excludedRows + duplicateRows, provenance = provenance, ranking = rankingFor(seedRow),
+            )
+        } else {
+            initialPool
+        }
+        if (pool.isEmpty()) return ChainResult.EMPTY
+        // Pool positions carry snapshot rows; the semantic z-scores and fused candidate block are
+        // computed per pool position so everything lines up with candidate `pool[i]` below.
+        var poolRows = pool.toIntArray()
+        // Fused candidate block: `[960 raw audio ⊕ 384 unit-norm text]` per row, with absent text
+        // zero-filled (the trained text-dropout path). The default keeps this pool for the walk;
+        // continuation mode repacks the same buffer after a refill. Short pools stay zero-padded:
+        // the scorer graph has the pool size baked in.
+        val hasText = snapshot.hasText ?: BooleanArray(snapshot.size)
+        val candidates = FloatArray(PredictorRuntime.POOL_SIZE * PredictorRuntime.SCORER_INPUT_DIM)
+        ScorerPacking.packCandidates(
+            audio = snapshot.rawAudio,
+            text = snapshot.rawText,
+            hasText = hasText,
+            poolRows = poolRows,
+            scorerN = PredictorRuntime.POOL_SIZE,
+            out = candidates,
+        )
+
+        // Session-text-centroid: unit-norm, de-duplicated mean of the context tracks' text vectors
+        // (A HEAD `_text_centroid` semantics), recomputed each hop as the context window advances.
+        val textHistory = context.textRows
+        var centroid = textCentroid(hasText, textHistory)
+        val noLogits = FloatArray(PredictorRuntime.POOL_SIZE)
+
+        val chain = ArrayList<Int>(length)
+        val used = HashSet<Int>()
+        var anchorRow = seedRow
+        // Marked playlists as points (ChainTuning.companionPoints) leave the walk as it is without them.
+        val points = tuning.companionPoints?.takeIf { companions.groupCount > 0 }
+        val continueAfterExhaustion = tuning.continueAfterExhaustion && (companions.groupCount == 0 || points != null)
+        val softNeighbourhood = continueAfterExhaustion && tuning.neighbourhoodBonus.isFinite()
+        // This hop's neighbourhood, for the soft bonus.
+        var hopNearby: Set<Int> = emptySet()
+        // Closeness depends only on the reference and the ring: computed once per pair, filtered every hop.
+        var closeTo = -1
+        var closeToRing = Float.NaN
+        var closeToRows = IntArray(0)
+        var ring = Reanchor.NICHE_COS
+        var intentRow = seedRow
+        val consideredRows = LinkedHashSet<Int>()
+        if (!continueAfterExhaustion) consideredRows.addAll(pool)
+        var seedGenres = snapshot.tracks[seedRow].meta.genreFamilies
+        var seedGenreSupport = MetadataRerank.seedGenreSupport(
+            seedGenres,
+            pool.asSequence().map { snapshot.tracks[it].meta }.asIterable(),
+        )
+        val recency = RecencyRerank(historyEvents)
+        var seedFamilyPicks = 0
+        // Quota turns rotate through the seed's marked groups. A single union-wide best candidate
+        // lets one acoustically strong playlist win every quota and starve another forever.
+        val seedCompanionGroups = companions.quotaGroupsOf(seedRow)
+        val quotaPositionByGroup = IntArray(companions.groupCount) { -1 }
+        seedCompanionGroups.forEachIndexed { position, group ->
+            quotaPositionByGroup[group] = position
+        }
+        var nextQuotaGroupPosition = 0
+        // Points-only marked playlists: the reference's playlists, and the picks since each last played.
+        var comebackGroups = IntArray(0)
+        var comebackMisses = IntArray(0)
+        fun comebackFrom(reference: Int, walked: List<Int>) {
+            comebackGroups = companions.quotaGroupsOf(reference)
+            comebackMisses = IntArray(comebackGroups.size) { g ->
+                walked.asReversed().takeWhile { !companions.contains(comebackGroups[g], it) }.size
+            }
+        }
+        val recentArtists = ArrayDeque<String>()
+        // The seed establishes intent, so it carries no repeat penalty. Subsequent picks enter
+        // this short window; the penalty accumulates if both recent picks share an artist.
+        val seenTitles = HashSet<Pair<String, String>>()
+        seedTitle?.let(seenTitles::add)
+        val artistPlays = HashMap<String, Int>()
+        // The run of one artist the queue ends with, the seed included (ChainTuning.artistRunPenalty).
+        var runArtist = snapshot.tracks[seedRow].meta.artistKey
+        var runLength = if (runArtist.isEmpty()) 0 else 1
+        // A resumed walk: its reference and its latest picks carry over, as if this plan were the
+        // next stretch of the same chain. The picks are queued already and stay unavailable. The
+        // plan's seed is the walk's last pick (ChainWalk.resumedAt released what this plan may
+        // offer again after it), so every carried pick played before this plan.
+        val resumed = if (continueAfterExhaustion) {
+            resume?.resumedAt(seedId, queuedBefore = emptyList()) { id ->
+                snapshot.rowOf(id).let { row -> row >= 0 && eligibleRows[row] }
+            }
+        } else {
+            null
+        }
+        val intentPicks = HashSet<TrackId>()
+        val played = resumed?.picks.orEmpty().map(snapshot::rowOf).filter { it >= 0 }
+        if (resumed != null) {
+            val resumedIntent = snapshot.rowOf(resumed.intent)
+            if (resumedIntent >= 0) {
+                intentRow = resumedIntent
+                ring = resumed.ring
+                snapshot.tracks[intentRow].meta.titleArtistKey?.let(seenTitles::add)
+                seedGenres = snapshot.tracks[intentRow].meta.genreFamilies
+                val underIntent = played.filter { snapshot.tracks[it].id in resumed.intentPicks }
+                underIntent.mapTo(intentPicks) { snapshot.tracks[it].id }
+                seedFamilyPicks = underIntent.count { row ->
+                    snapshot.tracks[row].meta.genreFamilies.any { it in seedGenres }
+                }
+            }
+            // Everything the walk spent stays unavailable and shapes this plan: its titles,
+            // artists, recency and run.
+            used.addAll(played)
+            for (row in played) {
+                val meta = snapshot.tracks[row].meta
+                meta.titleArtistKey?.let(seenTitles::add)
+                artistPlays[meta.artistKey] = (artistPlays[meta.artistKey] ?: 0) + 1
+                recentArtists.addLast(meta.artistKey)
+                while (recentArtists.size > ChainConfig.CHAIN_ARTIST_SPACING) recentArtists.removeFirst()
+            }
+            // The plan's seed ends the walk; the run it ends counts back through what played.
+            if (played.isNotEmpty()) {
+                runArtist = snapshot.tracks[played.last()].meta.artistKey
+                runLength = if (runArtist.isEmpty()) 0 else {
+                    played.asReversed().takeWhile { snapshot.tracks[it].meta.artistKey == runArtist }.size
+                }
+            }
+        }
+
+        // The reference is a member of its own playlists; a resumed walk counts its picks since then.
+        if (points != null) comebackFrom(intentRow, played.filter { snapshot.tracks[it].id in intentPicks })
+
+        // Semantic reference for the active intent: fixed at the original pick by default,
+        // recomputed after each pool refill in continuation mode.
+        var zSeed = chainSemanticZ(seedRow, poolRows)
+
+        // A pool position still in the running this hop: not already picked, and past the artist
+        // cap and repeated-title filters. Shared by the scoring loop and the tail re-anchor
+        // so the niche count sees exactly the candidates the scorer would.
+        fun isEligible(i: Int): Boolean {
+            if (pool[i] in used) return false
+            val meta = snapshot.tracks[pool[i]].meta
+            if (meta.titleArtistKey in seenTitles) return false
+            if (meta.artistKey.isNotEmpty() &&
+                (artistPlays[meta.artistKey] ?: 0) >= ChainConfig.CHAIN_ARTIST_QUEUE_CAP
+            ) return false
+            return true
+        }
+
+        var intentMovedThisHop = false
+        while (chain.size < length) {
+            intentMovedThisHop = false
+            if (continueAfterExhaustion) {
+                // Exclusions are track ids (snapshot rows), never positions in a changing pool.
+                val unavailable = HashSet<Int>(excludedRows)
+                unavailable.add(seedRow)
+                for (row in snapshot.tracks.indices) {
+                    val meta = snapshot.tracks[row].meta
+                    if (!eligibleRows[row] || row in used || meta.titleArtistKey in seenTitles ||
+                        (meta.artistKey.isNotEmpty() &&
+                            (artistPlays[meta.artistKey] ?: 0) >= ChainConfig.CHAIN_ARTIST_QUEUE_CAP)
+                    ) unavailable.add(row)
+                }
+                fun closeRows(reference: Int): Set<Int> {
+                    if (reference != closeTo || ring != closeToRing) {
+                        closeTo = reference
+                        closeToRing = ring
+                        val cosines = cosinesFor(reference)
+                        closeToRows = snapshot.tracks.indices.filter { row ->
+                            Reanchor.isCloseContinuation(
+                                cosines.audio[row], cosines.descriptor(row),
+                                tuning.neighbourhoodDescriptorWeight, ring,
+                            )
+                        }.toIntArray()
+                    }
+                    return closeToRows.filterTo(HashSet()) { it !in unavailable }
+                }
+                var nearby = closeRows(intentRow)
+                // Rings: widen around the same reference before leaving it.
+                while (nearby.isEmpty() && tuning.ringStep > 0f && ring - tuning.ringStep >= tuning.ringFloor - 1e-6f) {
+                    ring -= tuning.ringStep
+                    nearby = closeRows(intentRow)
+                }
+                if (nearby.isEmpty() && intentRow != anchorRow) {
+                    intentMovedThisHop = true
+                    intentRow = anchorRow
+                    ring = Reanchor.NICHE_COS
+                    seedGenres = snapshot.tracks[intentRow].meta.genreFamilies
+                    seedFamilyPicks = 0
+                    intentPicks.clear()
+                    if (points != null) comebackFrom(intentRow, emptyList())
+                    nearby = closeRows(intentRow)
+                }
+                // Search the full eligible library before declaring a neighborhood exhausted.
+                // A bounded old pool is not evidence that all suitable tracks were consumed.
+                hopNearby = nearby
+                if (trace != null) provenance = HashMap()
+                pool = if (nearby.isEmpty() || softNeighbourhood) {
+                    buildPool(intentRow, state, unavailable, provenance = provenance, ranking = rankingFor(intentRow))
+                } else {
+                    buildPool(intentRow, state, unavailable, among = nearby, provenance = provenance)
+                }
+                if (pool.isEmpty()) break
+                consideredRows.addAll(pool)
+                poolRows = pool.toIntArray()
+                ScorerPacking.packCandidates(
+                    snapshot.rawAudio, snapshot.rawText, hasText, poolRows,
+                    PredictorRuntime.POOL_SIZE, candidates,
+                )
+                seedGenreSupport = MetadataRerank.seedGenreSupport(
+                    seedGenres, pool.asSequence().map { snapshot.tracks[it].meta }.asIterable(),
+                )
+                zSeed = chainSemanticZ(intentRow, poolRows)
+            }
+            // Previous-pick-relative semantic z: recomputed each hop against the current anchor.
+            val zPrev = chainSemanticZ(anchorRow, poolRows)
+            // Inside a widened ring the ring keeps the walk near its reference; the previous pick
+            // decides among the ring's tracks (multiplying by 1 leaves every other score unchanged).
+            val seedPull = if (continueAfterExhaustion && ring < Reanchor.NICHE_COS) tuning.ringSeedPull else 1f
+
+            // Tail-exhaustion re-anchor. From output position REANCHOR MIN_IDX on, once too few
+            // eligible candidates sit within NICHE_COS fused cosine of the ORIGINAL seed the niche
+            // is spent, so the seed-anchored gravity + semantic-seed terms re-anchor to the chain's
+            // own centroid (keeping SEED_KEEP of the intent). Recomputed per hop; hops before
+            // MIN_IDX, and any hop that never exhausts, leave the score byte-identical.
+            var effSeed: FloatArray? = if (continueAfterExhaustion) snapshot.centeredAudio.copyOfRange(
+                intentRow * dim, (intentRow + 1) * dim,
+            ) else null
+            var zSeedActive = zSeed
+            if (!continueAfterExhaustion && Reanchor.ENABLED && seedRow >= 0 && chain.size >= Reanchor.MIN_IDX) {
+                var onNiche = 0
+                for (i in pool.indices) {
+                    if (!isEligible(i)) continue
+                    val row = pool[i]
+                    val fused = Reanchor.fusedCos(
+                        snapshot.centeredCosine(seedRow, row),
+                        snapshot.descriptorCosine(seedRow, row),
+                    )
+                    if (fused >= Reanchor.NICHE_COS) onNiche++
+                }
+                if (Reanchor.reanchorExhausted(onNiche)) {
+                    val dim = SmartSnapshot.AUDIO_DIM
+                    val centroid = FloatArray(dim)
+                    for (pickedRow in chain) {
+                        val base = pickedRow * dim
+                        for (d in 0 until dim) centroid[d] += snapshot.centeredAudio[base + d]
+                    }
+                    var sumSq = 0.0
+                    for (x in centroid) sumSq += x.toDouble() * x
+                    val cnorm = sqrt(sumSq).toFloat()
+                    if (cnorm > 1e-9f) {
+                        val inv = 1f / cnorm
+                        for (d in 0 until dim) centroid[d] *= inv
+                        val seedVec = snapshot.centeredAudio.copyOfRange(
+                            seedRow * dim,
+                            (seedRow + 1) * dim,
+                        )
+                        effSeed = Reanchor.reanchorBlend(seedVec, centroid, Reanchor.SEED_KEEP)
+                        // zSeed reference -> the played pick nearest the centroid (its medoid).
+                        var medoidRow = -1
+                        var bestDot = Float.NEGATIVE_INFINITY
+                        for (pickedRow in chain) {
+                            var dot = 0f
+                            val base = pickedRow * dim
+                            for (d in 0 until dim) dot += centroid[d] * snapshot.centeredAudio[base + d]
+                            if (dot > bestDot) {
+                                bestDot = dot
+                                medoidRow = pickedRow
+                            }
+                        }
+                        if (medoidRow >= 0) zSeedActive = chainSemanticZ(medoidRow, poolRows)
+                    }
+                }
+            }
+            val logits = if (live) {
+                // Fused state = 960 encoder state ⊕ 384 unit-norm session-text-centroid.
+                val scorerState = ScorerPacking.packState(state, centroid)
+                runCatching { runtime!!.score(scorerState, candidates) }
+                    .onFailure { live = false }
+                    .getOrDefault(noLogits)
+            } else {
+                noLogits
+            }
+            val anchorMeta = snapshot.tracks[anchorRow].meta
+
+            // Style gate: while the pool still holds a candidate in the previous pick's style, skip the
+            // ones far from it (no descriptor counts as in style).
+            fun inStyle(i: Int): Boolean {
+                val style = snapshot.descriptorCosine(anchorRow, pool[i])
+                return style == null || style >= tuning.styleGate
+            }
+            val styleGated = tuning.styleGate.isFinite() && pool.indices.any { isEligible(it) && inStyle(it) }
+            // The sound-floor probe, gate and score all ask for the same dot product. Compute it
+            // once per pool position; the scalar accumulation and every comparison stay unchanged.
+            val previousAudio = if (tuning.soundFloor.isFinite()) FloatArray(pool.size) { Float.NaN } else null
+            fun anchorCosine(i: Int): Float {
+                val cached = previousAudio?.get(i)
+                if (cached != null && !cached.isNaN()) return cached
+                return snapshot.centeredCosine(anchorRow, pool[i]).also { previousAudio?.set(i, it) }
+            }
+            // Sound floor: the same, on the audio cosine to the previous pick.
+            fun inSound(i: Int): Boolean = anchorCosine(i) >= tuning.soundFloor
+            val soundGated = tuning.soundFloor.isFinite() && pool.indices.any { isEligible(it) && inSound(it) }
+
+            var bestIndex = -1
+            var bestScore = Float.NEGATIVE_INFINITY
+            var bestTerms: FloatArray? = null
+            val rerankWeights = tuning.rerankWeights
+            val features = if (rerankWeights != null || trace != null) FloatArray(Rerank.FEATURES) else null
+            val referenceRow = if (continueAfterExhaustion) intentRow else seedRow
+            val scored = if (trace != null) FloatArray(pool.size * PickTrace.CANDIDATE_WIDTH) else null
+            var scoredSize = 0
+            val bestCompanionIndexes = IntArray(seedCompanionGroups.size) { -1 }
+            val bestCompanionScores = FloatArray(seedCompanionGroups.size) {
+                Float.NEGATIVE_INFINITY
+            }
+            // Every candidate is scored first, then picked: the run penalty is sized by the hop's spread.
+            val hopScores = FloatArray(pool.size)
+            val hopScored = BooleanArray(pool.size)
+            val hopTerms = if (trace != null) arrayOfNulls<FloatArray>(pool.size) else null
+            for (i in pool.indices) {
+                if (!isEligible(i)) continue
+                if (styleGated && !inStyle(i)) continue
+                if (soundGated && !inSound(i)) continue
+                val row = pool[i]
+                val meta = snapshot.tracks[row].meta
+
+                val scorerTerm = ChainConfig.SCORER_SQUASH * tanh(logits[i] / ChainConfig.SCORER_TEMP)
+                var score = scorerTerm
+                val anchorCos = anchorCosine(i)
+                score += ChainConfig.COSINE_BLEND_WEIGHT * anchorCos
+                // Seed gravity toward the user's actual pick — or, on an exhausted tail hop, toward
+                // the re-anchored effective seed (effSeed).
+                val seedCos = seedGravityCos(effSeed, seedRow, row)
+                score += seedPull * ChainConfig.CHAIN_SEED_GRAVITY * seedCos
+                // Semantic gravity/blend: same shape as the audio terms, in the descriptor+text
+                // spaces and pool-normalized (see zSeed/zPrev construction). Zero when the seed or
+                // anchor has no semantic vector or too few pool members do, leaving score unchanged.
+                // zSeedActive == zSeed except on an exhausted tail hop (medoid reference). A bonus
+                // needs the candidate to sound like its reference (soundBackedZ).
+                val semantic = seedPull * ChainConfig.SEM_CHAIN_SEED_GRAVITY * soundBackedZ(zSeedActive[i], seedCos) +
+                    ChainConfig.SEM_CHAIN_PREV_BLEND * soundBackedZ(zPrev[i], anchorCos)
+                score += if (tuning.semanticWeight == 1f) semantic else tuning.semanticWeight * semantic
+                // Typicality: the axis centering removes. Off (0f) unless the caller opts in, so
+                // the recorded parity fixtures and every shipped queue are unchanged by default.
+                if (typicalityWeight != 0f) {
+                    score += typicalityWeight * snapshot.typicality[row]
+                }
+                // The listener's own "keep these together": a nudge for candidates sharing a
+                // marked group with the current anchor, weighted by how SPECIFIC the smallest
+                // shared group is. No groups — no term, see COMPANION_BONUS. As points, below.
+                if (points == null && companions.sharesGroup(anchorRow, row)) {
+                    score += tuning.companionBonus * companions.weight(anchorRow, row)
+                }
+                // Experimental personal term, harness-only today (see ChainTuning): default
+                // null/0 keeps every shipped queue and parity replay unchanged.
+                if (softNeighbourhood && row in hopNearby) score += tuning.neighbourhoodBonus
+                val personalAffinity = tuning.personalAffinity
+                if (personalAffinity != null && tuning.personalWeight != 0f) {
+                    score += tuning.personalWeight * personalAffinity(row)
+                }
+                var multiplier = MetadataRerank.adjustMultiplier(anchorMeta, meta)
+                    .coerceIn(ChainConfig.MULTIPLIER_MIN, ChainConfig.MULTIPLIER_MAX)
+                if (tuning.durationSanity) {
+                    multiplier *= durationSanityMultiplier(meta.durationMs)
+                }
+                multiplier *= MetadataRerank.seedIntentMultiplier(
+                    seedGenres = seedGenres,
+                    poolSupport = seedGenreSupport,
+                    seedFamilyPicks = seedFamilyPicks,
+                    candidate = meta,
+                )
+                // Outside the session, novelty is still a prior, decaying back to neutral over 90
+                // days. Inside the session it is an exclusion applied at pool construction (see
+                // sessionExclusions), so this multiplier only orders rows that survived that
+                // exclusion — including any the starvation guard re-admitted.
+                multiplier *= recency.multiplier(snapshot.tracks[row].id)
+                // The raw-cosine pool carries no CSLS correction, so the dense cinematic/game/anime
+                // cluster leaks into chains from sparse seeds unless damped here.
+                if (meta.isHub && !anchorMeta.isHub) {
+                    multiplier = (multiplier * ChainConfig.HUB_CHAIN_DAMP)
+                        .coerceAtLeast(ChainConfig.MULTIPLIER_MIN)
+                }
+                multiplier = (multiplier * energySmoothness(anchorRow, row))
+                    .coerceAtLeast(ChainConfig.MULTIPLIER_MIN)
+                val beforeMultiplier = score
+                score += ln(multiplier)
+                val beforePenalty = score
+                if (meta.artistKey.isNotEmpty()) {
+                    score -= ChainConfig.CHAIN_ARTIST_REPEAT_PENALTY *
+                        recentArtists.count { it == meta.artistKey }
+                }
+                val artistPenalty = score - beforePenalty
+                var correction = 0f
+                if (features != null) {
+                    Rerank.features(
+                        snapshot, features, row, anchorRow, referenceRow, seedRow, anchorCos, seedCos, scorerTerm,
+                        sameArtist = meta.artistKey.isNotEmpty() && meta.artistKey == anchorMeta.artistKey,
+                        inNeighbourhood = row in hopNearby,
+                    )
+                    if (rerankWeights != null) correction = Rerank.term(rerankWeights, features)
+                    if (scored != null) {
+                        scored[scoredSize++] = row.toFloat()
+                        scored[scoredSize++] = score
+                        scored[scoredSize++] = correction
+                        features.copyInto(scored, scoredSize)
+                        scoredSize += Rerank.FEATURES
+                    }
+                    score += correction
+                }
+                hopScores[i] = score
+                hopScored[i] = true
+                if (hopTerms != null) {
+                    val previousTerm = ChainConfig.COSINE_BLEND_WEIGHT * anchorCos
+                    val seedTerm = seedPull * ChainConfig.CHAIN_SEED_GRAVITY * seedCos
+                    val semanticTerm = if (tuning.semanticWeight == 1f) semantic else tuning.semanticWeight * semantic
+                    hopTerms[i] = floatArrayOf(
+                        scorerTerm, previousTerm, seedTerm, semanticTerm, ln(multiplier), artistPenalty,
+                        beforeMultiplier - scorerTerm - previousTerm - seedTerm - semanticTerm, correction,
+                    )
+                }
+            }
+            // A run of one artist: the next of its tracks in a row gives up runLength spreads of this
+            // hop's scores per unit of the penalty, so it still wins when it clearly fits best.
+            val runPenalised = tuning.artistRunPenalty > 0f && runLength > 0
+            val spread = if (runPenalised || points != null) scoreSpread(hopScores, hopScored) else 0f
+            if (runPenalised) {
+                val penalty = tuning.artistRunPenalty * runLength * spread
+                if (penalty > 0f) {
+                    for (i in pool.indices) {
+                        if (hopScored[i] && snapshot.tracks[pool[i]].meta.artistKey == runArtist) {
+                            // Within a marked playlist the run is the listener's own, as far as the playlist is
+                            // specific: a small one lifts the penalty almost entirely, a broad one keeps most of it.
+                            val paid = if (points != null && companions.sharesGroup(anchorRow, pool[i])) {
+                                penalty * (1f - companions.weight(anchorRow, pool[i]))
+                            } else {
+                                penalty
+                            }
+                            hopScores[i] -= paid
+                            hopTerms?.get(i)?.let { it[5] -= paid }
+                        }
+                    }
+                }
+            }
+            // Marked playlists as points: a candidate that shares one with the previous pick, and one
+            // from a playlist of the reference that has not played for a while, gain spreads of this
+            // hop's scores; nothing is guaranteed (ChainTuning.companionPoints).
+            if (points != null && spread > 0f) {
+                for (i in pool.indices) {
+                    if (!hopScored[i]) continue
+                    val row = pool[i]
+                    var comeback = 0f
+                    for (g in comebackGroups.indices) {
+                        if (comebackMisses[g] > 0 && companions.contains(comebackGroups[g], row)) {
+                            comeback = maxOf(comeback, comebackMisses[g] * companions.specificity(comebackGroups[g]))
+                        }
+                    }
+                    val together = if (companions.sharesGroup(anchorRow, row)) companions.weight(anchorRow, row) else 0f
+                    val bonus = (points.together * together + points.comeback * comeback) * spread
+                    if (bonus != 0f) {
+                        hopScores[i] += bonus
+                        hopTerms?.get(i)?.let { it[6] += bonus }
+                    }
+                }
+            }
+            for (i in pool.indices) {
+                if (!hopScored[i]) continue
+                val score = hopScores[i]
+                if (score > bestScore) {
+                    bestScore = score
+                    bestIndex = i
+                    if (hopTerms != null) bestTerms = hopTerms[i]
+                }
+                for (group in companions.groupsOf(pool[i])) {
+                    val position = quotaPositionByGroup[group]
+                    if (position >= 0 && score > bestCompanionScores[position]) {
+                        bestCompanionScores[position] = score
+                        bestCompanionIndexes[position] = i
+                    }
+                }
+            }
+            if (bestIndex < 0) break
+
+            // The quota hop: see COMPANION_QUOTA_STRIDE. Falls through to the normal pick when
+            // the seed has no marked groups or no member survived this hop's eligibility.
+            val quotaHop = points == null && seedCompanionGroups.isNotEmpty() &&
+                (chain.size + 1) % ChainConfig.COMPANION_QUOTA_STRIDE == 0
+            var chosenIndex = bestIndex
+            if (quotaHop) {
+                for (offset in seedCompanionGroups.indices) {
+                    val position = (nextQuotaGroupPosition + offset) % seedCompanionGroups.size
+                    val companionIndex = bestCompanionIndexes[position]
+                    // Competitive quota: the group is guaranteed representation only while its
+                    // champion remains objectively close to the best candidate. A thematic
+                    // relative that no longer resembles the walk does not get forced in.
+                    if (companionIndex >= 0 &&
+                        bestCompanionScores[position] >= bestScore - tuning.quotaMargin
+                    ) {
+                        chosenIndex = companionIndex
+                        nextQuotaGroupPosition = (position + 1) % seedCompanionGroups.size
+                        break
+                    }
+                }
+            }
+
+            val pickedRow = pool[chosenIndex]
+            if (trace != null) {
+                trace(PickTrace(
+                    position = chain.size, row = pickedRow, channel = provenance?.get(pickedRow) ?: "unknown",
+                    intentRow = intentRow, intentMoved = intentMovedThisHop, ring = ring,
+                    inNeighbourhood = pickedRow in hopNearby, neighbourhoodSize = hopNearby.size, poolSize = pool.size,
+                    logit = logits[chosenIndex], terms = if (chosenIndex == bestIndex) bestTerms ?: FloatArray(0) else FloatArray(0),
+                    candidates = scored?.copyOf(scoredSize) ?: FloatArray(0),
+                ))
+            }
+            chain.add(pickedRow)
+            used.add(pickedRow)
+            val pickedMeta = snapshot.tracks[pickedRow].meta
+            if (pickedMeta.genreFamilies.any { it in seedGenres }) seedFamilyPicks++
+            pickedMeta.titleArtistKey?.let(seenTitles::add)
+            artistPlays[pickedMeta.artistKey] = (artistPlays[pickedMeta.artistKey] ?: 0) + 1
+            recentArtists.addLast(pickedMeta.artistKey)
+            while (recentArtists.size > ChainConfig.CHAIN_ARTIST_SPACING) recentArtists.removeFirst()
+            if (pickedMeta.artistKey.isNotEmpty() && pickedMeta.artistKey == runArtist) {
+                runLength++
+            } else {
+                runArtist = pickedMeta.artistKey
+                runLength = if (runArtist.isEmpty()) 0 else 1
+            }
+            anchorRow = pickedRow
+            intentPicks.add(snapshot.tracks[pickedRow].id)
+            for (g in comebackGroups.indices) {
+                comebackMisses[g] = if (companions.contains(comebackGroups[g], pickedRow)) 0 else comebackMisses[g] + 1
+            }
+
+            // The final pick needs no state advance — nothing consumes it, and the encoder is the
+            // chain's dominant cost.
+            if (chain.size >= length || !live) continue
+
+            history.copyInto(history, 0, tokenDim, PredictorRuntime.CONTEXT_K * tokenDim)
+            val offset = (PredictorRuntime.CONTEXT_K - 1) * tokenDim
+            snapshot.rawAudio.copyInto(pickedRow, history, offset)
+            history[offset + dim] = 1f
+            textHistory.copyInto(textHistory, 0, 1, PredictorRuntime.CONTEXT_K)
+            textHistory[PredictorRuntime.CONTEXT_K - 1] = pickedRow
+            centroid = textCentroid(hasText, textHistory)
+            state = runCatching {
+                encode(history, medium, large, timeFeatures, liveSessionFeatures)
+            }
+                .onFailure { live = false }
+                .getOrDefault(state)
+        }
+        val walk = if (continueAfterExhaustion) {
+            val picks = (played + chain).takeLast(ChainWalk.WINDOW).map { snapshot.tracks[it].id }
+            ChainWalk(
+                intent = snapshot.tracks[intentRow].id,
+                picks = picks,
+                picksUnderIntent = picks.count { it in intentPicks },
+                ring = ring,
+                // Keep the whole plan's membership until followingOrder clips its actual playback
+                // tail: a plan longer than WINDOW can move an earlier pick into the retained tail.
+                intentPicks = intentPicks,
+            )
+        } else {
+            null
+        }
+        return ChainResult(chain, consideredRows.toList(), walk)
+    }
+
+    private fun encode(
+        history: FloatArray,
+        medium: FloatArray,
+        large: FloatArray,
+        timeFeatures: FloatArray,
+        sessionFeatures: FloatArray,
+    ): FloatArray = runtime!!.encodeState(history, medium, large, timeFeatures, sessionFeatures)
+
+    /**
+     * Reconstructs exactly the model inputs that are available privately on the phone: the current
+     * session, 30/365-day taste centroids, completion/skip signals, and trusted metadata text. A
+     * truly empty history takes the separately validated cold-start path.
+     */
+    private fun prepareContext(
+        seedRow: Int,
+        events: List<SmartHistoryEvent>,
+        coldSession: FloatArray,
+    ): PreparedContext {
+        val known = events.mapNotNull { event ->
+            snapshot.rowOf(event.trackId).takeIf { it >= 0 }?.let { row ->
+                ContextEvent(
+                    row = row,
+                    timestamp = event.startedAtMs,
+                    played = event.playedFraction.coerceIn(0f, 1f),
+                    skipped = event.skipped,
+                )
+            }
+        }.sortedBy { it.timestamp }
+        if (known.isEmpty()) return coldContext(seedRow, coldSession)
+
+        // A caller supplying history should include the current seed. Keep the engine robust if it
+        // does not: append the seed without inventing a wall-clock gap or a negative preference.
+        val aligned = if (known.last().row == seedRow) known else known + ContextEvent(
+            row = seedRow,
+            timestamp = known.last().timestamp + 1,
+            played = 1f,
+            skipped = false,
+        )
+        var sessionStart = aligned.lastIndex
+        while (sessionStart > 0) {
+            val gap = aligned[sessionStart].timestamp - aligned[sessionStart - 1].timestamp
+            if (gap < 0 || gap > SESSION_GAP_MS) break
+            sessionStart--
+        }
+        val sessionEvents = aligned.subList(sessionStart, aligned.size)
+        // The queue's notion of "this session" is the SAME walk that produces session_features
+        // below, so what the encoder sees and what the queue excludes can never drift apart.
+        // LinkedHashMap is load-bearing: sessionExclusions' starvation guard sorts these entries
+        // by skip flag then timestamp with a stable sort, and ties (same group, same-millisecond
+        // plays) must resolve to insertion order — i.e. session play order — rather than to a
+        // HashMap's unspecified iteration order, which Kotlin common code cannot guarantee matches
+        // across platforms.
+        val sessionRows = LinkedHashMap<Int, SessionPlay>()
+        for (event in sessionEvents) {
+            val previous = sessionRows[event.row]
+            if (previous == null || event.timestamp > previous.timestamp) {
+                sessionRows[event.row] = SessionPlay(event.skipped, event.timestamp)
+            }
+        }
+        val recent = sessionEvents.takeLast(PredictorRuntime.CONTEXT_K)
+        val padded = ArrayList<ContextEvent>(PredictorRuntime.CONTEXT_K)
+        repeat(PredictorRuntime.CONTEXT_K - recent.size) { padded += recent.first() }
+        padded += recent
+
+        val history = FloatArray(PredictorRuntime.CONTEXT_K * PredictorRuntime.TOKEN_DIM)
+        val textRows = IntArray(PredictorRuntime.CONTEXT_K)
+        for (i in padded.indices) {
+            val event = padded[i]
+            snapshot.rawAudio.copyInto(event.row, history, i * PredictorRuntime.TOKEN_DIM)
+            history[i * PredictorRuntime.TOKEN_DIM + PredictorRuntime.EMBEDDING_DIM] = event.played
+            textRows[i] = event.row
+        }
+
+        val window = sessionEvents.takeLast(10)
+        val meanPlayed = window.sumOf { it.played.toDouble() }.toFloat() / window.size
+        val completionRate = window.count { it.played >= 0.8f }.toFloat() / window.size
+        val elapsedMinutes = ((aligned.last().timestamp - sessionEvents.first().timestamp)
+            .coerceAtLeast(0L) / 60_000f).coerceAtLeast(0.5f)
+        val session = floatArrayOf(
+            ln(sessionEvents.size + 1f),
+            if (sessionEvents.last().skipped) 1f else 0f,
+            ln(elapsedMinutes + 1f),
+            completionRate,
+            meanPlayed,
+        )
+        return PreparedContext(
+            history = history,
+            medium = tasteCentroid(aligned, seedRow, MEDIUM_HALF_LIFE_DAYS),
+            large = tasteCentroid(aligned, seedRow, LARGE_HALF_LIFE_DAYS),
+            session = session,
+            textRows = textRows,
+            sessionRows = sessionRows,
+        )
+    }
+
+    /**
+     * Rows the listener already heard this sitting, which the queue must not serve again.
+     *
+     * "I just heard this" is a fact, not a preference to be weighed against acoustic similarity,
+     * so it is enforced as eligibility rather than as another score term. As a term it loses:
+     * [RecencyRerank] tops out at ln(0.10) = -2.30 for a track played minutes ago, while the
+     * semantic gravity added to the chain score reaches ±9 and measures +3.6 on average, so a
+     * just-played track in the seed's own cluster still wins its hop.
+     *
+     * Cluster exhaustion is deliberately NOT guarded. Having heard most of a niche, the right
+     * queue is what remains followed by a drift outward, which is [Reanchor]'s job.
+     *
+     * A long session in a small library could leave too little to build from, so when fewer than
+     * [length] rows would remain selectable, tracks the listener actually listened to are
+     * re-admitted before ones they skipped — oldest first within each group — until [length]
+     * selectable rows are restored, degrading to the previous behaviour rather than returning a
+     * stub queue. A skipped track is at least as unwelcome as a completed play, so re-admission
+     * must not put it back in front of someone ahead of a track they genuinely listened to. This
+     * count is taken over the whole library, before the per-hop artist-cap and
+     * duplicate-title filters run, so it does not guarantee a filled queue of exactly [length]
+     * tracks — only that this many rows are eligible to be picked from.
+     */
+    private fun sessionExclusions(
+        seedRow: Int,
+        sessionRows: Map<Int, SessionPlay>,
+        length: Int,
+    ): Set<Int> {
+        if (sessionRows.isEmpty()) return emptySet()
+        val excluded = HashSet(sessionRows.keys)
+        excluded.remove(seedRow)
+        if (excluded.isEmpty()) return excluded
+
+        // Counted over the whole library BEFORE the pool is assembled, so the decision is made
+        // once and cannot oscillate as pool slots fill.
+        var available = 0
+        for (row in 0 until snapshot.size) {
+            if (row == seedRow || !eligibleRows[row] || row in excluded) continue
+            available++
+        }
+        if (available >= length) return excluded
+
+        // Tracks the listener actually listened to come back before ones they skipped — a skip
+        // is at least as unwelcome as a completed play, so re-admission must not invert that.
+        // Within each group, oldest first: those are the ones least likely to still be fresh in
+        // mind.
+        var needed = length - available
+        for ((row, _) in sessionRows.entries.sortedWith(
+            compareBy({ it.value.skipped }, { it.value.timestamp }),
+        )) {
+            if (needed <= 0) break
+            if (row == seedRow || !eligibleRows[row]) continue
+            if (excluded.remove(row)) needed--
+        }
+        return excluded
+    }
+
+    /** The session-text centroid of [rows]: zeros when the snapshot has no text space. */
+    private fun textCentroid(hasText: BooleanArray, rows: IntArray): FloatArray =
+        snapshot.rawText?.let { ScorerPacking.textCentroid(it, hasText, rows) } ?: FloatArray(ScorerPacking.TEXT_DIM)
+
+    private fun coldContext(seedRow: Int, session: FloatArray): PreparedContext {
+        val history = FloatArray(PredictorRuntime.CONTEXT_K * PredictorRuntime.TOKEN_DIM)
+        for (k in 0 until PredictorRuntime.CONTEXT_K) {
+            val offset = k * PredictorRuntime.TOKEN_DIM
+            snapshot.rawAudio.copyInto(seedRow, history, offset)
+            history[offset + PredictorRuntime.EMBEDDING_DIM] = 1f
+        }
+        val seed = snapshot.rawAudio.row(seedRow)
+        return PreparedContext(
+            history = history,
+            medium = seed.copyOf(),
+            large = seed.copyOf(),
+            session = session,
+            textRows = IntArray(PredictorRuntime.CONTEXT_K) { seedRow },
+            sessionRows = emptyMap(),
+        )
+    }
+
+    private fun tasteCentroid(
+        events: List<ContextEvent>,
+        seedRow: Int,
+        halfLifeDays: Float,
+    ): FloatArray {
+        val centroid = FloatArray(PredictorRuntime.EMBEDDING_DIM)
+        val newest = events.last().timestamp
+        var totalWeight = 0.0
+        for (event in events) {
+            val reward = ((event.played - 0.2f) / 0.6f).coerceIn(0f, 1f)
+            if (reward <= 0f) continue
+            val ageDays = (newest - event.timestamp).coerceAtLeast(0L) / MILLIS_PER_DAY
+            val weight = reward * exp(-ageDays * LN_2 / halfLifeDays)
+            for (d in centroid.indices) centroid[d] += snapshot.rawAudio[event.row, d] * weight.toFloat()
+            totalWeight += weight
+        }
+        if (totalWeight <= 1e-9) {
+            return snapshot.rawAudio.row(seedRow)
+        }
+        return normalized(centroid, PredictorRuntime.EMBEDDING_DIM)
+    }
+
+    private data class ContextEvent(
+        val row: Int,
+        val timestamp: Long,
+        val played: Float,
+        val skipped: Boolean,
+    )
+
+    /** A track's most recent play within the current session. */
+    private data class SessionPlay(val skipped: Boolean, val timestamp: Long)
+
+    private data class PreparedContext(
+        val history: FloatArray,
+        val medium: FloatArray,
+        val large: FloatArray,
+        val session: FloatArray,
+        val textRows: IntArray,
+        /** Snapshot row → most recent play within the current session. */
+        val sessionRows: Map<Int, SessionPlay>,
+    )
+
+    /**
+     * Candidate generation: interleave three rankings, anchor first.
+     *
+     * The anchor ranking is centered cosine to the seed minus the hub penalty (what sounds like the
+     * pick, with hubs suppressed). State-audio and seed-text are separate rankings. Round-robin
+     * interleaving gives each channel representation without a hand-tuned cross-modal weight; the
+     * scorer learns how much optional text should affect ordering.
+     */
+    /**
+     * @param among when given, the only rows that may enter the pool: scores are computed for these
+     *   alone, and the pool is exactly the one [excluded] = every other row would give. The companion
+     *   tail obeys the same bound, so a hard neighbourhood stays hard.
+     * @param ranking [seedRow]'s reference-only rankings, when the caller keeps them between pools;
+     *   used only without [among] and computed here when missing. The pool is the same either way.
+     */
+    private fun buildPool(
+        seedRow: Int,
+        state: FloatArray,
+        excluded: Set<Int>,
+        among: Set<Int>? = null,
+        provenance: MutableMap<Int, String>? = null,
+        ranking: ReferenceRanking? = null,
+    ): List<Int> {
+        val channels = if (among == null) {
+            val kept = ranking?.takeIf { it.reference == seedRow }
+            libraryChannels(kept ?: referenceRanking(referenceCosines(seedRow)), state, excluded)
+        } else {
+            subsetChannels(seedRow, state, excluded, among)
+        }
+        val anchorScores = channels.anchorScores
+        val anchorOrder = channels.anchor
+        val stateOrder = channels.state
+        // A fourth channel ranks by the descriptor space (what a teacher knows about the artist),
+        // when the seed has a descriptor. It then also takes the trusted-text channel's turn: the
+        // descriptor is what the teacher knows about the same artist, and swapping measured
+        // +1.5 cold / +1.0 history P@10 on the listener, MPD +-1 (smart-bench exp_desc_quota.py).
+        // Without a descriptor it is empty, so the pool is exactly the three-channel one.
+        val descriptorOrder = channels.descriptor
+        val textTurn = if (descriptorOrder.isEmpty()) channels.text else IntArray(0)
+        val pool = ArrayList<Int>(PredictorRuntime.POOL_SIZE)
+        val seen = HashSet<Int>()
+        var i = 0
+        while (pool.size < PredictorRuntime.POOL_SIZE && i < anchorOrder.size) {
+            if (seen.add(anchorOrder[i])) {
+                pool.add(anchorOrder[i])
+                provenance?.put(anchorOrder[i], "audio")
+            }
+            if (pool.size < PredictorRuntime.POOL_SIZE && seen.add(stateOrder[i])) {
+                pool.add(stateOrder[i])
+                provenance?.put(stateOrder[i], "state")
+            }
+            if (pool.size < PredictorRuntime.POOL_SIZE && i < textTurn.size && seen.add(textTurn[i])) {
+                pool.add(textTurn[i])
+                provenance?.put(textTurn[i], "text")
+            }
+            if (pool.size < PredictorRuntime.POOL_SIZE && i < descriptorOrder.size && seen.add(descriptorOrder[i])) {
+                pool.add(descriptorOrder[i])
+                provenance?.put(descriptorOrder[i], "descriptor")
+            }
+            i++
+        }
+
+        // A companion the bonus never sees is a companion the bonus cannot keep: members of the
+        // seed's marked groups that the three rankings left out are injected over the pool's
+        // tail (best-sounding first, bounded), so "keep together" reaches tracks the retrieval
+        // channels alone would never surface. Under a hard neighbourhood (among) the tail is drawn
+        // from that set alone, so the one promise buildPool makes about it still holds. No marked
+        // groups — untouched pool, which is what the parity fixtures pin.
+        val seedGroups = companions.quotaGroupsOf(seedRow)
+        if (seedGroups.isNotEmpty()) {
+            // Allocate the bounded companion tail round-robin across the seed's groups. Filling it
+            // from one union-wide ranking lets a large/strong first playlist consume all 16 slots
+            // before a tighter second playlist gets even one candidate.
+            val rankedByGroup = seedGroups.map { group ->
+                companions.rowsOf(group)
+                    .asSequence()
+                    .filter { row ->
+                        row != seedRow && eligibleRows[row] && row !in excluded && row !in seen &&
+                            (among == null || row in among)
+                    }
+                    .sortedByDescending { anchorScores[it] }
+                    .toList()
+            }
+            val cursors = IntArray(rankedByGroup.size)
+            val missingCompanions = ArrayList<Int>(ChainConfig.COMPANION_POOL_SLOTS)
+            while (missingCompanions.size < ChainConfig.COMPANION_POOL_SLOTS) {
+                var addedThisRound = false
+                for (groupPosition in rankedByGroup.indices) {
+                    val ranked = rankedByGroup[groupPosition]
+                    while (
+                        cursors[groupPosition] < ranked.size &&
+                        ranked[cursors[groupPosition]] in seen
+                    ) {
+                        cursors[groupPosition]++
+                    }
+                    if (cursors[groupPosition] < ranked.size) {
+                        val row = ranked[cursors[groupPosition]++]
+                        if (seen.add(row)) {
+                            missingCompanions += row
+                            addedThisRound = true
+                            if (missingCompanions.size >= ChainConfig.COMPANION_POOL_SLOTS) break
+                        }
+                    }
+                }
+                if (!addedThisRound) break
+            }
+            if (missingCompanions.isNotEmpty()) {
+                val keep = (pool.size - missingCompanions.size).coerceAtLeast(0)
+                while (pool.size > keep) pool.removeAt(pool.size - 1)
+                missingCompanions.forEach { provenance?.put(it, "companion") }
+                pool.addAll(missingCompanions)
+            }
+        }
+        return pool
+    }
+
+    /**
+     * A pool's four rankings, best first, and the anchor scores its companion tail is ordered by.
+     * The interleave reads at most the first [PredictorRuntime.POOL_SIZE] of each ranking: every
+     * anchor row it has passed is in the pool, so it stops before reaching that position.
+     */
+    private class PoolChannels(
+        val anchorScores: FloatArray,
+        val anchor: IntArray,
+        val state: IntArray,
+        val text: IntArray,
+        val descriptor: IntArray,
+    )
+
+    /**
+     * The rankings a full-library pool takes from its reference alone (audio closeness, trusted
+     * text, the artist descriptor) over every eligible row but the reference. A walk keeps its
+     * reference for many hops, so they are sorted once per reference and only filtered by
+     * availability each hop: a stable sort of the available rows lists them in the same order.
+     */
+    private class ReferenceRanking(
+        val reference: Int,
+        val anchorScores: FloatArray,
+        val anchor: IntArray,
+        val text: IntArray,
+        val descriptor: IntArray,
+    )
+
+    /** The reference's cosines to every row, shared by its neighbourhood and its rankings. */
+    private class ReferenceCosines(
+        val reference: Int,
+        val audio: FloatArray,
+        private val descriptor: FloatArray?,
+        private val hasDescriptor: BooleanArray?,
+    ) {
+        /** [SmartSnapshot.descriptorCosine] of the reference and [row]. */
+        fun descriptor(row: Int): Float? =
+            if (descriptor != null && hasDescriptor?.get(row) == true) descriptor[row] else null
+    }
+
+    private fun referenceCosines(reference: Int) = ReferenceCosines(
+        reference = reference,
+        audio = snapshot.centeredCosines(reference),
+        descriptor = snapshot.descriptorCosines(reference),
+        hasDescriptor = snapshot.hasDescriptor,
+    )
+
+    private fun referenceRanking(cosines: ReferenceCosines): ReferenceRanking {
+        val reference = cosines.reference
+        val n = snapshot.size
+        val rows = IntArray(n) { it }
+        val anchorScores = FloatArray(n)
+        for (row in rows) {
+            anchorScores[row] = cosines.audio[row] - ChainConfig.HUB_PENALTY_BETA * snapshot.hubPenalty[row]
+        }
+        val textScores = FloatArray(n) { Float.NEGATIVE_INFINITY }
+        val rawText = snapshot.rawText
+        val hasText = snapshot.hasText
+        if (rawText != null && hasText?.get(reference) == true) {
+            val withText = IntArray(n)
+            var count = 0
+            for (row in rows) if (hasText[row]) withText[count++] = row
+            rawText.dots(rawText.row(reference), 0, withText, count, textScores)
+        }
+        // Rows without a descriptor never enter this channel, as in descriptorOrder.
+        val descriptorScores = FloatArray(n) { cosines.descriptor(it) ?: Float.NEGATIVE_INFINITY }
+        return ReferenceRanking(
+            reference = reference,
+            anchorScores = anchorScores,
+            anchor = order(anchorScores, reference, emptySet(), rows),
+            text = rows
+                .filter { it != reference && eligibleRows[it] && textScores[it].isFinite() }
+                .sortedByDescending { textScores[it] }
+                .toIntArray(),
+            descriptor = rows
+                .filter { it != reference && eligibleRows[it] && descriptorScores[it].isFinite() }
+                .sortedByDescending { descriptorScores[it] }
+                .toIntArray(),
+        )
+    }
+
+    /**
+     * Every row may enter: the reference's rankings filtered by [excluded], and the state ranking,
+     * which changes with every pick, selected rather than sorted. Without a state the state ranking
+     * is the anchor one and the text channel is empty, as in [subsetChannels].
+     */
+    private fun libraryChannels(ranking: ReferenceRanking, state: FloatArray, excluded: Set<Int>): PoolChannels {
+        val keep = PredictorRuntime.POOL_SIZE
+        val anchor = ranking.anchor.firstAvailable(keep, excluded)
+        val descriptor = ranking.descriptor.firstAvailable(keep, excluded)
+        val dim = PredictorRuntime.EMBEDDING_DIM
+        if (state.size < dim) {
+            return PoolChannels(ranking.anchorScores, anchor, anchor, IntArray(0), descriptor)
+        }
+        val n = snapshot.size
+        val blocked = BooleanArray(n)
+        for (row in excluded) if (row in 0 until n) blocked[row] = true
+        val candidates = IntArray(n)
+        var count = 0
+        for (row in 0 until n) {
+            if (row != ranking.reference && eligibleRows[row] && !blocked[row]) candidates[count++] = row
+        }
+        val stateScores = FloatArray(n)
+        snapshot.rawAudio.dots(normalized(state, dim), 0, candidates, count, stateScores)
+        return PoolChannels(
+            anchorScores = ranking.anchorScores,
+            anchor = anchor,
+            state = topRows(stateScores, candidates, count, keep),
+            text = ranking.text.firstAvailable(keep, excluded),
+            descriptor = descriptor,
+        )
+    }
+
+    /** Only [among] may enter: every ranking is computed and sorted over those rows alone. */
+    private fun subsetChannels(seedRow: Int, state: FloatArray, excluded: Set<Int>, among: Set<Int>): PoolChannels {
+        val n = snapshot.size
+        val dim = PredictorRuntime.EMBEDDING_DIM
+        val rows = among.sorted().toIntArray()
+        val anchorScores = FloatArray(n)
+        for (row in rows) {
+            anchorScores[row] = snapshot.centeredCosine(seedRow, row) -
+                ChainConfig.HUB_PENALTY_BETA * snapshot.hubPenalty[row]
+        }
+
+        val stateScores = FloatArray(n)
+        val textScores = FloatArray(n) { Float.NEGATIVE_INFINITY }
+        if (state.size >= dim) {
+            val query = normalized(state, dim)
+            val rawText = snapshot.rawText
+            val seedText = if (rawText != null && snapshot.hasText?.get(seedRow) == true) {
+                rawText.row(seedRow)
+            } else {
+                null
+            }
+            for (row in rows) {
+                stateScores[row] = snapshot.rawAudio.dot(row, query)
+                if (seedText != null && snapshot.hasText?.get(row) == true) {
+                    textScores[row] = rawText!!.dot(row, seedText)
+                }
+            }
+        } else {
+            anchorScores.copyInto(stateScores)
+        }
+
+        return PoolChannels(
+            anchorScores = anchorScores,
+            anchor = order(anchorScores, seedRow, excluded, rows),
+            state = order(stateScores, seedRow, excluded, rows),
+            text = rows
+                .filter {
+                    it != seedRow && eligibleRows[it] && it !in excluded && textScores[it].isFinite()
+                }
+                .sortedByDescending { textScores[it] }
+                .toIntArray(),
+            descriptor = descriptorOrder(seedRow, excluded, rows),
+        )
+    }
+
+    /** The first [count] rows of this ranking that are not in [excluded], in order. */
+    private fun IntArray.firstAvailable(count: Int, excluded: Set<Int>): IntArray {
+        val out = IntArray(minOf(count, size))
+        var taken = 0
+        for (row in this) {
+            if (taken == out.size) break
+            if (row !in excluded) out[taken++] = row
+        }
+        return if (taken == out.size) out else out.copyOf(taken)
+    }
+
+    /**
+     * Combined semantic z-scores of every pool candidate against [refRow], averaging the offline
+     * descriptor space and the on-device metadata-text space where each is available (see
+     * [SemanticZ] for why pool-relative z rather than raw cosine). Zeros when [refRow] has no
+     * vectors or a space is not loaded, leaving the chain score exactly as it was before this term.
+     */
+    /**
+     * Seed-gravity cosine for a candidate row: centered cosine to the original seed, or — on an
+     * exhausted tail hop — to the re-anchored effective seed ([effSeed], a unit centered-audio
+     * vector). Kept in one place so both branches measure in the same space.
+     */
+    /** Population standard deviation of the scored candidates' scores; 0 with fewer than two. */
+    private fun scoreSpread(scores: FloatArray, scored: BooleanArray): Float {
+        var count = 0
+        var sum = 0.0
+        for (i in scores.indices) if (scored[i]) {
+            count++
+            sum += scores[i]
+        }
+        if (count < 2) return 0f
+        val mean = sum / count
+        var squares = 0.0
+        for (i in scores.indices) if (scored[i]) {
+            val d = scores[i] - mean
+            squares += d * d
+        }
+        return sqrt(squares / count).toFloat()
+    }
+
+    private fun seedGravityCos(effSeed: FloatArray?, seedRow: Int, row: Int): Float {
+        if (effSeed == null) return snapshot.centeredCosine(seedRow, row)
+        var dot = 0f
+        val base = row * SmartSnapshot.AUDIO_DIM
+        for (d in 0 until SmartSnapshot.AUDIO_DIM) dot += effSeed[d] * snapshot.centeredAudio[base + d]
+        return dot
+    }
+
+    private fun chainSemanticZ(refRow: Int, poolRows: IntArray): FloatArray {
+        val zDesc = SemanticZ.poolZ(
+            snapshot.centeredDescriptor,
+            snapshot.hasDescriptor,
+            snapshot.descriptorDim,
+            refRow,
+            poolRows,
+        )
+        val zText = SemanticZ.poolZ(
+            snapshot.centeredText,
+            snapshot.hasText,
+            SmartSnapshot.TEXT_DIM,
+            refRow,
+            poolRows,
+        )
+        return SemanticZ.combine(zDesc, zText, poolRows.size)
+    }
+
+    /**
+     * Energy smoothness: penalise a large jump from the previous track, so a mellow→slammer
+     * whiplash needs a real score advantage. The one audio feature worth sequencing on when cuts
+     * are hard (BPM and key only matter with crossfades).
+     */
+    private fun energySmoothness(anchorRow: Int, candidateRow: Int): Float {
+        val previous = snapshot.tracks[anchorRow].energy
+        val candidate = snapshot.tracks[candidateRow].energy
+        if (previous.isNaN() || candidate.isNaN()) return 1f
+        val over = abs(previous - candidate) - ChainConfig.ENERGY_DEADBAND
+        return if (over <= 0f) 1f else (1f - over).coerceAtLeast(ChainConfig.ENERGY_FLOOR)
+    }
+
+    /** Candidates by centered-descriptor cosine to the seed; empty when the seed has no descriptor. */
+    private fun descriptorOrder(seedRow: Int, excluded: Set<Int>, rows: IntArray): IntArray {
+        if (snapshot.hasDescriptor?.get(seedRow) != true) return IntArray(0)
+        val scores = FloatArray(snapshot.size) { Float.NEGATIVE_INFINITY }
+        for (row in rows) scores[row] = snapshot.descriptorCosine(seedRow, row) ?: Float.NEGATIVE_INFINITY
+        return rows
+            .filter { it != seedRow && eligibleRows[it] && it !in excluded && scores[it].isFinite() }
+            .sortedByDescending { scores[it] }
+            .toIntArray()
+    }
+
+    /** [rows] ascending; the stable sort keeps equal scores in row order whatever subset is ranked. */
+    private fun order(scores: FloatArray, exclude: Int, excluded: Set<Int>, rows: IntArray): IntArray =
+        rows.filter { it != exclude && eligibleRows[it] && it !in excluded }
+            .sortedByDescending { scores[it] }
+            .toIntArray()
+
+    private fun normalized(v: FloatArray, dim: Int): FloatArray {
+        var sumSq = 0.0
+        for (i in 0 until dim) sumSq += v[i].toDouble() * v[i]
+        val scale = 1f / sqrt(sumSq).toFloat().coerceAtLeast(1e-9f)
+        return FloatArray(dim) { v[it] * scale }
+    }
+
+    private companion object {
+        const val SESSION_GAP_MS = 30L * 60L * 1_000L
+        const val MEDIUM_HALF_LIFE_DAYS = 30f
+        const val LARGE_HALF_LIFE_DAYS = 365f
+        const val MILLIS_PER_DAY = 86_400_000.0
+        const val LN_2 = 0.6931471805599453
+    }
+}
+
+/**
+ * The first [keep] of `rows.take(count).sortedByDescending { scores[it] }`, for [rows] in ascending
+ * order, without sorting them all: the same rows in the same order. Scores compare by
+ * [Float.compareTo] as the sort compares them, and equal scores keep row order as its stable sort does.
+ */
+internal fun topRows(scores: FloatArray, rows: IntArray, count: Int, keep: Int): IntArray {
+    // Rows are distinct, so this is a strict order: a higher score first, then the lower row.
+    fun before(a: Int, b: Int): Boolean {
+        val c = scores[a].compareTo(scores[b])
+        return c > 0 || (c == 0 && a < b)
+    }
+    // A heap of the best rows so far with the one that ranks last on top.
+    val heap = IntArray(minOf(keep, count).coerceAtLeast(0))
+    var size = 0
+    for (index in 0 until count) {
+        val row = rows[index]
+        if (size < heap.size) {
+            var child = size++
+            heap[child] = row
+            while (child > 0) {
+                val parent = (child - 1) / 2
+                if (!before(heap[parent], heap[child])) break
+                heap[parent] = heap[child].also { heap[child] = heap[parent] }
+                child = parent
+            }
+        } else if (size > 0 && before(row, heap[0])) {
+            heap[0] = row
+            var parent = 0
+            while (true) {
+                val left = 2 * parent + 1
+                if (left >= size) break
+                val right = left + 1
+                val last = if (right < size && before(heap[left], heap[right])) right else left
+                if (!before(heap[parent], heap[last])) break
+                heap[parent] = heap[last].also { heap[last] = heap[parent] }
+                parent = last
+            }
+        }
+    }
+    // Insertion sort, best first: at most a pool's worth of rows.
+    for (i in 1 until size) {
+        val row = heap[i]
+        var j = i - 1
+        while (j >= 0 && before(row, heap[j])) {
+            heap[j + 1] = heap[j]
+            j--
+        }
+        heap[j + 1] = row
+    }
+    return heap
+}
+
+/**
+ * A semantic bonus needs acoustic support. A positive z (close to the reference in the descriptor
+ * and text spaces) keeps only the share its audio cosine earns between [ChainConfig.SEM_SOUND_GATE_LOW]
+ * and [ChainConfig.SEM_SOUND_GATE_HIGH]; a negative z (semantically far) stays whole. Without it,
+ * labels alone outvoted the sound: from an orchestral cover of a Britpop song, whose orchestra the
+ * artist pack knows for film scores, every pick went to film and anime themes that sound nothing
+ * like it, past the rock song that sounds closest.
+ */
+internal fun soundBackedZ(z: Float, audioCosine: Float): Float {
+    if (z <= 0f) return z
+    val support = (audioCosine - ChainConfig.SEM_SOUND_GATE_LOW) /
+        (ChainConfig.SEM_SOUND_GATE_HIGH - ChainConfig.SEM_SOUND_GATE_LOW)
+    return z * support.coerceIn(0f, 1f)
+}

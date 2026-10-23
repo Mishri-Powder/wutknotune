@@ -1,0 +1,13 @@
+pluginManagement {
+    repositories { gradlePluginPortal(); mavenCentral() }
+    resolutionStrategy { eachPlugin {
+        if (requested.id.id == 'org.jetbrains.kotlin.jvm')
+            useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:${requested.version}")
+    } }
+}
+dependencyResolutionManagement { repositories { mavenCentral() } }
+rootProject.name = 'cuegrain'
+include 'core', 'cli'
+def withCed = providers.gradleProperty('withCed').orElse('false').get()
+if (!(withCed in ['true', 'false'])) throw new GradleException('withCed must be true or false')
+if (withCed == 'true') include 'ced'

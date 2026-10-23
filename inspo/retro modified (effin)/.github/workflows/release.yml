@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        variant: [NormalRelease, FdroidRelease]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Decode Keystore
+        run: |
+          printf "%s" "$KEYSTORE_BASE64" | base64 --decode > $GITHUB_WORKSPACE/app/release-keystore.p12
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEY }}
+
+      - name: Build Release APK
+        run: ./gradlew assemble${{ matrix.variant }}
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-signed-${{ matrix.variant }}-${{ github.run_number }}.apk
+          path: |
+            app/build/outputs/apk/${{ matrix.variant == 'NormalRelease' && 'normal' || 'fdroid' }}/release/*.apk

@@ -1,0 +1,328 @@
+/*
+ * Copyright (c) 2020 Hemanth Savarla.
+ *
+ * Licensed under the GNU General Public License v3
+ *
+ * This is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ */
+package code.name.monkey.retromusic.fragments.sample
+
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.os.Bundle
+import android.view.View
+import androidx.appcompat.widget.Toolbar
+import code.name.monkey.appthemehelper.util.ToolbarContentTintHelper
+import code.name.monkey.retromusic.R
+import code.name.monkey.retromusic.databinding.FragmentSamplesBinding
+import code.name.monkey.retromusic.extensions.drawAboveSystemBars
+import code.name.monkey.retromusic.extensions.hide
+import code.name.monkey.retromusic.extensions.keepScreenOn
+import code.name.monkey.retromusic.extensions.show
+import code.name.monkey.retromusic.extensions.whichFragment
+import code.name.monkey.retromusic.fragments.base.AbsPlayerFragment
+import code.name.monkey.retromusic.fragments.base.goToArtist
+import code.name.monkey.retromusic.fragments.NowPlayingScreen
+import code.name.monkey.retromusic.fragments.player.CoverLyricsFragment
+import code.name.monkey.retromusic.fragments.player.PlayerAlbumCoverFragment
+import code.name.monkey.retromusic.glide.RetroGlideExtension
+import code.name.monkey.retromusic.glide.RetroGlideExtension.artistImageOptions
+import code.name.monkey.retromusic.helper.MusicPlayerRemote
+import code.name.monkey.retromusic.helper.MusicProgressViewUpdateHelper
+import code.name.monkey.retromusic.interfaces.IMiniPlayerExpanded
+import code.name.monkey.retromusic.model.Song
+import code.name.monkey.retromusic.util.color.MediaNotificationProcessor
+import code.name.monkey.retromusic.util.PreferenceUtil
+import com.bumptech.glide.Glide
+
+class SamplesFragment : AbsPlayerFragment(R.layout.fragment_samples),
+    MusicProgressViewUpdateHelper.Callback {
+        
+    private var _binding: FragmentSamplesBinding? = null
+    private val binding get() = _binding!!
+    private lateinit var progressViewUpdateHelper: MusicProgressViewUpdateHelper
+
+    private var pendingSamples: List<Song>? = null
+    private var hasPlayed = false
+
+    private var lastPosition: Int = 0
+    private var isReturning = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        progressViewUpdateHelper = MusicProgressViewUpdateHelper(this)
+    }
+
+    override fun playerToolbar(): Toolbar {
+        return binding.playerToolbar
+    }
+
+    private var lastColor: Int = 0
+    override val paletteColor: Int
+        get() = lastColor
+    private lateinit var controlsFragment: SamplesPlaybackControlsFragment
+
+    private fun setUpPlayerToolbar() {
+        binding.playerToolbar.apply {
+            setNavigationOnClickListener { requireActivity().onBackPressedDispatcher.onBackPressed() }
+        }
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        _binding = FragmentSamplesBinding.bind(view)
+        setUpSubFragments()
+        super.onViewCreated(view, savedInstanceState)
+        
+        loadSamplesData()
+        
+        setUpPlayerToolbar()
+        setupArtist()
+        binding.nextSong.isSelected = true
+        binding.playbackControlsFragment.drawAboveSystemBars()
+        keepItLit()
+    }
+
+    private fun loadSamplesData() {
+        when (val artist = arguments?.get(EXTRA_ARTIST)) {
+            is Long -> {
+                libraryViewModel.artist(artist).observe(viewLifecycleOwner) { artistData ->
+                    processSongs(artistData.songs)
+                }
+            }
+            is String -> {
+                libraryViewModel.albumArtist(artist).observe(viewLifecycleOwner) { artistData ->
+                    processSongs(artistData.songs)
+                }
+            }
+            else -> {
+                libraryViewModel.getSongs().observe(viewLifecycleOwner) { songs ->
+                    processSongs(songs)
+                }
+            }
+        }
+    }
+
+    private fun processSongs(songs: List<Song>) {
+        if (songs.isEmpty()) return
+        if (hasPlayed) {
+            attemptPlayback()
+            return
+        }
+        pendingSamples = songs.shuffled()
+        attemptPlayback()
+    }
+    
+    private fun setupArtist() {
+        binding.artistImage.setOnClickListener {
+            val song = MusicPlayerRemote.currentSong
+            val ids = song.artistIds?.split(",")?.mapNotNull { it.trim().toLongOrNull() } ?: emptyList()
+            goToArtist(mainActivity, ids[0])
+        }
+    }
+
+    private fun setUpSubFragments() {
+        controlsFragment = whichFragment(R.id.playbackControlsFragment)
+        var coverFragment = childFragmentManager.findFragmentById(R.id.playerAlbumCoverFragment) as? PlayerAlbumCoverFragment
+        
+        if (coverFragment == null) {
+            coverFragment = PlayerAlbumCoverFragment.newInstance(NowPlayingScreen.Full)
+            childFragmentManager.beginTransaction()
+                .replace(R.id.playerAlbumCoverFragment, coverFragment)
+                .commitNowAllowingStateLoss()
+        }
+
+        coverFragment.skipOnSwipe = true
+        coverFragment.setCallbacks(this)
+        coverFragment.removeSlideEffect()
+    }
+
+    override fun onShow() {
+    }
+
+    override fun onHide() {
+    }
+
+    override fun toolbarIconColor(): Int {
+        return Color.WHITE
+    }
+
+    override fun onColorChanged(color: MediaNotificationProcessor) {
+        lastColor = color.backgroundColor
+        binding.mask.backgroundTintList = ColorStateList.valueOf(color.backgroundColor)
+        controlsFragment.setColor(color)
+        libraryViewModel.updateColor(color.backgroundColor)
+        ToolbarContentTintHelper.colorizeToolbar(binding.playerToolbar, Color.WHITE, activity)
+        binding.coverLyrics.getFragment<CoverLyricsFragment>().setColors(color)
+    }
+
+    override fun onFavoriteToggled() {
+        toggleFavorite(MusicPlayerRemote.currentSong)
+        controlsFragment.onFavoriteToggled()
+    }
+
+    override fun toggleFavorite(song: Song) {
+        super.toggleFavorite(song)
+        if (song.id == MusicPlayerRemote.currentSong.id) {
+            updateIsFavorite()
+        }
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        attemptPlayback()
+        updateLabel()
+        updateArtistImage()
+        keepItLit()
+    }
+
+    override fun onPlayingMetaChanged() {
+        super.onPlayingMetaChanged()
+        updateArtistImage()
+        updateLabel()
+    }
+
+    private fun keepItLit() {
+        if (PreferenceUtil.isSamplesScreenOn) {
+            view?.postDelayed({
+                if (_binding != null) {
+                    requireActivity().keepScreenOn(true)
+                }
+            }, 150)
+        } else {
+            view?.postDelayed({
+                if (_binding != null) {
+                    requireActivity().keepScreenOn(false)
+                }
+            }, 150)
+        }
+    }
+
+    private fun attemptPlayback() {
+        if (isReturning) {
+            if (MusicPlayerRemote.isServiceConnected) {
+                val samples = pendingSamples ?: return
+                MusicPlayerRemote.openQueue(samples, lastPosition, false)
+                view?.postDelayed({
+                    if (_binding != null) {
+                        MusicPlayerRemote.playSongAtFrom(lastPosition, 30000)
+                    }
+                }, 150)
+                isReturning = false
+            }
+            return
+        }
+
+        if (hasPlayed) return
+        val samples = pendingSamples ?: return
+
+        if (MusicPlayerRemote.isServiceConnected) {
+            hasPlayed = true
+            MusicPlayerRemote.openQueue(samples, 0, false)
+            view?.postDelayed({
+                if (_binding != null) {
+                    MusicPlayerRemote.playSongAtFrom(0, 30000)
+                }
+            }, 150)
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        progressViewUpdateHelper.stop()
+        MusicPlayerRemote.clearQueue()
+        _binding = null
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        MusicPlayerRemote.clearQueue()
+        isReturning = false
+        pendingSamples = null
+    }
+
+   private fun updateArtistImage() {
+        val song = MusicPlayerRemote.currentSong
+        val ids = song.artistIds?.split(",")?.mapNotNull { it.trim().toLongOrNull() } ?: emptyList()
+        if (ids.isEmpty()) {
+            return
+        }
+        libraryViewModel.artist(ids[0])
+            .observe(viewLifecycleOwner) { artist ->
+                if (artist.id != -1L) {
+                    Glide.with(requireActivity())
+                        .load(RetroGlideExtension.getArtistModel(artist))
+                        .artistImageOptions(artist)
+                        .override(200, 200)
+                        .into(binding.artistImage)
+                }
+
+            }
+    }
+
+    override fun onUpdateProgressViews(progress: Int, total: Int) {
+        if (progress >= 60000) {
+            MusicPlayerRemote.playNextSongFrom(30000)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        MusicPlayerRemote.resumePlaying()
+        progressViewUpdateHelper.start()
+        keepItLit()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        lastPosition = MusicPlayerRemote.position
+        MusicPlayerRemote.pauseSong()
+        progressViewUpdateHelper.stop()
+        isReturning = true
+    }
+
+    override fun onQueueChanged() {
+        super.onQueueChanged()
+        if (MusicPlayerRemote.playingQueue.isNotEmpty()) updateLabel()
+    }
+
+    private fun updateLabel() {
+        if ((MusicPlayerRemote.playingQueue.size - 1) == (MusicPlayerRemote.position)) {
+            binding.nextSongLabel.setText(R.string.last_song)
+            binding.nextSong.hide()
+        } else {
+            val title = MusicPlayerRemote.playingQueue[MusicPlayerRemote.position + 1].title
+            binding.nextSongLabel.setText(R.string.next_song)
+            binding.nextSong.apply {
+                text = title
+                show()
+            }
+        }
+    }
+        
+    companion object {
+
+        private const val EXTRA_ARTIST = "extra_artist"
+        
+        fun newInstance(
+            artistId: Long = -1L,
+            artistName: String? = null
+        ): SamplesFragment {
+            return SamplesFragment().apply {
+                arguments = Bundle().apply {
+                    if (artistId != -1L) {
+                        putLong(EXTRA_ARTIST, artistId)
+                    } else if (!artistName.isNullOrEmpty()) {
+                        putString(EXTRA_ARTIST, artistName)
+                    }
+                }
+            }
+        }
+    }
+}

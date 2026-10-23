@@ -1,0 +1,2 @@
+jsonschema==4.26.0
+mutagen==1.48.1

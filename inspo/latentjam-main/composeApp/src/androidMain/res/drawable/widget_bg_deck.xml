@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2026 LatentJam Project
+  SPDX-License-Identifier: Apache-2.0
+
+  Neutral dark card, tinted at runtime with the playing track's container
+  colour — the same surface treatment the in-app player gives its background.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#F70B0B0B" />
+    <corners android:radius="24dp" />
+</shape>

@@ -1,0 +1,98 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.rememberSplineBasedDecay
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
+import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+
+/** Shares the content's scroll state, without making the label strip a second scrolling list. */
+@Composable
+internal fun Modifier.browseHeaderSwipe(pagerState: PagerState, enabled: Boolean): Modifier {
+    val reduceMotion = rememberReduceMotion()
+    val flingThreshold = with(LocalDensity.current) { 400.dp.toPx() }
+    val snapLayout = remember(pagerState, flingThreshold) {
+        object : SnapLayoutInfoProvider {
+            // Settle directly from the release position. A free decay could skip several tabs.
+            override fun calculateApproachOffset(velocity: Float, decayOffset: Float): Float = 0f
+
+            override fun calculateSnapOffset(velocity: Float): Float {
+                val target = browseHeaderSnapPage(
+                    currentPage = pagerState.currentPage,
+                    offsetFraction = pagerState.currentPageOffsetFraction,
+                    pageCount = pagerState.pageCount,
+                    velocity = velocity,
+                    flingThreshold = flingThreshold,
+                )
+                return (target - pagerState.currentPage - pagerState.currentPageOffsetFraction) *
+                    (pagerState.layoutInfo.pageSize + pagerState.layoutInfo.pageSpacing)
+            }
+        }
+    }
+    val decay = rememberSplineBasedDecay<Float>()
+    val fling = remember(snapLayout, decay, reduceMotion) {
+        snapFlingBehavior(
+            snapLayoutInfoProvider = snapLayout,
+            decayAnimationSpec = decay,
+            // Dragging stays directly under the finger. Only the release settle uses the
+            // navigation clock; reduced motion settles immediately to the same chosen page.
+            snapAnimationSpec = if (reduceMotion) snap() else tween(
+                durationMillis = Motion.NAVIGATION_MS,
+                easing = Motion.NavigationEasing,
+            ),
+        )
+    }
+    return scrollable(
+        state = pagerState,
+        orientation = Orientation.Horizontal,
+        overscrollEffect = null,
+        enabled = enabled,
+        reverseDirection = LocalLayoutDirection.current == LayoutDirection.Ltr,
+        // PagerDefaults depends on pointer history collected inside HorizontalPager. Header
+        // gestures never reach it, so use the actual page offset and release velocity instead.
+        flingBehavior = fling,
+        bringIntoViewSpec = LabelsNeverScrollThePager,
+    )
+}
+
+/**
+ * The strip shares the pager's state, so as an ordinary scrollable it would scroll the pages to
+ * bring a label it holds into view. A label asks whenever it gains focus, and in keyboard
+ * (non-touch) mode Compose focuses one each time the window regains focus, as when a sheet over it
+ * closes: saving a tag edit then switched to Playlists. The strip places its labels around the
+ * current page itself; a focused label never moves the pages.
+ */
+private val LabelsNeverScrollThePager = object : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
+}
+
+/** Velocity and offset use logical page order; scrollable handles the physical RTL direction. */
+internal fun browseHeaderSnapPage(
+    currentPage: Int,
+    offsetFraction: Float,
+    pageCount: Int,
+    velocity: Float,
+    flingThreshold: Float,
+): Int {
+    val step = when {
+        velocity >= flingThreshold && offsetFraction >= 0f -> 1
+        velocity <= -flingThreshold && offsetFraction <= 0f -> -1
+        else -> 0 // The pager's currentPage is already the nearest page after a slow drag.
+    }
+    return (currentPage + step).coerceIn(0, (pageCount - 1).coerceAtLeast(0))
+}

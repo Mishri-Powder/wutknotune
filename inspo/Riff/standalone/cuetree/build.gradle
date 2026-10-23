@@ -1,0 +1,61 @@
+// Plugin classpaths are build-host code, but remain part of the monthly CVE inventory.
+// AI-INTENT: Retain fixed plugin transitives in exported independent builds as well.
+// https://wiki.271.pics/Riff/LATEST/dependency-security#inventory-and-remediation
+buildscript {
+    configurations.classpath {
+        resolutionStrategy.force 'org.apache.commons:commons-lang3:3.21.0',
+            'org.bitbucket.b_c:jose4j:0.9.7',
+            'org.bouncycastle:bcpkix-jdk18on:1.86',
+            'org.bouncycastle:bcprov-jdk18on:1.86',
+            'org.bouncycastle:bcutil-jdk18on:1.86',
+            'org.jdom:jdom2:2.0.6.1'
+    }
+}
+
+plugins {
+    id 'base'
+    id 'org.jetbrains.kotlin.jvm' version '2.4.21' apply false
+    id 'org.jlleitschuh.gradle.ktlint' version '14.2.0' apply false
+}
+
+allprojects {
+    group = 'link.roadio.cuetree'
+    version = '0.1.0-SNAPSHOT'
+}
+
+subprojects {
+    apply plugin: 'org.jetbrains.kotlin.jvm'
+    apply plugin: 'org.jlleitschuh.gradle.ktlint'
+
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+// Share tool discovery with the CLI without relying on login-shell PATH ordering.
+ext.flatcExecutable = providers.gradleProperty('flatc')
+    .orElse(providers.environmentVariable('CUETREE_FLATC').filter { !it.isBlank() })
+    .orElse(providers.provider {
+        def candidate = new File(System.getProperty('user.home'), 'bin/flatc')
+        candidate.isFile() && candidate.canExecute() ? candidate.absolutePath : 'flatc'
+    })
+
+// The formatter runs only on the build host; its logging dependency still needs CVE maintenance.
+// AI-INTENT: Keep this policy inside each independent build so source exports remain self-contained.
+// https://wiki.271.pics/Riff/LATEST/dependency-security#monthly-cve-review
+allprojects {
+    plugins.withId('org.jlleitschuh.gradle.ktlint') {
+        ktlint { version = '1.8.0' }
+        configurations.matching { it.name.startsWith('ktlint') }.configureEach {
+            resolutionStrategy.force 'ch.qos.logback:logback-core:1.6.5',
+                'ch.qos.logback:logback-classic:1.6.5'
+        }
+    }
+}

@@ -1,0 +1,304 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.smart.cluster
+
+import kotlin.math.exp
+import kotlin.math.ln
+
+/**
+ * Exact t-distributed stochastic neighbour embedding.
+ *
+ * Chosen over UMAP, PaCMAP, PCA and a kNN force layout by measurement on the real library, not by
+ * reputation: UMAP and PaCMAP were both significantly worse under a paired bootstrap over
+ * hand-made playlists, and PCA was far worse. See docs/map-page.md section 3.
+ *
+ * Exact O(n^2) pair forces preserve the measured layout. Symmetric pairs are stored and evaluated
+ * once, with the same per-point accumulation order as a dense sweep. Layouts are cached between
+ * library changes, and [LibraryLayout.MAX_TRACKS] bounds the remaining quadratic cost.
+ */
+internal object Tsne {
+
+    /** Validated on the real library. Changing this re-shapes every existing map. */
+    const val PERPLEXITY: Float = 20f
+
+    const val ITERATIONS: Int = 1000
+
+    /** Iterations during which P is inflated, which opens gaps between clusters early. */
+    internal const val EXAGGERATION_ITERATIONS = 250
+    internal const val EXAGGERATION = 12f
+
+    private const val LEARNING_RATE = 200f
+    private const val EARLY_MOMENTUM = 0.5f
+    private const val LATE_MOMENTUM = 0.8f
+    private const val MOMENTUM_SWITCH = 250
+
+    /** Binary-search bounds for the per-point bandwidth that hits [PERPLEXITY]. */
+    internal const val PERPLEXITY_STEPS = 60
+    internal const val PERPLEXITY_TOLERANCE = 1e-5f
+
+    /**
+     * @param rows row-major `n x dim`; rows are unit-normalized by the caller so squared euclidean
+     *   distance is a monotone function of cosine distance
+     * @param initial optional row-major `n x 2` warm start
+     * @param isActive cooperative abort hook, checked once per outer iteration. This object has no
+     *   coroutines dependency (see the class doc on `:core:smart`'s cluster package), so it cannot
+     *   observe structured-concurrency cancellation on its own -- `withContext(Dispatchers.Default)`
+     *   only ever throws at a suspension point, and this loop has none. A caller running under a
+     *   coroutine passes its own `{ isActive }` (the enclosing `CoroutineScope`'s property) here so
+     *   a reader who has already navigated away stops paying for iterations nobody will see, instead
+     *   of the whole 1000-iteration pass running to completion regardless. Returning early hands
+     *   back whatever `y` holds at that point -- an under-converged but well-formed embedding, never
+     *   a crash -- the caller decides whether a partial result is safe to keep.
+     * @return row-major `n x 2`
+     */
+    fun embed(
+        rows: FloatArray,
+        n: Int,
+        dim: Int,
+        seed: Int,
+        initial: FloatArray? = null,
+        isActive: () -> Boolean = { true },
+    ): FloatArray {
+        require(n > 0 && dim > 0) { "Cannot embed an empty matrix" }
+        require(rows.size == n * dim) {
+            "rows.size was ${rows.size}, expected n * dim = ${n * dim} (n=$n, dim=$dim)"
+        }
+        if (n < 3) return FloatArray(n * 2)
+
+        val p = affinities(rows, n, dim, isActive)
+
+        val y = initialPositions(n, seed, initial)
+
+        val gains = FloatArray(n * 2) { 1f }
+        val velocity = FloatArray(n * 2)
+        val grad = FloatArray(n * 2)
+        // P and Q store only i < j, in row order. Both are symmetric and the diagonal never
+        // contributes a force. This halves the matrices kept alive for all 1000 iterations.
+        val q = FloatArray(n * (n - 1) / 2)
+
+        for (iteration in 0 until ITERATIONS) {
+            if (!isActive()) break
+            val scale = if (iteration < EXAGGERATION_ITERATIONS) EXAGGERATION else 1f
+
+            // Student-t affinities in the embedding, and their normalizer.
+            var sum = 0f
+            var pair = 0
+            for (i in 0 until n) {
+                val ix = y[i * 2]
+                val iy = y[i * 2 + 1]
+                for (j in i + 1 until n) {
+                    val dx = ix - y[j * 2]
+                    val dy = iy - y[j * 2 + 1]
+                    val value = 1f / (1f + dx * dx + dy * dy)
+                    q[pair++] = value
+                    sum += 2f * value
+                }
+            }
+            if (sum <= 0f) sum = 1e-12f
+
+            gradient(y, n, p, q, sum, scale, grad)
+
+            update(y, n, grad, gains, velocity, iteration)
+        }
+        return y
+    }
+
+    /** Cold or warm start shared by the exact and Barnes-Hut optimizers. */
+    internal fun initialPositions(n: Int, seed: Int, initial: FloatArray?): FloatArray {
+        var state = (seed.toLong() and 0xFFFFFFFFL) or 1L
+        fun next(): Float {
+            state = state xor (state shl 13)
+            state = state xor (state ushr 7)
+            state = state xor (state shl 17)
+            return ((state ushr 11).toDouble() / (1L shl 53).toDouble()).toFloat() * 2f - 1f
+        }
+
+        val y = FloatArray(n * 2)
+        if (initial != null && initial.size == n * 2) {
+            initial.copyInto(y)
+            // A warm start still needs a nudge, or points that start exactly coincident have zero
+            // gradient between them and never separate.
+            for (i in y.indices) y[i] += next() * 1e-3f
+        } else {
+            for (i in y.indices) y[i] = next() * 1e-2f
+        }
+        return y
+    }
+
+    /** One gradient-descent step, shared by the exact and Barnes-Hut optimizers. */
+    internal fun update(
+        y: FloatArray,
+        n: Int,
+        grad: FloatArray,
+        gains: FloatArray,
+        velocity: FloatArray,
+        iteration: Int,
+    ) {
+        val momentum = if (iteration < MOMENTUM_SWITCH) EARLY_MOMENTUM else LATE_MOMENTUM
+        for (i in y.indices) {
+            // Jacobs' adaptive gains: grow while the gradient keeps its sign, shrink when it
+            // flips. Standard t-SNE, and without it 1000 iterations is not enough to settle.
+            gains[i] = if ((grad[i] > 0f) != (velocity[i] > 0f)) {
+                gains[i] + 0.2f
+            } else {
+                (gains[i] * 0.8f).coerceAtLeast(0.01f)
+            }
+            velocity[i] = momentum * velocity[i] - LEARNING_RATE * gains[i] * grad[i]
+            y[i] += velocity[i]
+        }
+
+        // Recenter every pass so the embedding cannot drift off toward infinity.
+        var mx = 0f
+        var my = 0f
+        for (i in 0 until n) {
+            mx += y[i * 2]
+            my += y[i * 2 + 1]
+        }
+        mx /= n
+        my /= n
+        for (i in 0 until n) {
+            y[i * 2] -= mx
+            y[i * 2 + 1] -= my
+        }
+    }
+
+    /** Packed symmetric force pass; internal so the dense gradient can independently verify it. */
+    internal fun gradient(
+        y: FloatArray,
+        n: Int,
+        p: FloatArray,
+        q: FloatArray,
+        sum: Float,
+        scale: Float,
+        grad: FloatArray,
+    ) {
+        grad.fill(0f)
+        var pair = 0
+        // Equal and opposite forces need evaluating only once. Earlier rows have already
+        // contributed neighbours 0..<i to grad[i]; this loop then adds i+1..<n. Each point's
+        // additions therefore retain the dense implementation's order and rounding.
+        for (i in 0 until n) {
+            val ix = y[i * 2]
+            val iy = y[i * 2 + 1]
+            for (j in i + 1 until n) {
+                val qij = q[pair]
+                val force = (scale * p[pair++] - qij / sum) * qij
+                val fx = 4f * force * (ix - y[j * 2])
+                val fy = 4f * force * (iy - y[j * 2 + 1])
+                grad[i * 2] += fx
+                grad[i * 2 + 1] += fy
+                grad[j * 2] -= fx
+                grad[j * 2 + 1] -= fy
+            }
+        }
+    }
+
+    /**
+     * Symmetric joint probabilities, one bandwidth per point chosen so its conditional
+     * distribution has the target perplexity.
+     *
+     * Final review finding (MINOR 2): this used to run to completion -- `O(n^2 * dim)` distances
+     * plus [PERPLEXITY_STEPS] `* n^2` `exp()` calls (roughly 540M of them at
+     * n=[LibraryLayout.MAX_TRACKS], several seconds on a phone) -- entirely before [embed]'s own
+     * [isActive] check was ever consulted, since that check only guards the *gradient* loop below
+     * and this function runs before it. [isActive] is polled before each distance row and again
+     * before its bandwidth search, so cancellation does not wait for the full affinity matrix.
+     *
+     * @param isActive forwarded from [embed]'s parameter of the same name
+     */
+    internal fun affinities(rows: FloatArray, n: Int, dim: Int, isActive: () -> Boolean): FloatArray {
+        val pairCount = n * (n - 1) / 2
+        // One distance row plus one probability row; no dense n*n working matrix.
+        // P initially holds the earlier row's conditional value. The later row completes each
+        // pair with exactly the previous Float32 addition/division/clamp order.
+        val out = FloatArray(pairCount)
+        val distances = FloatArray(n)
+        // A row of n points has n - 1 candidate neighbours, so its conditional entropy can never
+        // exceed ln(n - 1) -- the value it takes when every neighbour gets equal weight (beta -> 0).
+        // PERPLEXITY (20) implies a target entropy of ln(20) =~ 2.996, which for n <= 21 is at or
+        // above that ceiling. When the target is unreachable, `error > 0` never happens below, `high`
+        // collapses every step, and beta runs toward the smallest representable magnitude, at which
+        // point `exp(-distance * beta)` rounds to exactly 1.0f for every pair: the whole affinity
+        // matrix goes uniform and stops depending on the input rows at all. Capping the *target*
+        // perplexity to a fraction of the row's real neighbour count -- the usual guidance is to keep
+        // perplexity well under the neighbour count, not at its ceiling -- keeps the search's target
+        // inside what the row can actually produce, at every n. PERPLEXITY itself is unchanged: this
+        // is a derived value, not a retuned constant, and for n >= 61 (n - 1) / 3 >= PERPLEXITY so the
+        // clamp does not bind and every measurement made at library scale (n = 873) stands untouched.
+        val effectivePerplexity = minOf(PERPLEXITY, maxOf(2f, (n - 1) / 3f))
+        val target = ln(effectivePerplexity)
+        val row = FloatArray(n)
+        for (i in 0 until n) {
+            if (!isActive()) {
+                out.fill(0f)
+                return out
+            }
+            for (j in 0 until n) {
+                var sum = 0f
+                // Preserve even the subtraction direction used by the old upper triangle.
+                val a = minOf(i, j) * dim
+                val b = maxOf(i, j) * dim
+                for (d in 0 until dim) {
+                    val delta = rows[a + d] - rows[b + d]
+                    sum += delta * delta
+                }
+                distances[j] = sum
+            }
+            if (!isActive()) {
+                out.fill(0f)
+                return out
+            }
+            var low = 0f
+            var high = Float.MAX_VALUE
+            var beta = 1f
+            var rowSum = 1f
+            // A real loop with a real break, not `repeat { return@repeat }`: `return@repeat` only
+            // returns from that one lambda invocation (a `continue`, not a `break`), so it used to
+            // skip the write on the very iteration where convergence was first detected -- and
+            // because entropy is monotone in beta, every later iteration re-converged too, so the
+            // row was stuck on its last *pre-convergence* estimate for the rest of the search. In
+            // the degenerate case where a point is equidistant from every other point (duplicate
+            // embeddings, or small n), entropy doesn't depend on beta at all, convergence is
+            // detected on step 0, and the write never happened even once -- the row stayed all
+            // zero forever. Retaining the final row and sum, then writing once AFTER the search,
+            // means a `break` can never discard a result, including convergence on step zero.
+            perplexitySearch@ for (step in 0 until PERPLEXITY_STEPS) {
+                var sum = 0f
+                var entropySum = 0f
+                for (j in 0 until n) {
+                    if (i == j) {
+                        row[j] = 0f
+                        continue
+                    }
+                    val value = exp(-distances[j] * beta)
+                    row[j] = value
+                    sum += value
+                    entropySum += distances[j] * value
+                }
+                if (sum <= 0f) sum = 1e-12f
+                rowSum = sum
+                val entropy = ln(sum) + beta * entropySum / sum
+                val error = entropy - target
+                if (error > 0f) {
+                    low = beta
+                    beta = if (high == Float.MAX_VALUE) beta * 2f else (beta + high) / 2f
+                } else {
+                    high = beta
+                    beta = (beta + low) / 2f
+                }
+                if (error < PERPLEXITY_TOLERANCE && error > -PERPLEXITY_TOLERANCE) break@perplexitySearch
+            }
+            for (j in 0 until i) {
+                val pair = j * (2 * n - j - 1) / 2 + i - j - 1
+                out[pair] = ((out[pair] + row[j] / rowSum) / (2f * n)).coerceAtLeast(1e-12f)
+            }
+            var pair = i * (2 * n - i - 1) / 2
+            for (j in i + 1 until n) {
+                out[pair++] = row[j] / rowSum
+            }
+        }
+        return out
+    }
+}

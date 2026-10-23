@@ -1,0 +1,214 @@
+{
+  "schema_version": "RIFF-L2-MODEL-PACKAGE-V1",
+  "model_version": "riff-level2-efficientat-eval-v2",
+  "deployment_class": "public-beta",
+  "distribution_allowed": true,
+  "input": {
+    "name": "serving_default_args_0",
+    "shape": [
+      3,
+      1000,
+      64,
+      1
+    ],
+    "dtype": "float32",
+    "layout": "NHWC"
+  },
+  "outputs": {
+    "value": {
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "log_variance": {
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "genre_logits": {
+      "shape": [
+        3,
+        87
+      ]
+    }
+  },
+  "feature_order": [
+    "pte",
+    "arousal",
+    "valence"
+  ],
+  "member_seeds": [
+    20260906,
+    20260907,
+    20260908
+  ],
+  "genre_ids": [
+    -100086,
+    -100085,
+    -100084,
+    -100083,
+    -100082,
+    -100081,
+    -100080,
+    -100079,
+    -100078,
+    -100077,
+    -100076,
+    -100075,
+    -100074,
+    -100073,
+    -100072,
+    -100071,
+    -100070,
+    -100069,
+    -100068,
+    -100067,
+    -100066,
+    -100065,
+    -100064,
+    -100063,
+    -100062,
+    -100061,
+    -100060,
+    -100059,
+    -100058,
+    -100057,
+    -100056,
+    -100055,
+    -100054,
+    -100053,
+    -100052,
+    -100051,
+    -100050,
+    -100049,
+    -100048,
+    -100047,
+    -100046,
+    -100045,
+    -100044,
+    -100043,
+    -100042,
+    -100041,
+    -100040,
+    -100039,
+    -100038,
+    -100037,
+    -100036,
+    -100035,
+    -100034,
+    -100033,
+    -100032,
+    -100031,
+    -100030,
+    -100029,
+    -100028,
+    -100027,
+    -100026,
+    -100025,
+    -100024,
+    -100023,
+    -100022,
+    -100021,
+    -100020,
+    -100019,
+    -100018,
+    -100017,
+    -100016,
+    -100015,
+    -100014,
+    -100013,
+    -100012,
+    -100011,
+    -100010,
+    -100009,
+    -100008,
+    -100007,
+    -100006,
+    -100005,
+    -100004,
+    -100003,
+    -100002,
+    -100001,
+    -100000
+  ],
+  "log_variance_bounds": [
+    -8.0,
+    2.0
+  ],
+  "preprocessing": {
+    "sample_rate": 32000,
+    "excerpt_seconds": 10,
+    "positions": [
+      0.25,
+      0.5,
+      0.75
+    ],
+    "fft_size": 1024,
+    "hop_size": 320,
+    "window_size": 800,
+    "mel_bins": 64,
+    "fmin_hz": 0,
+    "fmax_hz": 15000,
+    "preemphasis": "y[n] = x[n+1] - 0.97*x[n]",
+    "window": "hann-symmetric-periodic-false",
+    "center": true,
+    "pad_mode": "reflect",
+    "power": 2.0,
+    "mel_filterbank": "torchaudio.compliance.kaldi.get_mel_banks",
+    "vtln_low": 100.0,
+    "vtln_high": -500.0,
+    "vtln_warp_factor": 1.0,
+    "log": "natural_log(mel_power + 1e-5)",
+    "normalization": "(log_mel + 4.5) / 5.0"
+  },
+  "backbone": {
+    "name": "EfficientAT mn10_as_mels_64",
+    "source_revision": "a425fdce92572e602a1d5634799bd9f1f2efa806",
+    "embedding_dim": 960,
+    "aggregation": "adaptive_avg_pool_2d then mean over three excerpts"
+  },
+  "backbone_checkpoint_sha256": "50d004a4d0bb2dc7bad63a9196b6117f4a3df528b3e8ffd7ec4350cf4a9fbf5c",
+  "converter": {
+    "python": "3.10.21",
+    "torch": "2.13.0+cpu",
+    "litert_torch": "0.9.4"
+  },
+  "tflite_outputs": [
+    {
+      "index": 500,
+      "name": "serving_default_output_0_output",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    {
+      "index": 502,
+      "name": "serving_default_output_1_output",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    {
+      "index": 498,
+      "name": "serving_default_output_2_output",
+      "shape": [
+        3,
+        87
+      ]
+    }
+  ],
+  "parity_max_abs_error": {
+    "value": 2.092123031616211e-05,
+    "log_variance": 0.00020933151245117188,
+    "genre_logits": 0.00016355514526367188
+  },
+  "known_deviations": [
+    "research-derived MTG-Jamendo and Essentia teacher supervision is disclosed for this public beta",
+    "first uncertainty/genre ensemble training pass; production quality gates remain open",
+    "training audio hashes are not yet populated in RIFF-L2-SIDECAR-V1"
+  ]
+}

@@ -1,0 +1,320 @@
+import groovy.json.JsonSlurper
+
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'org.jlleitschuh.gradle.ktlint'
+}
+
+def publicBetaNoticeAssets = file("${layout.buildDirectory.get()}/generated/publicBetaNotices/assets")
+def generatedUiConfigResources = file("${layout.buildDirectory.get()}/generated/riffUiConfig/res")
+def generatedUiConfig = file("${generatedUiConfigResources}/raw/ui_config.json")
+def releaseConfig = new JsonSlurper().parse(file("${rootDir}/config/project.json"))
+def releaseDate = releaseConfig.releaseDate
+def releaseChannel = releaseConfig.releaseChannel
+if (!(releaseChannel in ['ALPHA', 'BETA', 'RC', 'FINAL'])) {
+    throw new GradleException("Signed releaseChannel must be ALPHA, BETA, RC or FINAL")
+}
+def releaseSuffix = ['ALPHA': '-alpha', 'BETA': '-public-beta', 'RC': '-rc', 'FINAL': ''][releaseChannel]
+
+android {
+    namespace = 'link.roadio.riff'
+    compileSdk = 37
+    compileSdkMinor = 2
+
+    defaultConfig {
+        applicationId = 'link.roadio.riff'
+        minSdk = 31
+        targetSdk = 36
+        versionCode = 16
+        versionName = '1.0.2'
+
+        testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
+
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix = '.debug'
+            versionNameSuffix = '-debug'
+            buildConfigField 'String', 'RELEASE_CHANNEL', '"DEBUG"'
+            buildConfigField 'String', 'RELEASE_DATE', "\"${releaseDate}\""
+        }
+        instrumented {
+            initWith debug
+            applicationIdSuffix = '.instrumented'
+            versionNameSuffix = '-instrumented'
+            matchingFallbacks = ['debug']
+            buildConfigField 'String', 'RELEASE_CHANNEL', '"TEST"'
+        }
+        release {
+            minifyEnabled = false
+            versionNameSuffix = releaseSuffix
+            // Channel/date describe the source edition, never the build or install time.
+            buildConfigField 'String', 'RELEASE_CHANNEL', "\"${releaseChannel}\""
+            buildConfigField 'String', 'RELEASE_DATE', "\"${releaseDate}\""
+        }
+    }
+
+    // Instrumentation uses a disposable target package. Android's
+    // connected-test cleanup uninstalls that target and its complete app-private tree.
+    // https://wiki.271.pics/Riff/LATEST/runtime-architecture
+    // AI-INTENT: Never point testBuildType at debug; the user's working debug installation and
+    // its Player/Indexer data must survive every instrumentation run.
+    testBuildType = 'instrumented'
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
+    androidResources {
+        noCompress += ['tflite', 'fb']
+    }
+
+    sourceSets {
+        main.assets.srcDir publicBetaNoticeAssets
+        main.res.srcDir generatedUiConfigResources
+    }
+
+}
+
+tasks.register('generateRiffUiConfig') {
+    dependsOn ':configuration:verifyPackagedConfiguration'
+    group = 'build'
+    description = 'Copy the checked-in UI configuration into packaged resources.'
+    inputs.file('src/main/config/ui_config.json')
+    outputs.file(generatedUiConfig)
+    doLast {
+        generatedUiConfig.parentFile.mkdirs()
+        generatedUiConfig.bytes = file('src/main/config/ui_config.json').bytes
+    }
+}
+
+// Retain the project's established verification command names while
+// routing every Android test artifact to the isolated target build type above.
+// https://wiki.271.pics/Riff/LATEST/runtime-architecture
+// AI-INTENT: These aliases are a safety boundary, not cosmetic compatibility. Do not point an
+// Android-test alias at a task that installs link.roadio.riff.debug.
+[
+    testDebugUnitTest: 'testInstrumentedUnitTest',
+    assembleDebugAndroidTest: 'assembleInstrumentedAndroidTest',
+    compileDebugAndroidTestKotlin: 'compileInstrumentedAndroidTestKotlin',
+    connectedDebugAndroidTest: 'connectedInstrumentedAndroidTest',
+].each { aliasName, targetName ->
+    tasks.register(aliasName) {
+        group = 'verification'
+        description = "Compatibility alias for isolated ${targetName}."
+        dependsOn targetName
+    }
+}
+
+dependencies {
+    implementation project(':configuration')
+    implementation 'link.roadio.cuetree:cuetree-core:0.1.0-SNAPSHOT'
+    // Indexer classes are packaged for the dedicated :indexer process. Player
+    // compiles only against MDIA/AIDL and shared data-root contracts.
+    // https://wiki.271.pics/Riff/LATEST/runtime-architecture
+    // AI-INTENT: Never instantiate Indexer Level 0/1 implementation from :app.
+    compileOnly project(':indexer')
+    runtimeOnly project(':indexer')
+    compileOnly files("${System.getenv('ANDROID_HOME') ?: System.getenv('ANDROID_SDK_ROOT')}/platforms/android-37.2/optional/android.car.jar")
+
+    // Player-owned UI only. The stable BOM keeps Compose artifacts compatible;
+    // https://wiki.271.pics/Riff/LATEST/runtime-architecture
+    // AI-INTENT: never add Compose dependencies to any Indexer or persistence module.
+    implementation platform('androidx.compose:compose-bom:2026.09.00')
+    implementation 'androidx.activity:activity-compose:1.13.0'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+
+    // Player-owned playback. Keep one pinned stable Media3 family in :app only;
+    // https://wiki.271.pics/Riff/LATEST/runtime-architecture
+    // AI-INTENT: Media3 projects the durable Riff queue and never becomes queue authority.
+    implementation 'androidx.media3:media3-exoplayer:1.11.1'
+    implementation 'androidx.media3:media3-session:1.11.1'
+
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    androidTestImplementation 'androidx.test:runner:1.7.0'
+    // Storage admission tests compile against the same shared root API already packaged in the target.
+    androidTestCompileOnly project(':indexer')
+    androidTestImplementation platform('androidx.compose:compose-bom:2026.09.00')
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+    instrumentedImplementation 'androidx.compose.ui:ui-test-manifest'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20260814'
+    testImplementation project(':indexer')
+}
+
+tasks.named('build') {
+    dependsOn 'ktlintCheck'
+}
+
+tasks.register('preparePublicBetaNotices', Copy) {
+    group = 'build'
+    description = 'Package the GPL and retained third-party notices into every APK.'
+    from('../NOTICE') {
+        into 'licenses'
+    }
+    from('../LICENSES') {
+        into 'licenses'
+    }
+    from('../standalone/cuegrain') {
+        include 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.txt', 'licenses/**'
+        into 'licenses/cuegrain'
+    }
+    from('../standalone/cuetree') {
+        include 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.txt', 'licenses/**'
+        into 'licenses/cuetree'
+    }
+    into publicBetaNoticeAssets
+}
+
+tasks.named('preBuild') {
+    dependsOn tasks.named('preparePublicBetaNotices')
+    dependsOn tasks.named('generateRiffUiConfig')
+}
+
+tasks.register('verifyDistributionRelease') {
+    group = 'verification'
+    description = 'Validate the distribution release input before persistent-key signing.'
+    dependsOn tasks.named('assembleRelease')
+    doLast {
+        def apkFiles = fileTree("${layout.buildDirectory.get()}/outputs/apk/release") {
+            include '*.apk'
+        }.files
+        if (apkFiles.size() != 1) {
+            throw new GradleException("Expected one release APK, found: ${apkFiles}")
+        }
+        def apk = apkFiles.first()
+        def archive = new java.util.zip.ZipFile(apk)
+        try {
+            def names = archive.entries().collect { it.name }
+            def required = [
+                'assets/licenses/GPL-3.0-or-later.txt',
+                'assets/licenses/NOTICE',
+                'assets/licenses/Apache-2.0.txt',
+                'assets/licenses/BSD-2-Clause.txt',
+                'assets/licenses/litert/litert-THIRD_PARTY_NOTICE.txt',
+                'assets/licenses/litert/litert-api-THIRD_PARTY_NOTICE.txt',
+                'assets/licenses/cuegrain/LICENSE',
+                'assets/licenses/cuegrain/NOTICE',
+                'assets/licenses/cuegrain/THIRD_PARTY_NOTICES.txt',
+                'assets/licenses/cuetree/LICENSE',
+                'assets/licenses/cuetree/NOTICE',
+                'assets/licenses/cuetree/THIRD_PARTY_NOTICES.txt',
+            ]
+            def missing = required.findAll { !names.contains(it) }
+            if (!missing.empty) {
+                throw new GradleException("Public beta notices missing from APK: ${missing}")
+            }
+            def gnre = archive.getEntry('assets/gnre/gnre.fb')
+            if (gnre == null || gnre.size <= 0 || gnre.method != java.util.zip.ZipEntry.STORED) {
+                throw new GradleException('GNRE resource is missing, empty or compressed')
+            }
+            def modelFiles = [
+                'assets/level2/manifest.json',
+                'assets/level2/calibrators.json',
+                'assets/level2/reference-vector.npz',
+                'assets/level2/validation-report.json',
+                'assets/level2/NOTICES.txt',
+                'assets/level2/XXH3SUMS.json',
+                'assets/level2/riff-level2-efficientat-eval-v2.tflite',
+            ]
+            def missingModelFiles = modelFiles.findAll { !names.contains(it) }
+            if (!missingModelFiles.empty) {
+                throw new GradleException("Public beta Level 2 package is incomplete: ${missingModelFiles}")
+            }
+            def modelEntry = archive.getEntry('assets/level2/riff-level2-efficientat-eval-v2.tflite')
+            if (modelEntry.method != java.util.zip.ZipEntry.STORED) {
+                throw new GradleException('Public beta Level 2 model must be stored uncompressed for mmap')
+            }
+            def manifest = new groovy.json.JsonSlurper().parse(
+                archive.getInputStream(archive.getEntry('assets/level2/manifest.json')),
+            )
+            if (manifest.deployment_class != 'public-beta' || manifest.distribution_allowed != true) {
+                throw new GradleException("Public beta model manifest rejects distribution: ${manifest}")
+            }
+            if (names.contains('assets/level2/SHA256SUMS.json')) {
+                throw new GradleException('External SHA provenance inventory must not be packaged as a runtime asset')
+            }
+            def runtimeInventory = new groovy.json.JsonSlurper().parse(
+                archive.getInputStream(archive.getEntry('assets/level2/XXH3SUMS.json')),
+            )
+            // External source provenance is checked by the build; the shipped runtime uses XXH3.
+            def inventory = new groovy.json.JsonSlurper().parse(file("${rootDir}/references/level2/SHA256SUMS.json"))
+            if (runtimeInventory.keySet() != inventory.keySet()) {
+                throw new GradleException('Public beta runtime inventory members differ from source provenance')
+            }
+            runtimeInventory.each { name, metadata ->
+                def entry = archive.getEntry("assets/level2/${name}")
+                if (entry == null || entry.size != metadata.bytes || !(metadata.xxh3 ==~ /[0-9a-f]{16}/)) {
+                    throw new GradleException("Public beta XXH3 runtime inventory is invalid: ${name}")
+                }
+            }
+            inventory.each { name, metadata ->
+                def entry = archive.getEntry("assets/level2/${name}")
+                if (entry == null || entry.size != metadata.bytes) {
+                    throw new GradleException("Public beta model inventory size mismatch: ${name}")
+                }
+                def digest = java.security.MessageDigest.getInstance('SHA-256')
+                archive.getInputStream(entry).withCloseable { stream ->
+                    def buffer = new byte[1024 * 1024]
+                    for (int read = stream.read(buffer); read >= 0; read = stream.read(buffer)) {
+                        if (read > 0) digest.update(buffer, 0, read)
+                    }
+                }
+                def actual = digest.digest().encodeHex().toString()
+                if (actual != metadata.sha256) {
+                    throw new GradleException("Public beta model inventory hash mismatch: ${name}")
+                }
+            }
+            def prohibited = names.findAll {
+                def normalized = it.toLowerCase(Locale.ROOT)
+                normalized.contains('essentia') || normalized.endsWith('.onnx') || normalized.endsWith('.pt') ||
+                    normalized.contains('androidtest') || normalized.contains('instrumented')
+            }
+            if (!prohibited.empty) {
+                throw new GradleException("Public beta contains prohibited artifacts: ${prohibited}")
+            }
+        } finally {
+            archive.close()
+        }
+    }
+}
+
+// Dependency manifests are capability inputs, so inspect the actual merged release before signing.
+// Authority: https://wiki.271.pics/Riff/LATEST/runtime-architecture#packaged-android-permissions
+androidComponents {
+    onVariants(selector().withBuildType('release')) { variant ->
+        def mergedManifest = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST.INSTANCE)
+        def guard = tasks.register('verifyReleasePermissions', Exec) {
+            group = 'verification'
+            description = 'Enforce the offline APK permission and component contract.'
+            inputs.file(mergedManifest)
+            inputs.file(rootProject.file('tools/verify_android_permissions.py'))
+            doFirst {
+                commandLine 'python3', rootProject.file('tools/verify_android_permissions.py'), mergedManifest.get().asFile
+            }
+        }
+        tasks.named('verifyDistributionRelease').configure { dependsOn guard }
+    }
+}
+
+apply from: rootProject.file('gradle/runtime-dependencies.gradle')

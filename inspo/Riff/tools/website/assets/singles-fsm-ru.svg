@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="380" height="830" viewBox="0 0 380 830" role="img" aria-labelledby="title desc">
+<title id="title">Классификатор альбомов</title>
+<desc id="desc">Обзор переходов E, G, H, C, R и результатов X, A, P, S, Z. Полные условия приведены в таблице статьи.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#74452f"/></marker></defs>
+<rect width="380" height="830" rx="18" fill="#fbf7ef"/>
+<style>text{font-family:system-ui,sans-serif;fill:#38281f}.state{fill:#fffdf8;stroke:#a78065;stroke-width:1.5}.out{fill:#f2dfc2;stroke:#a78065;stroke-width:1.5}.edge{fill:none;stroke:#74452f;stroke-width:1.5;marker-end:url(#arrow)}.hint{font-size:12px;fill:#704c38}</style>
+<text x="20" y="30" font-size="18" font-weight="650">Классификатор альбомов</text>
+<rect class="state" x="20" y="60" width="202" height="70" rx="10"/>
+<text x="32" y="87" font-size="13" font-weight="600">E · Удерживаемые факты</text>
+<text x="32" y="110" font-size="13" font-weight="400">Сначала явное владение</text>
+<rect class="out" x="252" y="60" width="108" height="70" rx="10"/>
+<text x="264" y="87" font-size="13" font-weight="600">X · Явный</text>
+<text x="264" y="110" font-size="13" font-weight="400">альбом</text>
+<path class="edge" d="M222 95H250"/>
+<text class="hint" x="23" y="151">Иначе ↓ · Пусто → Z</text>
+<path class="edge" d="M121 159V188"/>
+<rect class="state" x="20" y="190" width="202" height="70" rx="10"/>
+<text x="32" y="217" font-size="13" font-weight="600">G · Обычная группировка</text>
+<text x="32" y="240" font-size="13" font-weight="400">Существующие веса</text>
+<rect class="state" x="252" y="190" width="108" height="70" rx="10"/>
+<text x="264" y="217" font-size="13" font-weight="600">H · Главы</text>
+<text x="264" y="240" font-size="13" font-weight="400">→ A или X</text>
+<path class="edge" d="M222 225H250"/>
+<text class="hint" x="252" y="282">Есть FILF</text>
+<text class="hint" x="23" y="294">Группа без глав ↓</text>
+<path class="edge" d="M121 305V348"/>
+<rect class="state" x="20" y="350" width="202" height="70" rx="10"/>
+<text x="32" y="377" font-size="13" font-weight="600">C · Проверка Singles</text>
+<text x="32" y="400" font-size="13" font-weight="400">Защита → предикаты</text>
+<rect class="out" x="252" y="350" width="108" height="70" rx="10"/>
+<text x="264" y="377" font-size="13" font-weight="600">A · Обычный</text>
+<text x="264" y="400" font-size="13" font-weight="400">альбом</text>
+<path class="edge" d="M222 385H250"/>
+<text class="hint" x="252" y="445">Защита / нет</text>
+<text class="hint" x="23" y="460">candidate = true ↓</text>
+<path class="edge" d="M121 472V518"/>
+<rect class="state" x="20" y="520" width="202" height="70" rx="10"/>
+<text x="32" y="547" font-size="13" font-weight="600">R · Выбор корзины</text>
+<text x="32" y="570" font-size="13" font-weight="400">Кредит + eligible</text>
+<rect class="out" x="252" y="520" width="108" height="70" rx="10"/>
+<text x="264" y="547" font-size="13" font-weight="600">P · Artist</text>
+<text x="264" y="570" font-size="13" font-weight="400">singles</text>
+<path class="edge" d="M222 555H250"/>
+<text class="hint" x="252" y="614">eligible = true</text>
+<text class="hint" x="23" y="630">Иначе ↓</text>
+<path class="edge" d="M121 642V678"/>
+<rect class="out" x="20" y="680" width="202" height="52" rx="10"/>
+<text x="32" y="707" font-size="13" font-weight="600">S · Общие Singles</text>
+<text class="hint" x="20" y="769">G → R: невостребованная позиция</text>
+<text class="hint" x="20" y="793">Новый снимок: любой результат → E</text>
+</svg>

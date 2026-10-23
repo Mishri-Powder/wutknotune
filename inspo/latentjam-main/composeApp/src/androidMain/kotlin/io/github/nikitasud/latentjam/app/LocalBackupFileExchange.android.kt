@@ -1,0 +1,410 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import android.content.ContentResolver
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.InputStream
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+@Composable
+internal actual fun rememberLocalBackupFileExchange(
+    exportMimeType: String,
+    importMimeTypes: List<String>,
+    allowMultipleImport: Boolean,
+    onExportResult: (LocalBackupFileResult<Unit>) -> Unit,
+    onImportResult: (LocalBackupFileResult<ImportedLocalDocuments>) -> Unit,
+): LocalBackupFileExchange {
+    val activity = LocalActivity.current as? ComponentActivity
+        ?: return LocalBackupFileExchange(
+            exportTo = { _, _ -> onExportResult(LocalBackupFileResult.Failure("Document picker unavailable")) },
+            import = { onImportResult(LocalBackupFileResult.Failure("Document picker unavailable")) },
+        )
+    // Backup and playlist exchange can coexist. Only this small owner key enters saved state;
+    // potentially large document text stays in the retained ViewModel, never in a Bundle.
+    val ownerKey = rememberSaveable { "document-exchange-${UUID.randomUUID()}" }
+    val model = remember(activity, ownerKey) {
+        val resolver = activity.applicationContext.contentResolver
+        val factory = viewModelFactory {
+            initializer {
+                LocalBackupExchangeModel(
+                    handle = createSavedStateHandle(),
+                    writeDocument = { payload, destination ->
+                        writeDocument(
+                            resolver,
+                            Uri.parse(destination),
+                            payload,
+                            activity.applicationContext.cacheDir,
+                        )
+                    },
+                    readDocument = { source, budget -> readDocument(resolver, Uri.parse(source), budget) },
+                    documentDirectory = { destination -> createdDocumentDirectory(Uri.parse(destination)) },
+                )
+            }
+        }
+        ViewModelProvider(activity, factory)[ownerKey, LocalBackupExchangeModel::class.java]
+    }
+    val currentExportResult by rememberUpdatedState(onExportResult)
+    val currentImportResult by rememberUpdatedState(onImportResult)
+    val createDocument = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(exportMimeType),
+    ) { uri -> model.exportDestination(uri?.toString()) }
+    val openDocument = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        model.importSource(uri?.toString())
+    }
+    val openDocuments = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        model.importSources(uris.map(Uri::toString))
+    }
+    var resumed by remember(activity) {
+        mutableStateOf(activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(activity, model) {
+        val observer = LifecycleEventObserver { _, _ ->
+            resumed = activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        activity.lifecycle.addObserver(observer)
+        onDispose {
+            activity.lifecycle.removeObserver(observer)
+            // A screen dismissal releases its payload; rotation only replaces the callback.
+            if (!activity.isChangingConfigurations) model.abandon()
+        }
+    }
+    val completed by model.completed.collectAsState()
+    val inProgress by model.inProgress.collectAsState()
+    LaunchedEffect(completed, resumed) {
+        val result = completed
+        if (result != null && resumed) {
+            model.acknowledge()
+            when (result) {
+                is LocalBackupExchangeResult.Export -> currentExportResult(result.result)
+                is LocalBackupExchangeResult.Import -> currentImportResult(result.result)
+            }
+        }
+    }
+    return remember(model, createDocument, openDocument, openDocuments, importMimeTypes, allowMultipleImport, inProgress) {
+        LocalBackupFileExchange(
+            exportTo = { encode, suggestedName ->
+                if (model.beginExport(encode)) {
+                    try {
+                        createDocument.launch(normalizedBackupFileName(suggestedName))
+                    } catch (failure: Exception) {
+                        model.failedToLaunch(failure)
+                    }
+                }
+            },
+            import = {
+                if (model.beginImport()) {
+                    try {
+                        if (allowMultipleImport) {
+                            openDocuments.launch(importMimeTypes.toTypedArray())
+                        } else {
+                            openDocument.launch(importMimeTypes.toTypedArray())
+                        }
+                    } catch (failure: Exception) {
+                        model.failedToLaunch(failure)
+                    }
+                }
+            },
+            inProgress = inProgress,
+        )
+    }
+}
+
+internal sealed interface LocalBackupExchangeResult {
+    data class Export(val result: LocalBackupFileResult<Unit>) : LocalBackupExchangeResult
+    data class Import(val result: LocalBackupFileResult<ImportedLocalDocuments>) : LocalBackupExchangeResult
+}
+
+/** Retains picker input, IO and undelivered results across configuration changes. */
+internal class LocalBackupExchangeModel(
+    private val handle: SavedStateHandle,
+    /** Encodes the payload by calling it, off the main thread, then writes it to the destination. */
+    private val writeDocument: suspend (payload: () -> String, destination: String) -> Unit,
+    /** Reads one picked document within what [ImportReadBudget] still allows the selection. */
+    private val readDocument: suspend (source: String, budget: ImportReadBudget) -> ImportedLocalDocument,
+    /** The folder a created destination sits in, as an absolute path; null when unknown. */
+    private val documentDirectory: (destination: String) -> String? = { null },
+) : ViewModel() {
+    private var operation: String? = handle["operation"]
+    private var picking = false
+    private var pendingExport: ((destinationDirectory: String?) -> String)? = null
+    private var work: Job? = null
+    private var generation = 0L
+    // Process death cannot retain the payload or a running IO job. Cancel once and allow retry;
+    // a late picker result must never write a missing payload or resurrect an abandoned request.
+    val completed = MutableStateFlow<LocalBackupExchangeResult?>(
+        when (operation) {
+            "export" -> LocalBackupExchangeResult.Export(LocalBackupFileResult.Cancelled)
+            "import" -> LocalBackupExchangeResult.Import(LocalBackupFileResult.Cancelled)
+            else -> null
+        },
+    )
+    val inProgress = MutableStateFlow(operation != null)
+
+    fun beginExport(encoded: String): Boolean = beginExport { encoded }
+
+    /** [encode] waits for the destination: what it writes can depend on where that is. */
+    fun beginExport(encode: (destinationDirectory: String?) -> String): Boolean {
+        if (!begin("export")) return false
+        pendingExport = encode
+        return true
+    }
+
+    fun beginImport(): Boolean = begin("import")
+
+    private fun begin(kind: String): Boolean {
+        if (inProgress.value) return false
+        generation++
+        operation = kind
+        handle["operation"] = kind
+        picking = true
+        inProgress.value = true
+        return true
+    }
+
+    fun failedToLaunch(failure: Exception) {
+        if (!picking) return
+        val result = LocalBackupFileResult.Failure(failure.message ?: "Could not open document picker")
+        complete(
+            when (operation) {
+                "export" -> LocalBackupExchangeResult.Export(result)
+                "import" -> LocalBackupExchangeResult.Import(result)
+                else -> return
+            },
+        )
+    }
+
+    fun exportDestination(destination: String?) {
+        if (!picking || operation != "export") return
+        picking = false
+        val encode = pendingExport
+        pendingExport = null
+        if (destination == null || encode == null) {
+            complete(LocalBackupExchangeResult.Export(LocalBackupFileResult.Cancelled))
+            return
+        }
+        val request = generation
+        work = viewModelScope.launch {
+            val result = try {
+                // Encoding happens inside the write's IO pass, so a throwing encoder is one more
+                // failed export and the destination is never opened for it.
+                writeDocument({ encode(documentDirectory(destination)) }, destination)
+                LocalBackupFileResult.Success(Unit)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                LocalBackupFileResult.Failure(failure.message ?: "Could not export backup")
+            } catch (_: OutOfMemoryError) {
+                LocalBackupFileResult.Failure("Backup exceeds available memory")
+            }
+            if (request == generation) complete(LocalBackupExchangeResult.Export(result))
+        }
+    }
+
+    fun importSource(source: String?) = importSources(listOfNotNull(source))
+
+    /**
+     * Reads [sources] in the order picked. One that cannot be read is left out rather than
+     * costing the others, and counted; the import fails only when none could be read. Several
+     * sources share one bound and must be text (see [ImportReadBudget]).
+     */
+    fun importSources(sources: List<String>) {
+        if (!picking || operation != "import") return
+        picking = false
+        if (sources.isEmpty()) {
+            complete(LocalBackupExchangeResult.Import(LocalBackupFileResult.Cancelled))
+            return
+        }
+        val request = generation
+        work = viewModelScope.launch {
+            val documents = ArrayList<ImportedLocalDocument>(sources.size)
+            val budget = ImportReadBudget(textOnly = sources.size > 1)
+            var firstFailure: String? = null
+            for (source in sources) {
+                try {
+                    documents += readDocument(source, budget)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    firstFailure = firstFailure ?: (failure.message ?: "Could not import backup")
+                } catch (_: OutOfMemoryError) {
+                    firstFailure = firstFailure ?: "Backup exceeds available memory"
+                }
+            }
+            val result = if (documents.isEmpty()) {
+                LocalBackupFileResult.Failure(firstFailure ?: "Could not import backup")
+            } else {
+                LocalBackupFileResult.Success(
+                    ImportedLocalDocuments(documents.toList(), unreadableCount = sources.size - documents.size),
+                )
+            }
+            if (request == generation) complete(LocalBackupExchangeResult.Import(result))
+        }
+    }
+
+    private fun complete(result: LocalBackupExchangeResult) {
+        picking = false
+        pendingExport = null
+        work = null
+        completed.value = result
+    }
+
+    fun acknowledge() {
+        completed.value = null
+        operation = null
+        handle.remove<String>("operation")
+        inProgress.value = false
+    }
+
+    fun abandon() {
+        generation++
+        picking = false
+        pendingExport = null
+        work?.cancel()
+        work = null
+        acknowledge()
+    }
+}
+
+/**
+ * Fills the picked document from a complete copy of the payload, never while it is still
+ * arriving. The payload is encoded first, on the IO dispatcher, before anything is staged.
+ *
+ * This job is cancelled when the Backup screen leaves (see [LocalBackupExchangeModel.abandon]),
+ * and the format carries neither a trailer nor a checksum, so a half-written `.ljbackup` still
+ * decodes and a later REPLACE restore silently drops the sections that never landed. The picked
+ * document is therefore opened only once the whole payload sits in a private scratch file, and
+ * only after the last cancellation point; iOS prepares the same complete temporary document in
+ * `prepareExport` before the system exports it.
+ */
+private suspend fun writeDocument(
+    resolver: ContentResolver,
+    uri: Uri,
+    payload: () -> String,
+    scratchDir: File,
+) = withContext(Dispatchers.IO) {
+    val staged = stageDocument(payload(), scratchDir)
+    try {
+        // An abandoned export stops here: the destination is still untouched, so there is
+        // nothing truncated to clean up and nothing misleading in the user's folder.
+        currentCoroutineContext().ensureActive()
+        // From here on the copy is one uninterrupted pass. Leaving the screen during it hands
+        // over a complete backup rather than a partial one; the result is discarded anyway.
+        withContext(NonCancellable) { copyToDocument(resolver, uri, staged) }
+    } finally {
+        staged.delete()
+    }
+}
+
+/** Writes the payload to a private scratch document on the caller's IO dispatcher. */
+private suspend fun stageDocument(encoded: String, scratchDir: File): File {
+    val staged = File.createTempFile("latentjam-backup", ".tmp", scratchDir)
+    try {
+        staged.outputStream().bufferedWriter(Charsets.UTF_8).use { writer ->
+            var offset = 0
+            while (offset < encoded.length) {
+                currentCoroutineContext().ensureActive()
+                val count = minOf(8 * 1024, encoded.length - offset)
+                writer.write(encoded, offset, count)
+                offset += count
+            }
+        }
+    } catch (failure: Throwable) {
+        staged.delete()
+        throw failure
+    }
+    return staged
+}
+
+private fun copyToDocument(resolver: ContentResolver, uri: Uri, staged: File) {
+    val output = resolver.openOutputStream(uri, "wt")
+        ?: error("The selected document cannot be opened")
+    staged.inputStream().use { input -> output.use { input.copyTo(it) } }
+}
+
+private suspend fun readDocument(
+    resolver: ContentResolver,
+    uri: Uri,
+    budget: ImportReadBudget,
+): ImportedLocalDocument =
+    withContext(Dispatchers.IO) {
+        val input = resolver.openInputStream(uri) ?: error("The selected document cannot be opened")
+        val bytes = input.use { it.readBounded(budget) }
+        budget.accept(bytes)
+        val text = decodeImportedText(bytes)
+        // Document IDs and URI path segments need not be file names. Ask the provider for its
+        // display name; missing metadata must never prevent importing readable contents.
+        val displayName = try {
+            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+        ImportedLocalDocument(text, displayName)
+    }
+
+/**
+ * Reads at most [budget]'s next limit, judging the first [ImportReadBudget.SNIFF_BYTES] before the
+ * rest is read: an audio file picked with playlists costs one buffer, not its whole length.
+ */
+private suspend fun InputStream.readBounded(budget: ImportReadBudget): ByteArray {
+    val limit = budget.nextLimit
+    val result = ByteArrayOutputStream()
+    val buffer = ByteArray(8 * 1024)
+    var judged = false
+    while (true) {
+        currentCoroutineContext().ensureActive()
+        val count = read(buffer)
+        if (count < 0) break
+        check(result.size() <= limit - count) {
+            "Backup exceeds the supported size"
+        }
+        result.write(buffer, 0, count)
+        if (!judged && result.size() >= ImportReadBudget.SNIFF_BYTES) {
+            judged = true
+            budget.checkStart(result.toByteArray().copyOf(ImportReadBudget.SNIFF_BYTES))
+        }
+    }
+    return result.toByteArray()
+}

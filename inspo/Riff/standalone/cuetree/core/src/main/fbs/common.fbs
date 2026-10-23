@@ -1,0 +1,94 @@
+namespace link.roadio.cuetree.fbs;
+
+// An omitted version must fail the exact-format validation gate.
+
+table Header {
+  version: uint = 1;
+  generation: long;
+  identity_scheme: string (required);
+  metadata_revision: string;
+}
+
+table MediaId {
+  hi: long;
+  lo: long = null;
+}
+
+table MediaBucket {
+  hi: long (key);
+  sources: [int] (required);
+}
+
+table Attribute {
+  id: MediaId (required);
+  kind: ubyte;
+  value_text: string;
+  value_long: long = null;
+  generation: long;
+  flags: ushort;
+}
+
+table SourceInfo {
+  name: string (required);
+  modified: long = null;
+  size: long = null;
+  provider: string;
+  locator: string;
+}
+
+table StructureSection {
+  reference: string;
+  begin_us: long = null;
+  end_us: long = null;
+  attributes: [MediaId];
+}
+
+table StructureTable {
+  key: string (required);
+  attributes: [MediaId];
+  sections: [StructureSection] (required);
+}
+
+table Node {
+  flags: ushort;
+  generation: long;
+  id: MediaId (required);
+  parent_id: MediaId;
+  source: SourceInfo;
+  begin_us: long = null;
+  end_us: long = null;
+  attributes: [MediaId];
+  tables: [StructureTable];
+  source_evidence: [MediaId];
+}
+
+table Album {
+  id: MediaId (required);
+  flags: ushort;
+  title: string (required);
+  tracks: [MediaId] (required);
+  sources: [int] (required);
+  attributes: [MediaId];
+  generation: long;
+}
+
+table Artist {
+  attributes: [MediaId];
+  id: MediaId (required);
+  key: string (required);
+  name: string (required);
+  albums: [MediaId] (required);
+  generation: long;
+  flags: ubyte;
+}
+
+table Genre {
+  id: MediaId (required);
+  attributes: [MediaId];
+  dictionary_id: long = null;
+  text: string;
+  name: string (required);
+  albums: [MediaId] (required);
+  generation: long;
+  flags: ubyte;
+}

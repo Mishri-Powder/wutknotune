@@ -1,0 +1,164 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.smart
+
+import android.content.Context
+import android.content.ContextWrapper
+import android.net.Uri
+import androidx.test.platform.app.InstrumentationRegistry
+import io.github.nikitasud.latentjam.smart.text.OnnxTextEncoder
+import io.github.nikitasud.latentjam.smart.text.ArtistKnowledge
+import io.github.nikitasud.latentjam.smart.text.MusicEntityResolver
+import io.github.nikitasud.latentjam.smart.text.assetBytes
+import java.io.DataOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import kotlin.math.PI
+import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** Executes the exact production assets on an Android device/emulator. */
+class SmartInferenceDeviceTest {
+
+    @Test
+    fun allProductionGraphsLoadAndRun() = runBlocking {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val testContext = instrumentation.targetContext
+        val appContext = testContext.createPackageContext(APP_PACKAGE, Context.CONTEXT_IGNORE_SECURITY)
+        val context = object : ContextWrapper(testContext) {
+            override fun getAssets() = appContext.assets
+        }
+
+        val started = System.nanoTime()
+        val audio = OnnxEmbeddingBackend(
+            context,
+            SmartEngineConfig(
+                embeddingDim = 960,
+                modelLocator = "ml/mnv4_audio.onnx",
+                modelVersion = "device-smoke",
+            ),
+        )
+        val audioLoadStarted = System.nanoTime()
+        audio.loadModel().getOrThrow()
+        val audioLoadMs = elapsedMs(audioLoadStarted)
+        val wave = writeSineWave(File(testContext.cacheDir, "smart-smoke.wav"))
+        val audioEmbedStarted = System.nanoTime()
+        val embedding = audio.embed(
+            TrackDescriptor(
+                id = TrackId("smoke"),
+                durationMs = 10_000,
+                audioUri = Uri.fromFile(wave).toString(),
+            ),
+        ).getOrThrow()
+        val audioEmbedMs = elapsedMs(audioEmbedStarted)
+        assertEquals(960, embedding.size)
+        assertTrue(embedding.all(Float::isFinite))
+        assertTrue(norm(embedding) in 0.99f..1.01f)
+
+        // The map and energy-aware sequencing use the fifth graph, which used to be omitted
+        // from this "all graphs" smoke test. Exercise its batched path with real audio output.
+        audio.loadSemanticModel().getOrThrow()
+        val semantics = audio.classify(listOf(embedding, embedding)).getOrThrow()
+        assertEquals(2, semantics.size)
+        semantics.forEach { scores ->
+            assertEquals(TrackSemantics.OUTPUT_SIZE, scores.size)
+            assertTrue(scores.all { it.isFinite() && it in 0f..1f })
+            requireNotNull(TrackSemantics.fromModelOutput(scores))
+        }
+
+        val text = OnnxTextEncoder(context)
+        val textLoadStarted = System.nanoTime()
+        text.load().getOrThrow()
+        val textLoadMs = elapsedMs(textLoadStarted)
+        val textEmbedStarted = System.nanoTime()
+        val textEmbedding = requireNotNull(text.encode("Soul; Example Artist; 1972"))
+        val textEmbedMs = elapsedMs(textEmbedStarted)
+        assertEquals(384, textEmbedding.size)
+        assertTrue(textEmbedding.all(Float::isFinite))
+        assertTrue(norm(textEmbedding) in 0.99f..1.01f)
+
+        listOf("русский рок", "日本のポップ", "música tranquila").forEach { query ->
+            val vector = requireNotNull(text.encode(query))
+            assertEquals(384, vector.size)
+            assertTrue(vector.all(Float::isFinite))
+            assertTrue(norm(vector) in 0.99f..1.01f)
+        }
+        fun asset(name: String) = context.assets.open("ml/$name.bin").use { it.readBytes() }
+        val knowledge = ArtistKnowledge(
+            MusicEntityResolver { context.assets.assetBytes("ml/music_entities_250k.bin") },
+            loadPack = { context.assets.assetBytes("ml/artist_knowledge.bin") },
+            loadAdapter = { asset("artist_adapter") },
+        )
+        listOf("The Beatles", "LatentJam nonexistent smoke artist 91d02").forEach { artist ->
+            val descriptor = requireNotNull(knowledge.descriptor(artist, text = textEmbedding))
+            assertEquals(384, descriptor.size)
+            assertTrue(descriptor.all(Float::isFinite))
+            assertTrue(norm(descriptor) in 0.99f..1.01f)
+        }
+
+        val elapsedMs = (System.nanoTime() - started) / 1_000_000
+        println(
+            "SMART_DEVICE_SMOKE ok audio=960 text=384 " +
+                "semantics=${TrackSemantics.OUTPUT_SIZE} knowledge=384 multilingual=true " +
+                "elapsed_ms=$elapsedMs",
+        )
+        println(
+            "SMART_DEVICE_TIMING audio_load_ms=$audioLoadMs audio_embed_ms=$audioEmbedMs " +
+                "text_load_ms=$textLoadMs text_embed_ms=$textEmbedMs",
+        )
+        text.close()
+        audio.close()
+    }
+
+    private fun writeSineWave(file: File): File {
+        val sampleRate = 32_000
+        val samples = sampleRate * 10
+        DataOutputStream(FileOutputStream(file)).use { output ->
+            output.writeBytes("RIFF")
+            output.writeLeInt(36 + samples * 2)
+            output.writeBytes("WAVEfmt ")
+            output.writeLeInt(16)
+            output.writeLeShort(1)
+            output.writeLeShort(1)
+            output.writeLeInt(sampleRate)
+            output.writeLeInt(sampleRate * 2)
+            output.writeLeShort(2)
+            output.writeLeShort(16)
+            output.writeBytes("data")
+            output.writeLeInt(samples * 2)
+            repeat(samples) { index ->
+                val value = (sin(2 * PI * 440 * index / sampleRate) * Short.MAX_VALUE * 0.1).toInt()
+                output.writeLeShort(value)
+            }
+        }
+        return file
+    }
+
+    private fun DataOutputStream.writeLeInt(value: Int) {
+        writeByte(value)
+        writeByte(value ushr 8)
+        writeByte(value ushr 16)
+        writeByte(value ushr 24)
+    }
+
+    private fun DataOutputStream.writeLeShort(value: Int) {
+        writeByte(value)
+        writeByte(value ushr 8)
+    }
+
+    private fun norm(values: FloatArray): Float =
+        sqrt(values.sumOf { it.toDouble() * it }).toFloat()
+
+    private fun elapsedMs(started: Long): Long =
+        (System.nanoTime() - started) / 1_000_000
+
+    private companion object {
+        const val APP_PACKAGE = "io.github.nikitasud.latentjam.kmp"
+    }
+}

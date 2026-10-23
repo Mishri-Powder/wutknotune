@@ -1,0 +1,57 @@
+plugins { id 'java-library'; id 'maven-publish' }
+base { archivesName = 'cuetree-core' }
+dependencies {
+    api 'link.roadio.cuegrain:cuegrain-core:0.1.0'
+    api project(':flatbuffers-runtime')
+    implementation 'com.dynatrace.hash4j:hash4j:0.31.0'
+    testImplementation 'junit:junit:4.13.2'
+}
+def compiler = rootProject.ext.flatcExecutable
+def flatbuffersVersion = rootProject.property('flatbuffersVersion')
+def generated = layout.buildDirectory.dir('generated/flatbuffers')
+tasks.register('generateFlatBuffers', Exec) {
+    inputs.files(fileTree('src/main/fbs') { include '*.fbs' })
+    inputs.property('flatcExecutable', compiler)
+    inputs.property('flatbuffersVersion', flatbuffersVersion)
+    outputs.dir(generated)
+    doFirst {
+        def version = providers.exec {
+            commandLine compiler.get(), '--version'
+        }.standardOutput.asText.get().trim()
+        if (version != "flatc version ${flatbuffersVersion}") {
+            throw new GradleException("Cuetree requires flatc ${flatbuffersVersion}; ${compiler.get()} reported ${version}. Set -Pflatc or CUETREE_FLATC.")
+        }
+        generated.get().asFile.deleteDir()
+        generated.get().asFile.mkdirs()
+    }
+    workingDir 'src/main/fbs'
+    commandLine compiler.get(),
+        '--java', '--gen-all', '-o', generated.get().asFile.absolutePath,
+        'mdia.fbs', 'albm.fbs', 'arts.fbs', 'gnrv.fbs'
+}
+sourceSets.main.java.srcDir(generated)
+tasks.named('compileJava') { dependsOn 'generateFlatBuffers' }
+tasks.named('compileKotlin') { dependsOn 'generateFlatBuffers' }
+java { withSourcesJar() }
+tasks.named('sourcesJar') { dependsOn 'generateFlatBuffers' }
+publishing { publications { library(MavenPublication) {
+    from components.java
+    artifactId = 'cuetree-core'
+    pom { name = 'Cuetree'; description = 'Independent media library indexing and Player catalogs'
+        licenses { license { name = 'Apache License 2.0'; url = 'https://www.apache.org/licenses/LICENSE-2.0' } }
+    }
+} } }
+
+// Source-set discovery sees generated Java even though ktlint only formats Kotlin.
+tasks.matching { it.name.startsWith('runKtlint') && it.name.endsWith('MainSourceSet') }.configureEach {
+    dependsOn 'generateFlatBuffers'
+}
+
+tasks.withType(Jar).configureEach {
+    from(rootProject.file('LICENSE')) { into 'META-INF' }
+    from(rootProject.file('NOTICE')) { into 'META-INF' }
+}
+tasks.named('sourcesJar') { from('src/main/fbs') { into 'fbs' } }
+
+// Keep the independent published runtime graph on the reviewed annotation release.
+dependencies { constraints { implementation 'org.jetbrains:annotations:26.1.0' } }

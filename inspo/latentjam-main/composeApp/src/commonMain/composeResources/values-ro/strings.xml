@@ -1,0 +1,950 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2026 LatentJam Project
+  SPDX-License-Identifier: Apache-2.0
+
+  Română. Terminologie ca în playerele reale (Spotify, YouTube Music):
+  „Coadă”, „Redare aleatorie”, „Bibliotecă”, „Artist”.
+  „LatentJam” și „SMART” nu se traduc.
+
+  Atenție la plural: româna are trei forme — 1 piesă / 2 piese / 20 DE piese.
+  Categoria CLDR `other` (20+) trebuie să conțină „de”.
+-->
+<resources>
+
+    <!-- ============================================================ actions -->
+    <string name="action_play">Redă</string>
+    <string name="action_pause">Pauză</string>
+    <string name="action_next">Piesa următoare</string>
+    <string name="action_previous">Piesa anterioară</string>
+    <string name="action_shuffle">Redare aleatorie</string>
+    <string name="action_close">Închide</string>
+    <string name="action_back">Înapoi</string>
+    <string name="action_cancel">Anulează</string>
+    <string name="action_delete">Șterge</string>
+    <string name="action_rename">Redenumește</string>
+    <string name="action_clear">Șterge tot</string>
+    <string name="action_track_options">Opțiuni pentru piesă</string>
+    <string name="action_create">Creează</string>
+    <string name="action_play_all">Redă tot</string>
+    <string name="action_shuffle_all">Redă aleatoriu tot</string>
+    <string name="action_share">Distribuie</string>
+    <string name="action_select_all">Selectează tot</string>
+    <string name="action_deselect_all">Deselectează tot</string>
+    <string name="selection_count">Piese selectate: %1$d</string>
+    <string name="action_add">Adaugă</string>
+    <string name="cd_more_options">Mai multe opțiuni</string>
+    <string name="cd_search_library">Caută în bibliotecă</string>
+    <string name="cd_alphabet_index">Index alfabetic</string>
+
+    <!-- ======================================================= track labels -->
+    <string name="label_track">Piesă</string>
+    <string name="track_untitled">Fără titlu</string>
+    <string name="track_unknown_artist">Artist necunoscut</string>
+    <string name="track_unknown_album">Album necunoscut</string>
+    <string name="track_unknown_genre">Gen necunoscut</string>
+    <plurals name="count_tracks">
+        <item quantity="one">%1$d piesă</item>
+        <item quantity="few">%1$d piese</item>
+        <item quantity="other">%1$d de piese</item>
+    </plurals>
+    <string name="cd_track_options_for">Mai multe opțiuni pentru %1$s</string>
+    <string name="cd_track_options_generic">Mai multe opțiuni pentru această piesă</string>
+
+    <plurals name="count_albums">
+        <item quantity="one">%1$d album</item>
+        <item quantity="few">%1$d albume</item>
+        <item quantity="other">%1$d de albume</item>
+    </plurals>
+    <plurals name="count_artists">
+        <item quantity="one">%1$d artist</item>
+        <item quantity="few">%1$d artiști</item>
+        <item quantity="other">%1$d de artiști</item>
+    </plurals>
+    <plurals name="count_genres">
+        <item quantity="one">%1$d gen</item>
+        <item quantity="few">%1$d genuri</item>
+        <item quantity="other">%1$d de genuri</item>
+    </plurals>
+
+    <!-- ======================================================= browse tabs -->
+    <string name="tab_for_you">Pentru tine</string>
+    <string name="tab_playlists">Playlisturi</string>
+    <string name="tab_tracks">Piese</string>
+    <string name="tab_albums">Albume</string>
+    <string name="tab_artists">Artiști</string>
+    <string name="tab_genres">Genuri</string>
+    <string name="tab_map">Hartă</string>
+
+    <!-- ===================================================== library shell -->
+    <string name="library_empty">Nu s-a găsit muzică pe acest dispozitiv.</string>
+    <string name="action_rescan_library">Actualizează biblioteca</string>
+    <string name="sort_recently_added">Adăugate recent</string>
+    <string name="sort_custom_order">Ordine personalizată</string>
+    <string name="sort_name">Nume</string>
+    <string name="sort_direction_ascending">Crescător</string>
+    <string name="sort_direction_descending">Descrescător</string>
+    <string name="snack_track_deleted">Piesă ștearsă</string>
+    <string name="snack_track_delete_denied">Pentru a șterge aceste piese este necesar accesul la fișiere.</string>
+    <string name="snack_track_delete_failed">Fișierul nu a putut fi șters</string>
+    <string name="snack_track_delete_summary">Șterse: %1$d. Acces refuzat: %2$d. Eșuate: %3$d. Anulate: %4$d.</string>
+
+    <!-- =========================================================== for you -->
+    <string name="foryou_empty">Ascultă câteva piese și pagina asta se va umple cu lucruri la care merită să revii.</string>
+    <string name="foryou_section_continue">Neterminate</string>
+    <string name="foryou_section_worth_revisiting">Neascultate de mult</string>
+    <string name="foryou_section_worlds">Mixurile tale</string>
+    <string name="foryou_mix_discovery">Mix de descoperire</string>
+    <string name="foryou_section_never_played">Neascultate încă</string>
+    <!-- Cele două lucruri de făcut cu o lume, oferite în loc de ghicite. -->
+    <string name="foryou_world_open">Arată piesele</string>
+    <string name="foryou_world_smart">Ascultă melodii similare</string>
+    <string name="foryou_kicker_resume">Reia de unde ai rămas</string>
+    <plurals name="foryou_kicker_played_times">
+        <item quantity="one">Ai ascultat-o de %1$d dată</item>
+        <item quantity="few">Ai ascultat-o de %1$d ori</item>
+        <item quantity="other">Ai ascultat-o de %1$d de ori</item>
+    </plurals>
+    <string name="foryou_kicker_never_played">Neascultată încă</string>
+    <plurals name="foryou_caption_played_before">
+        <item quantity="one">%1$d ascultare</item>
+        <item quantity="few">%1$d ascultări</item>
+        <item quantity="other">%1$d de ascultări</item>
+    </plurals>
+
+    <!-- =============================================================== map -->
+    <string name="map_lens_worlds">Lumi</string>
+    <string name="map_lens_plays">Redări</string>
+    <string name="map_lens_never_played">Neascultate</string>
+    <string name="map_lens_skips">Omiteri</string>
+
+    <plurals name="count_regions">
+        <item quantity="one">%1$d regiune</item>
+        <item quantity="few">%1$d regiuni</item>
+        <item quantity="other">%1$d de regiuni</item>
+    </plurals>
+
+    <string name="map_headline_worlds">%1$s se așază în %2$s. Atinge una ca să auzi ce e în ea.</string>
+    <string name="map_headline_worlds_partial">%1$d din %2$s se așază în %3$s. Atinge una ca să auzi ce e în ea.</string>
+    <string name="map_headline_plays">În regiunile hărții, jumătate din redări provin din %1$s — %2$d\u0025 din piesele lor.</string>
+    <string name="map_headline_never_played">În regiunile hărții, nu ai ascultat niciodată %1$d din %2$s. Regiunea „%3$s” este neascultată în proporție de %4$d\u0025.</string>
+    <string name="map_headline_skips">Aici renunți cel mai des: „%1$s” — %2$d\u0025 din porniri.</string>
+
+    <string name="map_headline_unplayed_total">Regiunile hărții: %2$s · Fără redări în istoric: %1$d.</string>
+    <string name="map_select_region">Alege regiunea</string>
+    <string name="map_fullscreen">Deschide harta pe tot ecranul</string>
+    <string name="map_exit_fullscreen">Închide harta pe tot ecranul</string>
+    <string name="map_gesture_hint">Folosește două degete pentru a deplasa sau mări harta.</string>
+    <string name="map_reset_view">Resetează harta</string>
+    <string name="map_region_unplayed">Neredate aici: %1$d</string>
+    <string name="map_action_play_unheard">Redă neascultate</string>
+    <string name="map_action_play_region">Redă regiunea</string>
+    <string name="map_action_smart_here">SMART de aici</string>
+    <string name="map_empty_indexing">Încă îți citim biblioteca. Harta apare când se termină indexarea.</string>
+    <string name="map_empty_building">Construim harta bibliotecii tale. Pentru o bibliotecă mare poate dura puțin.</string>
+    <string name="map_empty_too_large">Biblioteca ta are %1$s — mai mult decât %2$s pe care harta le poate afișa acum.</string>
+
+    <string name="map_legend_selected">regiunea selectată</string>
+    <string name="map_legend_rest">restul bibliotecii</string>
+    <string name="map_dot_outside_hint">Cea mai apropiată regiune: %1$s</string>
+    <string name="map_legend_never">neascultate</string>
+    <string name="map_legend_played">ascultate cel puțin o dată</string>
+    <string name="map_legend_never_skips">niciodată omise</string>
+    <string name="map_legend_always_skips">mereu omise</string>
+
+    <!-- ================================================== now playing/queue -->
+    <string name="now_playing_nothing">Nu se redă nimic</string>
+    <string name="now_playing_source">Se redă din: %1$s</string>
+    <string name="cd_now_playing">Se redă acum</string>
+    <string name="queue_title">Coadă</string>
+    <string name="queue_title_count">Coadă · %1$d</string>
+    <string name="queue_row_continuation">Nu e o recomandare — ca muzica să continue</string>
+    <string name="cd_repeat_off">Repetarea este dezactivată. Atinge pentru a repeta coada.</string>
+    <string name="cd_repeat_all">Se repetă coada. Atinge pentru a repeta o singură piesă.</string>
+    <string name="cd_repeat_one">Se repetă o singură piesă. Atinge pentru a dezactiva repetarea.</string>
+    <string name="cd_shuffle_off">Redarea aleatorie este dezactivată. Atinge pentru a schimba.</string>
+    <string name="cd_shuffle_on">Redarea aleatorie este activată. Atinge pentru a schimba.</string>
+    <string name="cd_shuffle_smart">Redarea aleatorie SMART este activată. Atinge pentru a schimba.</string>
+
+    <!-- ============================================================= search -->
+    <string name="search_placeholder">Piesă, artist sau versuri</string>
+    <string name="cd_close_search">Închide căutarea</string>
+    <string name="cd_clear_query">Șterge căutarea</string>
+    <string name="search_no_matches">Niciun rezultat pentru „%1$s”.</string>
+    <plurals name="search_hint_count">
+        <item quantity="one">Caută în %1$d piesă.</item>
+        <item quantity="few">Caută în %1$d piese.</item>
+        <item quantity="other">Caută în %1$d de piese.</item>
+    </plurals>
+    <string name="search_recent_title">Căutări recente</string>
+    <string name="cd_forget_search">Uită „%1$s”</string>
+
+    <!-- ========================================================== playlists -->
+    <string name="playlists_empty">Încă niciun playlist — apasă + ca să creezi unul.</string>
+    <string name="playlist_name_placeholder">Numele playlistului</string>
+    <string name="playlist_new">Playlist nou</string>
+    <string name="cd_playlist_options">Opțiuni pentru %1$s</string>
+    <string name="playlist_add_to_title">Adaugă „%1$s” în</string>
+    <string name="playlist_add_to_title_generic">Adaugă piesa în</string>
+    <string name="playlist_rename_title">Redenumește playlistul</string>
+    <string name="action_change_playlist_cover">Schimbă coperta</string>
+    <string name="action_reset_playlist_cover">Folosește coperta automată</string>
+    <string name="playlist_cover_error">Coperta playlistului nu a putut fi schimbată. Încearcă altă imagine.</string>
+    <string name="snack_playlist_created">Playlistul „%1$s” a fost creat</string>
+    <string name="snack_playlist_deleted">Playlistul „%1$s” a fost șters</string>
+    <string name="snack_added_to_playlist">Adăugat în „%1$s”</string>
+    <string name="auto_playlist_favorites">Favorite</string>
+    <string name="auto_playlist_recently_added">Adăugate recent</string>
+    <string name="auto_playlist_most_played">Cele mai ascultate</string>
+    <string name="auto_playlist_recently_played">Ascultate recent</string>
+    <string name="auto_playlist_never_played">Neascultate încă</string>
+    <string name="auto_playlist_rediscover">De redescoperit</string>
+
+    <!-- ============================================== track actions + sheet -->
+    <string name="action_play_next">Redă în continuare</string>
+    <string name="action_add_to_queue">Adaugă la coadă</string>
+    <string name="action_add_to_playlist">Adaugă în playlist</string>
+    <string name="action_add_favorite">Adaugă la favorite</string>
+    <string name="action_remove_favorite">Elimină din favorite</string>
+    <string name="action_add_all_favorites">Adaugă toate la favorite</string>
+    <plurals name="snack_favorites_added">
+        <item quantity="one">%1$d piesă adăugată la favorite</item>
+        <item quantity="few">%1$d piese adăugate la favorite</item>
+        <item quantity="other">%1$d de piese adăugate la favorite</item>
+    </plurals>
+    <plurals name="snack_favorites_removed">
+        <item quantity="one">%1$d piesă eliminată din favorite</item>
+        <item quantity="few">%1$d piese eliminate din favorite</item>
+        <item quantity="other">%1$d de piese eliminate din favorite</item>
+    </plurals>
+    <plurals name="snack_favorites_already">
+        <item quantity="one">%1$d era deja la favorite</item>
+        <item quantity="few">%1$d erau deja la favorite</item>
+        <item quantity="other">%1$d erau deja la favorite</item>
+    </plurals>
+    <string name="action_remove_from_playlist">Elimină din acest playlist</string>
+    <string name="snack_playlist_track_removed">Eliminat din "%1$s"</string>
+    <plurals name="playlist_unavailable_tracks">
+        <item quantity="one">%1$d piesă din acest playlist nu este pe acest dispozitiv.</item>
+        <item quantity="few">%1$d piese din acest playlist nu sunt pe acest dispozitiv.</item>
+        <item quantity="other">%1$d de piese din acest playlist nu sunt pe acest dispozitiv.</item>
+    </plurals>
+    <string name="action_go_to_album">Mergi la album</string>
+    <string name="action_go_to_artist">Mergi la artist</string>
+    <string name="action_show_on_map">Arată pe hartă</string>
+    <string name="action_export_m3u">Exportă ca M3U</string>
+    <string name="action_smart_keep_together">Păstrează împreună în SMART</string>
+    <string name="action_import_m3u">Importă M3U</string>
+    <plurals name="snack_m3u_imported_all">
+        <item quantity="one">S-a importat %1$d piesă</item>
+        <item quantity="few">S-au importat %1$d piese</item>
+        <item quantity="other">S-au importat %1$d de piese</item>
+    </plurals>
+    <plurals name="snack_m3u_imported_partial">
+        <item quantity="one">Piese importate: %1$d din %2$d</item>
+        <item quantity="few">Piese importate: %1$d din %2$d</item>
+        <item quantity="other">Piese importate: %1$d din %2$d</item>
+    </plurals>
+    <string name="snack_m3u_import_failed">Playlistul nu a putut fi importat</string>
+    <plurals name="m3u_import_found">
+        <item quantity="one">Găsită %1$d din %2$d piesă</item>
+        <item quantity="few">Găsite %1$d din %2$d piese</item>
+        <item quantity="other">Găsite %1$d din %2$d de piese</item>
+    </plurals>
+    <plurals name="m3u_import_playlists">
+        <item quantity="one">%1$d playlist</item>
+        <item quantity="few">%1$d playlisturi</item>
+        <item quantity="other">%1$d de playlisturi</item>
+    </plurals>
+    <plurals name="m3u_import_skipped_files">
+        <item quantity="one">%1$d fișier omis</item>
+        <item quantity="few">%1$d fișiere omise</item>
+        <item quantity="other">%1$d de fișiere omise</item>
+    </plurals>
+    <string name="m3u_import_playlists_partial">Playlisturi create: %1$d din %2$d. Restul nu au putut fi salvate.</string>
+    <plurals name="playlist_new_count">
+        <item quantity="one">%1$d playlist nou</item>
+        <item quantity="few">%1$d playlisturi noi</item>
+        <item quantity="other">%1$d de playlisturi noi</item>
+    </plurals>
+    <string name="playlist_imported_name">Playlist importat</string>
+    <string name="action_information">Informații</string>
+    <string name="action_delete_from_device">Șterge de pe dispozitiv</string>
+    <string name="dialog_delete_tracks_message">Piesele selectate (%1$d) vor fi șterse de pe acest dispozitiv. Acțiunea nu poate fi anulată.</string>
+    <string name="dialog_delete_track_title">Ștergi această piesă?</string>
+    <plurals name="dialog_delete_tracks_title">
+        <item quantity="one">Ștergi %1$d piesă?</item>
+        <item quantity="few">Ștergi %1$d piese?</item>
+        <item quantity="other">Ștergi %1$d de piese?</item>
+    </plurals>
+    <string name="dialog_delete_track_message">„%1$s” va fi ștearsă de pe acest dispozitiv. Acțiunea nu poate fi anulată.</string>
+    <string name="dialog_delete_track_message_generic">Această piesă va fi ștearsă de pe acest dispozitiv. Acțiunea nu poate fi anulată.</string>
+
+    <!-- ======================================================== track info -->
+    <string name="info_title">Titlu</string>
+    <string name="info_artist">Artist</string>
+    <string name="info_album">Album</string>
+    <string name="info_genre">Gen</string>
+    <string name="info_year">An</string>
+    <string name="info_duration">Durată</string>
+    <string name="info_location">Locație</string>
+    <string name="info_not_set">Nespecificat</string>
+    <string name="info_edit">Editează etichetele</string>
+    <string name="info_save">Salvează</string>
+    <string name="info_cancel">Anulează</string>
+    <string name="editor_discard_title">Renunți la modificări?</string>
+    <string name="editor_discard">Renunță</string>
+    <string name="editor_keep_editing">Continuă editarea</string>
+    <string name="info_saving">Se salvează…</string>
+    <string name="info_edit_note">Se salvează în fișierul propriu-zis, așa că orice aplicație vede corectura. Este posibil să ți se ceară permisiunea de a modifica fișierul.</string>
+    <string name="info_edit_refused">Etichetele acestui fișier sunt într-o formă care nu poate fi rescrisă în siguranță, așa că nimic nu a fost schimbat.</string>
+    <string name="info_edit_failed">Fișierul nu a putut fi scris. A rămas neschimbat.</string>
+    <string name="info_edit_no_space">Nu există suficient spațiu liber pentru a salva aceste etichete în siguranță. Nu s-a modificat nimic.</string>
+    <string name="info_edit_recovery_pending">Salvarea a fost întreruptă. LatentJam o va termina sau o va anula data viitoare când va avea voie să scrie fișierul.</string>
+    <string name="tag_recovery_title">Termină salvarea etichetelor</string>
+    <plurals name="tag_recovery_body">
+        <item quantity="one">LatentJam a fost întrerupt în timp ce salva etichete în %1$d fișier. Poate termina modificarea acum sau o poate anula dacă fișierul nu poate fi terminat.</item>
+        <item quantity="few">LatentJam a fost întrerupt în timp ce salva etichete în %1$d fișiere. Poate termina modificările acum sau le poate anula acolo unde un fișier nu poate fi terminat.</item>
+        <item quantity="other">LatentJam a fost întrerupt în timp ce salva etichete în %1$d de fișiere. Poate termina modificările acum sau le poate anula acolo unde un fișier nu poate fi terminat.</item>
+    </plurals>
+    <string name="tag_recovery_finish">Termină</string>
+    <string name="tag_recovery_later">Mai târziu</string>
+    <string name="tag_problem_unsupported_format">LatentJam nu poate edita acest tip de fișier.</string>
+    <string name="tag_problem_damaged">Acest fișier pare deteriorat, așa că a rămas neschimbat.</string>
+    <string name="tag_problem_protected">Acest fișier este protejat la copiere și nu poate fi modificat.</string>
+    <string name="tag_problem_tags_too_large">Etichetele ar fi prea mari pentru acest fișier.</string>
+    <string name="tag_problem_bad_number">Numerele de piesă și de disc trebuie să fie numere întregi de la 1 la 999.</string>
+    <string name="tag_problem_number_unreadable">Numărul de piesă sau de disc din fișier nu este un număr simplu, așa că totalul lui nu poate fi schimbat separat.</string>
+    <string name="tag_problem_bad_image">Imaginea nu este de tip JPEG sau PNG.</string>
+    <string name="tag_problem_read_only_storage">Acest fișier se află pe un spațiu de stocare pe care nu se poate scrie.</string>
+    <string name="tag_problem_music_library">Melodiile din biblioteca muzicală nu pot fi editate, doar cele importate în LatentJam.</string>
+    <string name="tag_problem_unreadable">Acest fișier nu a putut fi citit.</string>
+    <string name="tag_problem_not_allowed">Permisiunea de a modifica fișierul nu a fost acordată.</string>
+    <string name="tag_problem_missing">Fișierul nu mai există.</string>
+    <string name="tag_problem_stopped">Oprit înainte de acest fișier.</string>
+    <string name="tag_problem_cancelled">Cererea de permisiune a fost închisă.</string>
+    <string name="tag_problem_undone">O salvare întreruptă a fost anulată: fișierul este ca înainte.</string>
+    <string name="tag_problem_changed_elsewhere">O altă aplicație a modificat fișierul după întreruperea salvării, așa că a rămas neschimbat.</string>
+    <string name="tag_problem_lost">LatentJam nu a putut afla cum s-a încheiat această salvare. Verifică etichetele fișierului.</string>
+
+    <!-- =========================================================== settings -->
+    <string name="settings_title">Setări</string>
+    <string name="settings_section_appearance">Aspect</string>
+    <string name="settings_theme">Temă</string>
+    <string name="theme_system">Ca sistemul</string>
+    <string name="theme_light">Luminoasă</string>
+    <string name="theme_dark">Întunecată</string>
+    <string name="settings_section_playback">Redare</string>
+    <string name="settings_equalizer">Egalizator</string>
+    <string name="settings_equalizer_subtitle">Reglaje de ton pentru ieșirea audio a acestui dispozitiv</string>
+    <string name="settings_intelligence">Motorul SMART</string>
+    <string name="settings_smart_engine">Motorul SMART</string>
+    <string name="settings_smart_engine_subtitle">Ce știe despre biblioteca ta modelul de pe dispozitiv</string>
+    <string name="settings_about_body">LatentJam — un player de muzică local, cu recomandări făcute chiar pe dispozitiv. Nimic din ce asculți nu părăsește acest dispozitiv.</string>
+
+    <!-- ========================================================== equalizer -->
+    <string name="state_on">Activat</string>
+    <string name="state_off">Dezactivat</string>
+    <string name="equalizer_presets">Presetări</string>
+    <string name="equalizer_bands">Benzi</string>
+    <string name="equalizer_bass_boost">Accentuare bași</string>
+    <string name="equalizer_reset">Resetează</string>
+
+    <!-- ======================================================= intelligence -->
+    <string name="intelligence_section_status">Stare</string>
+    <string name="intelligence_engine">Motor</string>
+    <string name="intelligence_library">Bibliotecă</string>
+    <string name="intelligence_fingerprints">Amprente sonore</string>
+    <string name="intelligence_indexed_of">%1$d din %2$d</string>
+    <string name="engine_state_not_started">Nepornit</string>
+    <string name="engine_state_starting">Pornește…</string>
+    <string name="engine_state_ready">Gata</string>
+    <string name="engine_state_unavailable">Indisponibil — %1$s</string>
+
+    <!-- ========================================================= permission -->
+    <string name="permission_audio_rationale">LatentJam are nevoie de acces la muzica ta ca să scaneze biblioteca.</string>
+    <string name="permission_grant">Acordă acces</string>
+    <string name="permission_audio_settings_rationale">Accesul la muzică este blocat. Deschide setările sistemului și permite aplicației LatentJam accesul la muzică și fișiere audio.</string>
+    <string name="permission_open_settings">Deschide setările</string>
+    <string name="permission_notifications_title">Afișezi progresul analizei?</string>
+    <string name="permission_notifications_rationale">SMART îți analizează biblioteca pe acest dispozitiv. Permite notificările pentru a vedea progresul și a reveni în LatentJam în timpul analizei. Analiza continuă dacă alegi „Nu acum”.</string>
+    <string name="permission_not_now">Nu acum</string>
+    <string name="permission_continue">Continuă</string>
+
+
+    <string name="engine_error_model_unavailable">SMART nu a putut încărca modelele incluse. Reîncearcă configurarea; dacă problema persistă, reinstalează aplicația sau raporteaz-o.</string>
+    <string name="engine_error_not_indexed">Biblioteca nu este încă indexată.</string>
+    <string name="engine_error_audio_unavailable">Piesa nu a putut fi citită sau decodată. Verifică dacă fișierul este încă disponibil, apoi reîncearcă.</string>
+    <string name="engine_error_backend">SMART a întâmpinat o eroare internă. Reîncearcă configurarea; dacă persistă, raportează problema.</string>
+
+    <string name="indexing_notification_title">Se analizează muzica ta</string>
+    <string name="indexing_notification_progress">%1$d din %2$d</string>
+    <string name="indexing_notification_progress_eta">%1$d din %2$d · aproximativ %3$d min rămase</string>
+    <!-- =================================================== expanded settings -->
+    <string name="settings_appearance">Aspect</string>
+    <string name="settings_appearance_subtitle">Temă, culorile playerului și limbă</string>
+    <string name="settings_library">Bibliotecă</string>
+    <string name="settings_library_subtitle">Actualizare, import și piese ascunse</string>
+    <string name="settings_playback">Redare</string>
+    <string name="settings_playback_subtitle">Egalizator și comenzi audio</string>
+    <string name="settings_privacy">Confidențialitate și date</string>
+    <string name="settings_privacy_subtitle">Istoric de ascultare și căutări recente</string>
+    <string name="settings_about">Despre LatentJam</string>
+    <string name="settings_about_subtitle">Licență, cod sursă și asistență</string>
+    <string name="settings_section_library">Bibliotecă</string>
+    <string name="settings_section_navigation">Navigare</string>
+    <string name="settings_section_privacy">Date pe dispozitiv</string>
+    <string name="settings_track_colors">Culorile playerului</string>
+    <string name="settings_page_header">Antetul paginilor</string>
+    <string name="settings_page_header_dots">Puncte</string>
+    <string name="settings_page_header_neighbours">Pagini vecine</string>
+    <string name="settings_page_header_tabs">File</string>
+    <string name="settings_page_header_pills">Pastile</string>
+    <string name="settings_page_header_menu">Meniu</string>
+    <string name="settings_color_custom">Personalizată</string>
+    <string name="settings_color_custom_body">Culoarea ta colorează playerul, norul, mini-playerul, comutatoarele și butonul Play, orice ar cânta.</string>
+    <string name="settings_accent_swatch">Culoarea %1$d din %2$d</string>
+    <string name="settings_pure_black">Negru pur</string>
+    <string name="settings_pure_black_body">Pentru ecrane OLED: negru adevărat în loc de gri închis</string>
+    <string name="settings_cloud">Nor</string>
+    <string name="settings_cloud_off">Oprit</string>
+    <string name="settings_cloud_soft">Discret</string>
+    <string name="settings_cloud_normal">Obișnuit</string>
+    <string name="settings_cloud_vivid">Intens</string>
+    <string name="settings_cloud_motion">Mișcare în player</string>
+    <string name="settings_cloud_motion_body">Norul plutește încet cât timp cântă muzica</string>
+    <string name="settings_player_background">Fundalul playerului</string>
+    <string name="settings_player_background_cloud">Nor</string>
+    <string name="settings_player_background_cover">Copertă estompată</string>
+    <string name="settings_shape">Formă</string>
+    <string name="settings_shape_round">Rotundă</string>
+    <string name="settings_shape_soft">Moale</string>
+    <string name="settings_shape_sharp">Dreaptă</string>
+    <string name="settings_shape_body">Colțurile meniurilor, panourilor, butoanelor, cipurilor și copertelor din toată aplicația.</string>
+    <string name="settings_mini_player">Mini-player</string>
+    <string name="settings_mini_player_card">Card</string>
+    <string name="settings_mini_player_bar">Bară</string>
+    <string name="settings_section_handling">Utilizare</string>
+    <string name="settings_left_handed">Stângaci</string>
+    <string name="settings_left_handed_body">Butonul de amestecare și alfabetul în stânga</string>
+    <string name="settings_color_dynamic">Copertă</string>
+    <string name="settings_color_dynamic_body">Folosește culorile din copertă, cu SMART ca alternativă.</string>
+    <string name="settings_color_smart">SMART</string>
+    <string name="settings_color_smart_body">Folosește culori derivate din amprenta sonoră a fiecărei piese.</string>
+    <string name="settings_color_theme">Temă</string>
+    <string name="settings_color_theme_body">Folosește tema aplicației în locul culorilor specifice fiecărei piese.</string>
+    <string name="settings_start_page">Pagina de pornire</string>
+    <string name="settings_start_page_body">Va fi folosită data viitoare când deschizi LatentJam.</string>
+    <string name="settings_library_count">Piese în bibliotecă</string>
+    <string name="settings_library_refresh">Actualizează biblioteca</string>
+    <string name="settings_library_refresh_body">Găsește muzica adăugată recent și elimină intrările fișierelor care nu mai sunt disponibile.</string>
+    <string name="settings_library_import">Importă muzică</string>
+    <string name="settings_library_import_body">Alege fișiere audio pentru a le copia în LatentJam.</string>
+    <string name="settings_library_restore">Restaurează piesele ascunse</string>
+    <string name="settings_library_restore_body">Readu în bibliotecă toate piesele eliminate din LatentJam. Fișierele de pe dispozitiv rămân neschimbate.</string>
+    <string name="settings_playlist_relative_paths">Căi relative în playlisturile exportate</string>
+    <string name="settings_playlist_relative_paths_body">Scrie calea fiecărei piese pornind de la dosarul playlistului (../Music/…), ca playlistul să funcționeze și pe alte dispozitive. Dacă salvezi într-un loc fără cale de dosar, căile rămân complete.</string>
+    <string name="settings_equalizer_unavailable">Indisponibil pentru această ieșire audio</string>
+    <string name="equalizer_unavailable_body">Ieșirea audio actuală nu oferă aplicației LatentJam acces la un egalizator. Încearcă altă ieșire. Redarea funcționează în continuare normal.</string>
+    <string name="equalizer_bass_value">%1$d\u0025</string>
+    <string name="equalizer_preset_flat">Plat</string>
+    <string name="equalizer_preset_bass">Bas</string>
+    <string name="equalizer_preset_treble">Înalte</string>
+    <string name="equalizer_preset_vocal">Voce</string>
+    <string name="equalizer_preset_electronic">Electronic</string>
+    <string name="intelligence_syncing">Se sincronizează biblioteca…</string>
+    <string name="intelligence_analysis_progress">%1$d din %2$d piese analizate</string>
+    <string name="intelligence_analysis_failed">Nu s-au putut analiza: %1$d</string>
+    <string name="intelligence_failures_more">Și încă %1$d</string>
+    <string name="intelligence_retry">Reîncearcă configurarea SMART</string>
+    <string name="intelligence_section_recommendations">Recomandări</string>
+    <string name="intelligence_queue_length">Lungimea cozii SMART</string>
+    <string name="intelligence_queue_length_body">Alege câte piese adaugă SMART când creează o coadă.</string>
+    <string name="intelligence_artist_variety">Varietatea artiștilor</string>
+    <string name="intelligence_artist_variety_body">Cât de mult distanțează SMART piesele aceluiași artist. O piesă care se potrivește clar mai bine se redă oricum, chiar imediat după același artist.</string>
+    <string name="intelligence_artist_variety_free">Dezactivată</string>
+    <string name="intelligence_artist_variety_low">Scăzută</string>
+    <string name="intelligence_artist_variety_balanced">Echilibrată</string>
+    <string name="intelligence_artist_variety_high">Ridicată</string>
+    <string name="intelligence_artist_variety_max">Maximă</string>
+    <string name="intelligence_include_novelty_mixes">Include mixurile neobișnuite</string>
+    <string name="intelligence_include_novelty_mixes_body">Afișează în Pentru tine mixuri separate cu meme, audio viral și efecte sonore.</string>
+    <string name="foryou_mix_meme_viral">Meme și audio viral</string>
+    <string name="foryou_mix_sound_effects">Efecte sonore</string>
+    <string name="foryou_mix_spoken_audio">Audio vorbit</string>
+    <string name="foryou_mix_instrumental">Muzică instrumentală</string>
+    <string name="intelligence_how_it_works">SMART compară amprentele sonore pe acest dispozitiv și combină asemănarea muzicală cu istoricul tău de ascultare. Funcționează fără cont sau conexiune la internet.</string>
+    <string name="privacy_local_body">Biblioteca, istoricul de ascultare și datele SMART rămân pe acest dispozitiv. LatentJam nu folosește conturi și nu trimite aceste date către un server.</string>
+    <string name="privacy_save_history_body">Reține redările și omiterile pe acest dispozitiv pentru Pentru tine și recomandările SMART.</string>
+    <string name="privacy_remember_searches_body">Salvează căutările pe acest dispozitiv pentru a le afișa când câmpul de căutare este gol.</string>
+    <string name="privacy_disable_history_body">Oprești salvarea activității noi de ascultare. Ce se întâmplă cu istoricul deja salvat pe acest dispozitiv?</string>
+    <string name="privacy_disable_searches_body">Oprești salvarea căutărilor noi. Ce se întâmplă cu căutările deja salvate pe acest dispozitiv?</string>
+    <string name="privacy_keep_existing">Păstrează datele existente</string>
+    <string name="privacy_delete_existing">Șterge datele existente</string>
+    <string name="privacy_setting_save_failed">Setarea de confidențialitate nu a putut fi salvată. Încearcă din nou.</string>
+    <string name="privacy_data_clear_failed">Datele de pe dispozitiv nu au putut fi șterse. Încearcă din nou.</string>
+    <string name="privacy_clear_history">Șterge istoricul de ascultare</string>
+    <string name="privacy_clear_history_body">Elimină datele despre redări și omiteri folosite pentru personalizarea recomandărilor.</string>
+    <string name="privacy_clear_history_confirm">Ștergi tot istoricul de ascultare? Recomandările vor începe să îți învețe din nou gusturile.</string>
+    <string name="privacy_history_empty">Nu există istoric de ascultare</string>
+    <plurals name="privacy_history_listens">
+        <item quantity="one">%1$d ascultare</item>
+        <item quantity="few">%1$d ascultări</item>
+        <item quantity="other">%1$d de ascultări</item>
+    </plurals>
+    <string name="privacy_recent_searches">Căutări recente</string>
+    <string name="privacy_clear_searches">Șterge căutările recente</string>
+    <string name="privacy_clear_searches_body">Elimină interogările afișate când căutarea este goală.</string>
+    <string name="privacy_clear_searches_confirm">Ștergi toate căutările recente?</string>
+    <string name="settings_license">Licență</string>
+    <string name="settings_license_body">LatentJam este software liber licențiat sub Apache License 2.0.</string>
+    <string name="settings_open_source">Cod sursă</string>
+    <string name="settings_open_source_body">Vezi proiectul pe GitHub</string>
+    <string name="settings_report_issue">Raportează o problemă</string>
+    <string name="settings_section_preferences">Preferințe</string>
+    <string name="settings_section_music">Muzică</string>
+    <string name="settings_section_data_support">Date și asistență</string>
+    <string name="privacy_listening_history">Istoric de ascultare</string>
+    <string name="settings_version">Versiune</string>
+    <string name="settings_library_loading">Se încarcă biblioteca…</string>
+    <string name="settings_library_refreshing">Se actualizează…</string>
+    <string name="snack_library_refreshed">Biblioteca a fost actualizată</string>
+    <string name="action_exclude_track_from_smart">Nu recomanda această piesă</string>
+    <string name="action_exclude_artist_from_smart">Nu recomanda acest artist</string>
+    <string name="action_include_track_in_smart">Recomandă din nou această piesă</string>
+    <string name="action_include_artist_in_smart">Recomandă din nou acest artist</string>
+    <string name="snack_track_excluded_from_smart">Piesa a fost eliminată din recomandările SMART</string>
+    <string name="snack_artist_excluded_from_smart">Artistul a fost eliminat din recomandările SMART</string>
+    <string name="snack_track_included_in_smart">Piesa a fost readăugată în recomandările SMART</string>
+    <string name="snack_artist_included_in_smart">Artistul a fost readăugat în recomandările SMART</string>
+    <string name="snack_smart_exclusion_failed">Recomandările SMART nu au putut fi actualizate. Încearcă din nou.</string>
+    <string name="action_retry">Încearcă din nou</string>
+
+    <string name="settings_language">Limbă</string>
+    <string name="settings_language_body">Schimbă limba în setările sistemului.</string>
+    <string name="settings_audio_access">Acces la muzică</string>
+    <string name="settings_audio_access_allowed">Permis</string>
+    <string name="settings_audio_access_blocked">Blocat</string>
+    <string name="settings_audio_access_not_requested">Nesolicitat</string>
+    <string name="settings_audio_access_not_required">Nu este necesar</string>
+    <string name="settings_sources">Surse de muzică</string>
+    <string name="settings_sources_body">Alege folderele sau colecțiile dispozitivului afișate în LatentJam. Fișierele de pe dispozitiv nu sunt modificate.</string>
+    <string name="settings_sources_empty">Nu au fost găsite surse de muzică gestionabile.</string>
+    <string name="settings_source_unnamed">Muzică de pe dispozitiv</string>
+    <string name="settings_source_music_library">Bibliotecă muzicală</string>
+    <string name="settings_hidden_tracks">Piese ascunse</string>
+    <string name="settings_hidden_tracks_body">Piese ascunse doar în LatentJam. Restabilește orice piesă fără a-i modifica fișierul.</string>
+    <string name="settings_hidden_tracks_empty">Nu există piese ascunse în LatentJam.</string>
+    <string name="settings_interrupted_saves">Salvări întrerupte</string>
+    <plurals name="settings_interrupted_saves_body">
+        <item quantity="one">Salvarea etichetelor în %1$d fișier a fost întreruptă. LatentJam o va termina sau o va anula când va avea voie să scrie fișierul.</item>
+        <item quantity="few">Salvarea etichetelor în %1$d fișiere a fost întreruptă. LatentJam va termina sau va anula fiecare salvare când va avea voie să scrie fișierul.</item>
+        <item quantity="other">Salvarea etichetelor în %1$d de fișiere a fost întreruptă. LatentJam va termina sau va anula fiecare salvare când va avea voie să scrie fișierul.</item>
+    </plurals>
+    <string name="settings_interrupted_finish">Termină acum</string>
+    <string name="settings_interrupted_being_repaired">În reparare: nu se redă până nu este terminat</string>
+    <string name="settings_interrupted_forget">Uită</string>
+    <string name="settings_interrupted_forget_title">Uiți această salvare?</string>
+    <string name="settings_interrupted_forget_body">Fișierul rămâne exact cum este acum, iar LatentJam nu mai încearcă să termine sau să anuleze salvarea. Acest lucru nu poate fi anulat.</string>
+    <string name="settings_interrupted_forget_damaged_body">Această salvare s-a oprit la jumătate. Fișierul poate fi deteriorat și s-ar putea să nu se redea, iar dacă o uiți se șterg copiile din care LatentJam l-ar putea repara. Acest lucru nu poate fi anulat.</string>
+    <string name="settings_duplicates">Dubluri audio</string>
+    <string name="settings_duplicates_body">Găsește copii ale aceleiași înregistrări după sunet, indiferent de etichete</string>
+    <string name="settings_duplicates_scanning">Se compară toate perechile de piese…</string>
+    <string name="settings_duplicates_empty">Fără dubluri — fiecare piesă sună unic</string>
+    <string name="settings_restore">Restabilește</string>
+    <string name="settings_restore_all">Restabilește tot</string>
+    <string name="settings_library_manage_failed">Biblioteca nu a putut fi actualizată. Încearcă din nou.</string>
+    <string name="settings_lyrics_folders">Dosare cu fișiere .lrc</string>
+    <string name="settings_lyrics_folders_body">Android întreabă ce dosar să permită. Un fișier .lrc cu același nume ca piesa este apoi folosit pentru versurile ei.</string>
+    <string name="settings_lyrics_folders_add">Adaugă dosar</string>
+    <string name="settings_lyrics_folders_remove">Elimină</string>
+    <string name="settings_lyrics_folders_failed">Acest dosar nu poate fi folosit. Alege unul din spațiul de stocare al acestui dispozitiv.</string>
+
+    <string name="settings_licenses">Licențe open-source</string>
+    <string name="settings_licenses_body">Notificări pentru LatentJam, modelele incluse și software-ul terț</string>
+    <string name="settings_license_models">Modele audio și SMART</string>
+    <string name="settings_license_models_body">Ponderile audio MobileNetV4 produse de LatentJam sunt Apache-2.0. Modelul student folosește timm (Apache-2.0) și a fost distilat din EfficientAT (MIT, copyright © 2022 Florian Schmid).</string>
+    <string name="settings_license_text_model">Model text</string>
+    <string name="settings_license_text_model_body">Codificatorul de text inclus și vocabularul său au fost antrenate de LatentJam să reproducă sentence-transformers/all-MiniLM-L6-v2 (Apache-2.0) și sunt Apache-2.0.</string>
+    <string name="settings_license_runtime">ONNX Runtime</string>
+    <string name="settings_license_runtime_body">Inferența modelelor pe dispozitiv folosește Microsoft ONNX Runtime sub Licența MIT. Copyright © Microsoft Corporation.</string>
+    <string name="settings_license_aliases">MusicBrainz și Wikidata</string>
+    <string name="settings_license_aliases_body">Datele incluse pentru căutarea aliasurilor artiștilor provin din MusicBrainz și Wikidata și sunt oferite sub CC0.</string>
+    <string name="settings_license_libraries">Biblioteci terțe</string>
+    <string name="settings_license_libraries_body">LatentJam folosește Kotlin, coroutines, Compose Multiplatform, AndroidX Media3, Koin și Coil sub licențe permisive Apache-2.0 sau MIT. Notificările complete sunt incluse în distribuția sursă.</string>
+
+    <string name="sleep_timer">Temporizator de oprire</string>
+    <string name="sleep_timer_off">Oprit</string>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d minut</item>
+        <item quantity="few">%1$d minute</item>
+        <item quantity="other">%1$d de minute</item>
+    </plurals>
+    <string name="sleep_timer_end_of_track">La sfârșitul piesei curente</string>
+    <string name="sleep_timer_active_minutes">Au rămas %1$d min</string>
+    <string name="sleep_timer_active_end_of_track">Se oprește după această piesă</string>
+
+    <string name="intelligence_problems">Probleme de analiză</string>
+    <string name="intelligence_problems_body">Piese pe care SMART nu le-a putut analiza. Muzica rămâne redabilă.</string>
+    <string name="intelligence_no_problems">Nu există probleme de analiză</string>
+    <string name="intelligence_manage_exclusions">Excluderi din recomandări</string>
+    <string name="intelligence_manage_exclusions_body">Piese și artiști pe care SMART nu trebuie să îi recomande niciodată</string>
+    <string name="intelligence_exclusions_empty">Nu există excluderi din recomandări</string>
+    <string name="intelligence_excluded_tracks">Piese excluse</string>
+    <string name="intelligence_excluded_artists">Artiști excluși</string>
+    <string name="intelligence_rebuild">Refă analiza SMART</string>
+    <string name="intelligence_rebuild_body">Șterge amprentele locale și analizează din nou biblioteca vizibilă.</string>
+    <string name="intelligence_rebuild_confirm">Refaci toată analiza SMART? Fișierele muzicale, playlisturile și istoricul de ascultare nu se modifică.</string>
+    <string name="intelligence_how_title">Cum funcționează SMART</string>
+    <string name="intelligence_notifications">Notificări de analiză</string>
+    <string name="intelligence_notifications_body">Arată progresul indexării în afara LatentJam</string>
+    <string name="intelligence_exclusions_clear">Șterge toate excluderile</string>
+
+    <string name="settings_backup">Copie de rezervă locală</string>
+    <string name="settings_backup_body">Exportă sau restabilește playlisturi, favorite, preferințe, istoric, piese ascunse, excluderi SMART și deciziile căutării de dubluri. Fișierele muzicale și datele modelelor nu sunt incluse.</string>
+    <string name="backup_export">Exportă copia</string>
+    <string name="backup_import">Importă copia</string>
+    <string name="backup_import_title">Restabilește copia locală</string>
+    <string name="backup_import_body">Alege cum se combină datele importate cu cele aflate deja pe acest dispozitiv.</string>
+    <string name="backup_section_duplicate_decisions">Deciziile căutării de dubluri</string>
+    <string name="backup_merge">Combină</string>
+    <string name="backup_replace">Înlocuiește</string>
+    <string name="backup_replace_warning">Înlocuiești datele selectate ale aplicației cu această copie? Fișierele muzicale nu sunt modificate niciodată.</string>
+    <string name="backup_export_success">Copia a fost exportată</string>
+    <string name="backup_import_success">Copia a fost restabilită</string>
+    <string name="backup_import_success_unmatched">Copia a fost restabilită; %1$d referințe de piese nu au putut fi asociate pe acest dispozitiv.</string>
+    <plurals name="backup_import_decisions_not_kept">
+        <item quantity="one">%1$d decizie a căutării de dubluri nu a putut fi păstrată pe acest dispozitiv.</item>
+        <item quantity="few">%1$d decizii ale căutării de dubluri nu au putut fi păstrate pe acest dispozitiv.</item>
+        <item quantity="other">%1$d de decizii ale căutării de dubluri nu au putut fi păstrate pe acest dispozitiv.</item>
+    </plurals>
+    <string name="backup_import_partial">Unele date au fost restabilite înainte de apariția unei erori.</string>
+    <string name="backup_failed">Operațiunea de backup nu a putut fi finalizată.</string>
+    <string name="backup_invalid">Aceasta nu este o copie LatentJam validă.</string>
+    <string name="backup_destination_warning">Copia de rezervă conține date private ale aplicației. O destinație cloud sau terță aleasă în selectorul sistemului le poate sincroniza.</string>
+    <string name="settings_stats">Statistici</string>
+    <string name="settings_stats_subtitle">Ascultarea ta în cifre</string>
+    <string name="stats_period_week">7 zile</string>
+    <string name="stats_period_month">30 de zile</string>
+    <string name="stats_period_all">Tot timpul</string>
+    <string name="stats_time_listened">Ascultat</string>
+    <string name="stats_plays">Redări</string>
+    <string name="stats_distinct_tracks">Piese</string>
+    <string name="stats_streak_current">Serie</string>
+    <string name="stats_streak_longest">Record</string>
+    <string name="stats_days_short">z</string>
+    <string name="stats_hours_short">h</string>
+    <string name="stats_minutes_short">min</string>
+    <string name="stats_finished_share">Ascultate până la capăt</string>
+    <string name="stats_skipped_share">Sărite</string>
+    <string name="stats_empty">Nimic redat încă în această perioadă.</string>
+    <string name="stats_load_failed">Statisticile de ascultare nu au putut fi încărcate.</string>
+    <string name="settings_normalize_volume">Egalizarea volumului</string>
+    <string name="settings_normalize_volume_subtitle">Reduce piesele tari spre un nivel uniform</string>
+    <string name="settings_crossfade">Tranziții line</string>
+    <string name="settings_crossfade_subtitle">Atenuează volumul la granițele pieselor</string>
+    <string name="settings_crossfade_value">%1$d s</string>
+    <string name="duplicates_keep_this">Păstrează-l pe acesta</string>
+    <string name="snack_duplicates_merged">Duplicatele au fost unite: playlisturile indică acum copia păstrată</string>
+    <string name="info_lyrics">Versuri</string>
+    <string name="info_album_artist">Artistul albumului</string>
+    <string name="info_track_number">Nr. piesă</string>
+    <string name="info_track_total">Total piese</string>
+    <string name="info_disc_number">Nr. disc</string>
+    <string name="info_disc_total">Total discuri</string>
+    <string name="info_cover">Copertă</string>
+    <string name="info_cover_replace">Înlocuiește</string>
+    <string name="info_cover_remove">Elimină</string>
+    <string name="info_cover_keep">Păstrează coperta actuală</string>
+    <string name="info_cover_new">Copertă nouă</string>
+    <string name="info_cover_removed">Coperta va fi eliminată.</string>
+    <plurals name="info_cover_more">
+        <item quantity="one">+%1$d altă imagine în fișier, păstrată</item>
+        <item quantity="few">+%1$d alte imagini în fișier, păstrate</item>
+        <item quantity="other">+%1$d de alte imagini în fișier, păstrate</item>
+    </plurals>
+    <string name="info_reading_file">Se citește fișierul…</string>
+    <string name="action_edit_album">Editează albumul</string>
+    <string name="action_edit_artist">Editează artistul</string>
+    <string name="action_favorite_short">La favorite</string>
+    <string name="action_unfavorite_short">Scoate din favorite</string>
+    <plurals name="count_files">
+        <item quantity="one">%1$d fișier</item>
+        <item quantity="few">%1$d fișiere</item>
+        <item quantity="other">%1$d de fișiere</item>
+    </plurals>
+    <plurals name="count_fields">
+        <item quantity="one">%1$d câmp</item>
+        <item quantity="few">%1$d câmpuri</item>
+        <item quantity="other">%1$d de câmpuri</item>
+    </plurals>
+    <string name="bulk_save">Modifică %1$s în %2$s</string>
+    <string name="bulk_reading">Se citesc fișierele: %1$d din %2$d…</string>
+    <plurals name="bulk_not_editable">
+        <item quantity="one">%1$d fișier nu poate fi editat și va rămâne neschimbat:</item>
+        <item quantity="few">%1$d fișiere nu pot fi editate și vor rămâne neschimbate:</item>
+        <item quantity="other">%1$d de fișiere nu pot fi editate și vor rămâne neschimbate:</item>
+    </plurals>
+    <plurals name="bulk_more_files">
+        <item quantity="one">și încă %1$d</item>
+        <item quantity="few">și încă %1$d</item>
+        <item quantity="other">și încă %1$d</item>
+    </plurals>
+    <string name="bulk_nothing_editable">Niciunul dintre aceste fișiere nu poate fi editat.</string>
+    <string name="bulk_different">Valori diferite</string>
+    <plurals name="bulk_removed">
+        <item quantity="one">Eliminat din %1$d fișier</item>
+        <item quantity="few">Eliminat din toate cele %1$d</item>
+        <item quantity="other">Eliminat din toate cele %1$d</item>
+    </plurals>
+    <string name="bulk_remove_field">Elimină din toate fișierele</string>
+    <string name="bulk_keep_field">Lasă neschimbat</string>
+    <string name="bulk_kept">Rămâne neschimbat: %1$s</string>
+    <string name="bulk_saving">Salvate: %1$d din %2$d</string>
+    <string name="bulk_stop">Oprește</string>
+    <string name="bulk_result">Salvate: %1$d din %2$d.</string>
+    <plurals name="bulk_not_changed">
+        <item quantity="one">%1$d fișier nemodificat:</item>
+        <item quantity="few">%1$d fișiere nemodificate:</item>
+        <item quantity="other">%1$d de fișiere nemodificate:</item>
+    </plurals>
+    <string name="bulk_done">Gata</string>
+    <string name="bulk_file_reason">%1$s — %2$s</string>
+    <plurals name="tags_saved">
+        <item quantity="one">Etichete salvate în %1$d fișier</item>
+        <item quantity="few">Etichete salvate în %1$d fișiere</item>
+        <item quantity="other">Etichete salvate în %1$d de fișiere</item>
+    </plurals>
+    <string name="tags_saved_partly">Etichete salvate în %1$d din %2$d fișiere</string>
+    <plurals name="tag_recovery_done">
+        <item quantity="one">Salvare finalizată pentru %1$d fișier</item>
+        <item quantity="few">Salvare finalizată pentru %1$d fișiere</item>
+        <item quantity="other">Salvare finalizată pentru %1$d de fișiere</item>
+    </plurals>
+    <plurals name="tag_recovery_undone">
+        <item quantity="one">%1$d salvare întreruptă a fost anulată; fișierul este ca înainte</item>
+        <item quantity="few">%1$d salvări întrerupte au fost anulate; fișierele sunt ca înainte</item>
+        <item quantity="other">%1$d de salvări întrerupte au fost anulate; fișierele sunt ca înainte</item>
+    </plurals>
+    <plurals name="tag_recovery_left">
+        <item quantity="one">%1$d fișier a fost modificat de o altă aplicație și a fost lăsat așa cum este</item>
+        <item quantity="few">%1$d fișiere au fost modificate de o altă aplicație și au fost lăsate așa cum sunt</item>
+        <item quantity="other">%1$d de fișiere au fost modificate de o altă aplicație și au fost lăsate așa cum sunt</item>
+    </plurals>
+    <plurals name="tag_recovery_waiting">
+        <item quantity="one">%1$d fișier nu a putut fi terminat încă. Vezi Setări → Bibliotecă.</item>
+        <item quantity="few">%1$d fișiere nu au putut fi terminate încă. Vezi Setări → Bibliotecă.</item>
+        <item quantity="other">%1$d de fișiere nu au putut fi terminate încă. Vezi Setări → Bibliotecă.</item>
+    </plurals>
+    <string name="lyrics_not_found">Nu s-au găsit versuri pentru această piesă.</string>
+    <string name="cd_scroll_to_top">Înapoi sus</string>
+    <string name="foryou_section_daypart_morning">Diminețile tale</string>
+    <string name="foryou_section_daypart_day">După-amiezile tale</string>
+    <string name="foryou_section_daypart_evening">Serile tale</string>
+    <string name="foryou_section_daypart_night">Nopțile tale</string>
+    <string name="foryou_section_on_a_roll">În buclă: %1$s</string>
+    <string name="foryou_caption_left_turn">Dacă îți place %1$s</string>
+    <string name="settings_pages">Pagini</string>
+    <string name="settings_pages_subtitle">Vizibilitate, ordine și pagina de pornire</string>
+    <string name="settings_pages_body">Trage pentru a reordona. Dezactivează paginile pe care nu le folosești.</string>
+    <string name="settings_pages_last_visible">Păstrează cel puțin o pagină activată.</string>
+    <string name="settings_page_position">Poziția %1$d din %2$d</string>
+    <string name="settings_page_move_up">Mută %1$s în sus</string>
+    <string name="settings_page_move_down">Mută %1$s în jos</string>
+    <string name="settings_pages_reset">Resetează paginile</string>
+    <string name="settings_pages_reset_body">Restabilește ordinea, paginile vizibile și pagina de pornire implicite.</string>
+
+    <!-- Listening dashboard -->
+    <string name="stats_dashboard_title">Audițiile tale</string>
+    <string name="stats_recording_off">Istoricul audițiilor este suspendat. Statisticile salvate rămân disponibile; audițiile noi vor fi adăugate când activezi istoricul din setările de confidențialitate.</string>
+    <string name="stats_comparison_more">Cu %1$s mai mult decât în cele %2$d zile anterioare</string>
+    <string name="stats_comparison_less">Cu %1$s mai puțin decât în cele %2$d zile anterioare</string>
+    <string name="stats_comparison_same">Același timp de audiție ca în cele %1$d zile anterioare</string>
+    <string name="stats_comparison_first">Nicio audiție în cele %1$d zile anterioare</string>
+    <string name="stats_under_minute">&lt; 1 min</string>
+    <string name="stats_activity">Ritmul tău zilnic</string>
+    <string name="stats_calendar_days">Ultimele %1$d zile calendaristice · timp de audiție</string>
+    <string name="stats_today">Azi</string>
+    <string name="stats_yesterday">Ieri</string>
+    <string name="stats_new_tracks">Prime audiții</string>
+    <string name="stats_smart_detail">Proporția redărilor începute cu modul aleatoriu SMART activat</string>
+    <string name="stats_listening_style">Cum asculți</string>
+    <string name="stats_recent_empty">Încă nu există audiții în aceste zile calendaristice.</string>
+    <string name="stats_history_note">Pe baza istoricului salvat, în fusul orar al acestui dispozitiv; se actualizează când o piesă se termină sau se schimbă. Listele arată piesele care sunt încă în bibliotecă. O copie de rezervă restaurată păstrează doar piesele pe care le găsește, iar un artist cunoscut doar din piese eliminate poate apărea ca nou.</string>
+    <string name="stats_chart_day_summary">%1$s: %2$s · %3$s</string>
+    <plurals name="stats_days_ago">
+        <item quantity="one">Acum %1$d zi</item>
+        <item quantity="few">Acum %1$d zile</item>
+        <item quantity="other">Acum %1$d de zile</item>
+    </plurals>
+    <string name="stats_section_lately">Tu în ultima vreme</string>
+    <string name="stats_section_numbers">Cifrele tale</string>
+    <string name="stats_section_over_time">În timp</string>
+    <string name="stats_on_repeat">Pe repeat acum</string>
+    <string name="stats_artists_on_repeat">Artiști pe repeat</string>
+    <plurals name="stats_on_days">
+        <item quantity="one">în %1$d zi</item>
+        <item quantity="few">în %1$d zile</item>
+        <item quantity="other">în %1$d de zile</item>
+    </plurals>
+    <string name="stats_week_days">În %1$d din ultimele 7 zile</string>
+    <plurals name="stats_days_of_music">
+        <item quantity="one">≈ %1$d zi de muzică</item>
+        <item quantity="few">≈ %1$d zile de muzică</item>
+        <item quantity="other">≈ %1$d de zile de muzică</item>
+    </plurals>
+    <plurals name="stats_activity_last_months">
+        <item quantity="one">Ultima %1$d lună · timp de audiție</item>
+        <item quantity="few">Ultimele %1$d luni · timp de audiție</item>
+        <item quantity="other">Ultimele %1$d de luni · timp de audiție</item>
+    </plurals>
+    <string name="stats_activity_years">Pe ani · timp de audiție</string>
+    <string name="stats_activity_over_time">Audițiile tale în timp</string>
+    <string name="stats_this_month">Luna aceasta</string>
+    <string name="stats_this_year">Anul acesta</string>
+    <plurals name="stats_months_ago">
+        <item quantity="one">Acum %1$d lună</item>
+        <item quantity="few">Acum %1$d luni</item>
+        <item quantity="other">Acum %1$d de luni</item>
+    </plurals>
+    <plurals name="stats_years_ago">
+        <item quantity="one">Acum %1$d an</item>
+        <item quantity="few">Acum %1$d ani</item>
+        <item quantity="other">Acum %1$d de ani</item>
+    </plurals>
+    <string name="stats_new_and_familiar">Noi și cunoscute</string>
+    <string name="stats_familiar">Cunoscute</string>
+    <plurals name="stats_new_tracks_count">
+        <item quantity="one">%1$d piesă nouă</item>
+        <item quantity="few">%1$d piese noi</item>
+        <item quantity="other">%1$d de piese noi</item>
+    </plurals>
+    <plurals name="stats_new_artists_count">
+        <item quantity="one">%1$d artist nou</item>
+        <item quantity="few">%1$d artiști noi</item>
+        <item quantity="other">%1$d de artiști noi</item>
+    </plurals>
+    <string name="stats_new_previous">Precedentele %1$d zile: %2$s noi</string>
+    <string name="stats_stuck_artists">Artiști noi care au rămas</string>
+    <string name="stats_stuck_artists_recent">Artiști noi care au rămas · ultimele 3 luni</string>
+    <plurals name="stats_log_age">
+        <item quantity="one">LatentJam ascultă alături de tine de %1$d zi</item>
+        <item quantity="few">LatentJam ascultă alături de tine de %1$d zile</item>
+        <item quantity="other">LatentJam ascultă alături de tine de %1$d de zile</item>
+    </plurals>
+    <string name="stats_new_note">Primă audiție = redată prima dată în LatentJam. Biblioteca ta poate fi mai veche decât aplicația.</string>
+    <plurals name="stats_locked_plays">
+        <item quantity="one">Apare după %1$d redare în această perioadă</item>
+        <item quantity="few">Apare după %1$d redări în această perioadă</item>
+        <item quantity="other">Apare după %1$d de redări în această perioadă</item>
+    </plurals>
+    <string name="stats_when_you_listen">Când asculți</string>
+    <string name="stats_night">Noapte</string>
+    <string name="stats_morning">Dimineață</string>
+    <string name="stats_afternoon">După-amiază</string>
+    <string name="stats_evening">Seară</string>
+    <string name="stats_daypart_peak">Cel mai mult: %1$s, %2$s</string>
+    <string name="stats_typical_session">Sesiune obișnuită</string>
+    <string name="stats_longest_session">Cea mai lungă sesiune</string>
+    <string name="stats_locked_sessions">Apare după câteva sesiuni de ascultare în această perioadă</string>
+    <string name="stats_your_top">Topul tău</string>
+    <string name="stats_show_more">Arată 10</string>
+    <string name="stats_show_less">Arată 5</string>
+    <string name="stats_partly_share">Ascultate parțial</string>
+    <string name="stats_smart_mode_share">Redate în modul SMART</string>
+    <string name="stats_finish_note">Proporții din toate pornirile. Până la capăt = ascultată până la 85%, sărită = părăsită în primele 30 s.</string>
+    <string name="stats_slipping_away">Aproape uitate</string>
+    <string name="stats_slipping_note">Piese preferate pe care le alegeai des singur, neredate în LatentJam de cel puțin două luni.</string>
+    <string name="stats_year_ago">Acum un an</string>
+    <string name="stats_patterns">Obiceiurile tale</string>
+    <string name="stats_same_artist_picks">Din nou același artist</string>
+    <string name="stats_of_100_picks">%1$d din 100 de alegeri</string>
+    <string name="stats_same_artist_note">Când alegi singur următoarea piesă. Include pornirea de pe pagina unui artist.</string>
+    <string name="stats_picked_next">Alese des după</string>
+    <string name="stats_sequence_description">După %1$s ai ales %2$s de %3$d ori din %4$d</string>
+    <string name="stats_library">Biblioteca ta</string>
+    <string name="stats_played_once">Redate cel puțin o dată</string>
+    <string name="stats_x_of_y">%1$s din %2$s</string>
+    <string name="stats_decades">Decenii</string>
+    <string name="stats_decade">Anii %1$d</string>
+    <string name="stats_more_appears">Mai multe apar pe măsură ce asculți</string>
+    <string name="stats_unlock_on_repeat">Pe repeat acum — după o săptămână de ascultare</string>
+    <string name="stats_unlock_slipping">Aproape uitate — după trei luni de ascultare</string>
+    <string name="stats_part_failed">Unele dintre aceste statistici nu au putut fi încărcate.</string>
+    <string name="stats_playlist_row">Playlist</string>
+    <string name="stats_playlists_note">Redări din fiecare playlist. Nu se numără piesele adăugate de SMART și nici ascultările de dinainte ca LatentJam să înregistreze de unde a pornit o piesă.</string>
+
+    <!-- Duplicate finder -->
+    <string name="duplicates_summary">Grupuri: %1$d · Copii în plus: %2$d · Se poate elibera: %3$s</string>
+    <string name="duplicates_keep_recommended">Păstrează copiile recomandate</string>
+    <string name="duplicates_keep_selected">Păstrează copia selectată</string>
+    <string name="duplicates_not_duplicates">Nu sunt duplicate</string>
+    <string name="duplicates_recommended">Recomandată</string>
+    <string name="duplicates_hide_copy">Ascunde această copie</string>
+    <string name="duplicates_hide_files">Ascunde celelalte copii; fișierele rămân pe dispozitiv</string>
+    <string name="duplicates_delete_files">Șterge celelalte fișiere de pe dispozitiv</string>
+    <string name="duplicates_merge_all_confirm">În toate cele %1$d grupuri va fi păstrată copia recomandată.</string>
+    <string name="duplicates_merge_confirm_body">Playlisturile și favoritele vor indica spre copia păstrată. Celelalte %1$d copii:</string>
+    <string name="duplicates_reclaimable">%1$s se pot elibera</string>
+    <string name="duplicates_kbps">%1$d kbps</string>
+    <string name="unit_megabytes">%1$s MB</string>
+    <string name="snack_duplicates_dismissed">Marcate ca înregistrări diferite</string>
+    <string name="cd_player_artwork">Copertă. Atinge pentru detaliile piesei, ține apăsat pentru acțiuni, glisează în lateral pentru a schimba piesa, trage în jos pentru a închide.</string>
+    <string name="details_title">Detaliile piesei</string>
+    <string name="details_language">Limbă</string>
+    <string name="details_format">Format</string>
+    <string name="details_file">Fișier</string>
+    <string name="details_plays">Redări</string>
+    <string name="details_plays_none">Neascultată încă</string>
+    <string name="details_original_year">Prima lansare</string>
+    <string name="cd_details_close">Înapoi la copertă</string>
+    <string name="player_mode_title">Mod de redare</string>
+    <string name="player_mode_off">În ordine</string>
+    <string name="player_mode_shuffle">Redare aleatorie</string>
+    <string name="player_mode_smart">SMART</string>
+    <string name="cd_mode_button">Mod de redare: %1$s. Atinge pentru a schimba, ține apăsat pentru a alege.</string>
+    <string name="cd_seek_position">Poziția redării</string>
+    <string name="cd_time_toggle">Comută între timpul rămas și durata totală</string>
+    <string name="seek_fine_half">½ viteză</string>
+    <string name="seek_fine_quarter">¼ viteză</string>
+    <string name="cd_skip_next_hold">Piesa următoare. Ține apăsat pentru derulare înainte.</string>
+    <string name="cd_skip_previous_hold">Piesa anterioară. Ține apăsat pentru derulare înapoi.</string>
+    <string name="output_phone_speaker">Difuzorul telefonului</string>
+    <string name="output_headphones">Căști</string>
+    <string name="output_bluetooth">Bluetooth</string>
+    <string name="cd_output_route">Se redă pe %1$s. Atinge pentru a alege unde se redă.</string>
+    <string name="now_playing_next">Urmează: %1$s</string>
+    <string name="output_title">Ieșire audio</string>
+    <string name="output_current">Ieșirea curentă</string>
+    <string name="output_connect_device">Conectează un dispozitiv</string>
+    <string name="output_selection_failed">Dispozitiv indisponibil. Verifică conexiunea.</string>
+    <string name="queue_reorder">Reordonează piesa</string>
+    <string name="playlists_yours">Listele tale de redare</string>
+    <string name="playlists_empty_body">Creează o listă de redare sau importă un fișier M3U pentru a-ți reuni muzica.</string>
+    <string name="playlists_automatic">Automate</string>
+    <string name="settings_pages_order">Ordine</string>
+    <string name="settings_opens_on_launch">Se deschide la pornire</string>
+    <string name="settings_reorder_page">Reordonează %1$s</string>
+    <string name="settings_backup_subtitle">Exportă sau restaurează</string>
+    <string name="duplicates_groups">Grupuri</string>
+    <string name="duplicates_summary_title">Grupuri: %1$d · %2$s</string>
+    <string name="duplicates_summary_extra">Copii suplimentare: %1$d</string>
+    <string name="duplicates_copy_count">Copii: %1$d</string>
+    <string name="playlist_reorder_track">Trage pentru a schimba ordinea piesei %1$s</string>
+    <string name="equalizer_custom">Personalizat</string>
+    <string name="equalizer_hint">Alege o presetare pentru activare sau reglează benzile după preferințe.</string>
+    <string name="equalizer_reset_short">Resetează</string>
+    <string name="equalizer_bands_hint">Frecvență în Hz · câștig în dB · glisează pentru alte benzi</string>
+    <string name="normalization_waiting">Redă o piesă pentru a-i măsura volumul.</string>
+    <string name="normalization_measuring">Se măsoară această piesă…</string>
+    <string name="normalization_unavailable">Piesa nu a putut fi măsurată. Se folosește volumul original.</string>
+    <string name="normalization_unchanged">Această piesă nu necesită reducere. Piesele mai încete nu sunt amplificate.</string>
+    <string name="normalization_reduced">Volumul acestei piese este redus cu %1$s dB.</string>
+    <string name="equalizer_response">Răspuns în frecvență</string>
+    <string name="equalizer_response_preview">Previzualizare la %1$s kHz</string>
+    <string name="equalizer_response_headroom">Rezervă de nivel: %1$s dB</string>
+    <string name="equalizer_peak_reduction">Reducerea vârfurilor: %1$s dB</string>
+    <string name="equalizer_peak_hint">Amplificarea puternică poate reduce volumul întregii piese.</string>
+    <string name="map_memory_limited">Nu există suficientă memorie liberă pentru calcularea hărții. Închide alte aplicații și redeschide harta.</string>
+    <string name="map_unavailable">Harta nu a putut fi calculată. Redeschide-o pentru a încerca din nou.</string>
+</resources>

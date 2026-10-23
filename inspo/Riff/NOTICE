@@ -1,0 +1,44 @@
+Riff first-party work is distributed under GPL-3.0-or-later. See LICENSE and
+LICENSES/GPL-3.0-or-later.txt.
+
+The following imported or generated components retain their original licenses and
+copyright notices. Their license texts are included both at their source locations and
+in LICENSES for source and binary distribution notice preservation.
+
+* compact_enc_det, including its vendored sources and build support: Apache-2.0
+  (standalone/cuegrain/ced/vendor/LICENSE; LICENSES/Apache-2.0.txt).
+* FlatBuffers Kotlin runtime and generated FlatBuffers sources:
+  Apache-2.0 (indexer/src/main/generated/flatbuffers/LICENSE;
+  LICENSES/Apache-2.0.txt).
+* xxHash: BSD-2-Clause (indexer/src/main/cpp/third_party/xxhash/LICENSE;
+  LICENSES/BSD-2-Clause.txt).
+* AndroidX Compose, Activity, lifecycle and support libraries, and AndroidX Media3,
+  including the stock player, extractors and metadata inspector:
+  Apache-2.0 (The Android Open Source Project; LICENSES/Apache-2.0.txt).
+* libebur128 v1.2.6 (commit 67b33abe1558160ed76ada1322329b0e9e058b02),
+  statically linked into the Indexer loudness analyzer: MIT
+  (indexer/src/main/cpp/third_party/libebur128/COPYING; LICENSES/MIT.txt).
+* Cuegrain core and its Android CED bridge: Apache-2.0, Copyright 2026 Cuegrain
+  contributors. Source notices and license are in standalone/cuegrain and packaged
+  verbatim under assets/licenses/cuegrain. The Android CED binary is built from
+  standalone/cuegrain/ced/native and its Google Compact Encoding Detection vendor
+  sources, not the retired Riff JNI implementation.
+
+* Cuetree core, including its unmodified FlatBuffers Java runtime: Apache-2.0.
+  Copyright 2026 Cuetree contributors. Notices are preserved under
+  standalone/cuetree and packaged verbatim under assets/licenses/cuetree.
+* Kotlin, its component notices, JetBrains annotations and hash4j: Apache-2.0,
+  with original component notices retained in the Cuegrain/Cuetree notice trees.
+* Google LiteRT 2.3.0 and LiteRT API: Apache-2.0 with bundled third-party terms.
+  Exact upstream AAR LICENSE and THIRD_PARTY_NOTICE.txt files are retained under
+  LICENSES/litert and shipped under assets/licenses/litert. UPSTREAM.json records
+  the source artifacts and their SHA-256 provenance.
+* Guava and its auxiliary annotations: Apache-2.0; Checker Framework qualifiers
+  retain their MIT terms (LICENSES/MIT.txt).
+
+* cueqr: source-only recovered C QR encoder, attributed to yegor in the original
+  SVN README header. Sources, attribution and import inventory are retained under
+  standalone/cueqr; it is not registered with the Riff build. The recovered
+  encoder snapshot provides no explicit license; this import assigns none.
+  Project Nayuki's MIT-licensed QR-Code-generator is retained only as the
+  independent test oracle in standalone/cueqr/t/vendor, with its original notices.

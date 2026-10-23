@@ -1,0 +1,1964 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.playback
+
+import io.github.nikitasud.latentjam.smart.TrackDescriptor
+import io.github.nikitasud.latentjam.smart.TrackId
+import io.github.nikitasud.latentjam.smart.SimilarityEngine
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import org.koin.core.module.Module
+import org.koin.dsl.module
+import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVAudioSessionCategoryPlayback
+import platform.AVFAudio.AVAudioSessionInterruptionNotification
+import platform.AVFAudio.AVAudioSessionInterruptionOptionKey
+import platform.AVFAudio.AVAudioSessionInterruptionOptionShouldResume
+import platform.AVFAudio.AVAudioSessionInterruptionTypeBegan
+import platform.AVFAudio.AVAudioSessionInterruptionTypeKey
+import platform.AVFAudio.AVAudioSessionMediaServicesWereResetNotification
+import platform.AVFAudio.AVAudioSessionRouteChangeNotification
+import platform.AVFAudio.AVAudioSessionRouteChangeReasonKey
+import platform.AVFAudio.AVAudioSessionRouteChangeReasonOldDeviceUnavailable
+import platform.AVFAudio.AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+import platform.AVFAudio.setActive
+import platform.Foundation.NSNotification
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSNumber
+import platform.Foundation.NSOperationQueue
+import platform.Foundation.NSProcessInfo
+import platform.Foundation.NSURL
+import platform.Foundation.timeIntervalSince1970
+import platform.CoreGraphics.CGContextAddLineToPoint
+import platform.CoreGraphics.CGContextBeginPath
+import platform.CoreGraphics.CGContextFillRect
+import platform.CoreGraphics.CGContextMoveToPoint
+import platform.CoreGraphics.CGContextSetFillColorWithColor
+import platform.CoreGraphics.CGContextSetLineCap
+import platform.CoreGraphics.CGContextSetLineWidth
+import platform.CoreGraphics.CGContextSetStrokeColorWithColor
+import platform.CoreGraphics.CGContextStrokePath
+import platform.CoreGraphics.CGLineCap
+import platform.CoreGraphics.CGRectMake
+import platform.CoreGraphics.CGSizeMake
+import platform.MediaPlayer.MPChangePlaybackPositionCommandEvent
+import platform.MediaPlayer.MPChangeRepeatModeCommandEvent
+import platform.MediaPlayer.MPChangeShuffleModeCommandEvent
+import platform.MediaPlayer.MPMediaItemArtwork
+import platform.MediaPlayer.MPMediaItemPropertyAlbumTitle
+import platform.MediaPlayer.MPMediaItemPropertyArtist
+import platform.MediaPlayer.MPMediaItemPropertyArtwork
+import platform.MediaPlayer.MPMediaItemPropertyPlaybackDuration
+import platform.MediaPlayer.MPMediaItemPropertyTitle
+import platform.MediaPlayer.MPMediaItemCollection
+import platform.MediaPlayer.MPMediaLibrary
+import platform.MediaPlayer.MPMediaQuery
+import platform.MediaPlayer.MPMusicPlaybackState
+import platform.MediaPlayer.MPMusicPlayerController
+import platform.MediaPlayer.MPMusicPlayerControllerPlaybackStateDidChangeNotification
+import platform.MediaPlayer.MPMusicRepeatMode
+import platform.MediaPlayer.MPNowPlayingInfoCenter
+import platform.MediaPlayer.MPNowPlayingInfoPropertyElapsedPlaybackTime
+import platform.MediaPlayer.MPNowPlayingInfoPropertyPlaybackRate
+import platform.MediaPlayer.MPRemoteCommandCenter
+import platform.MediaPlayer.MPRemoteCommandHandlerStatusCommandFailed
+import platform.MediaPlayer.MPRemoteCommandHandlerStatusSuccess
+import platform.MediaPlayer.MPRepeatType
+import platform.MediaPlayer.MPShuffleType
+import platform.UIKit.UIColor
+import platform.UIKit.UIImage
+import platform.UIKit.UIGraphicsBeginImageContextWithOptions
+import platform.UIKit.UIGraphicsEndImageContext
+import platform.UIKit.UIGraphicsGetCurrentContext
+import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
+import kotlin.math.pow
+
+/**
+ * iOS [PlaybackController] over an app-owned [IosAudioEngine] for imported files and Apple's
+ * [MPMusicPlayerController] for protected Music-library items.
+ *
+ * The queue is owned here rather than by an AVQueuePlayer: [NowPlaying.queue] is the whole queue,
+ * including played entries, and [playAt] may jump anywhere in it. The player node is rescheduled
+ * for the selected file while this controller preserves queue/history semantics.
+ *
+ * ### SMART queue strategy
+ * Deliberately identical to the Android controller: hold the configured number of
+ * tracks beyond the playhead, and top up by seeding the chooser from the
+ * QUEUE TAIL rather than the playing track. Seeding from the playing track
+ * would look to the chooser like a playhead that had jumped somewhere it had
+ * not planned, so it would discard its plan and replan on every single append.
+ */
+@OptIn(ExperimentalForeignApi::class)
+internal class IosPlaybackController(
+    private val chooser: NextTrackChooser,
+    private val audioEngine: IosAudioEngine,
+    private val engine: SimilarityEngine,
+) : PlaybackController {
+
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var trackVolumes: Map<String, Float> = emptyMap()
+    private var normalizationGain = 1f
+    private var normalizationJob: Job? = null
+
+    override suspend fun setTrackVolumes(volumes: Map<String, Float>): Unit = withContext(Dispatchers.Main) {
+        trackVolumes = volumes.mapValues { (_, value) -> if (value.isFinite()) value.coerceIn(0f, 1f) else 1f }
+        updateNormalizationGain(snap = !playing)
+    }
+
+    private fun updateNormalizationGain(snap: Boolean) {
+        normalizationJob?.cancel()
+        normalizationJob = null
+        val target = queue.getOrNull(queueIndex)?.id?.value?.let(trackVolumes::get) ?: 1f
+        if (snap || target == normalizationGain) {
+            normalizationGain = target
+            audioEngine.setNormalizationGain(target)
+            return
+        }
+        val from = normalizationGain
+        val started = transportTimeMs()
+        normalizationJob = mainScope.launch {
+            do {
+                val elapsed = (transportTimeMs() - started).coerceAtLeast(0)
+                normalizationGain = normalizationRampVolume(from, target, elapsed)
+                audioEngine.setNormalizationGain(normalizationGain)
+                if (elapsed >= NORMALIZATION_RAMP_MS) break
+                delay(GAIN_RAMP_TICK_MS)
+            } while (isActive)
+        }
+    }
+
+    private var transportFadeJob: Job? = null
+    private val transportFade = TransportFadeState()
+    private val mutableState = MutableStateFlow(NowPlaying())
+    override val state: StateFlow<NowPlaying> = mutableState.asStateFlow()
+
+    /** Plays Music.app library items, including protected on-device downloads. */
+    private val mediaPlayer = MPMusicPlayerController.applicationMusicPlayer
+
+    private var activeBackend: PlaybackBackend = PlaybackBackend.FILE
+
+    /** True only after this controller asked the MediaPlayer backend to start. */
+    private var mediaItemStarted: Boolean = false
+
+    /**
+     * Uptime of the MediaPlayer start that was requested and not yet confirmed, or null once the
+     * Playing notification arrives (or the request is called off).
+     *
+     * `play()` only asks Apple's player to start: an item that cannot be fetched stays Stopped and
+     * never posts Playing at all, so this is what [reconcileMediaPlayerStart] measures its patience
+     * against instead of leaving [playing] true over silence.
+     */
+    private var mediaPlayerStartRequestedAt: Double? = null
+
+    /**
+     * Rows whose MediaPlayer start was never confirmed, tried once each like the Android
+     * controller's failed-recovery chain: without it Repeat all would retry an unplayable queue
+     * forever. Cleared when a start is confirmed or a new queue is installed.
+     */
+    private val mediaStartRefusedIds = mutableSetOf<TrackId>()
+
+    /**
+     * Identifies the native item currently owned by the controller.
+     *
+     * Both native backends can report completion after a replacement has already been queued.
+     * Advancing that replacement would skip a real track, so every completion captures this
+     * generation and revalidates it immediately before changing the queue.
+     */
+    private var playbackItemGeneration: Long = 0L
+
+    private val mediaItemsById = mutableMapOf<String, platform.MediaPlayer.MPMediaItem>()
+    private var mediaLibraryModifiedAt: Double? = null
+
+    /** Immutable snapshots: the UI holds these across ticker emissions. */
+    private var queue: List<TrackDescriptor> = emptyList()
+    private var queueIndex: Int = -1
+
+    /** The source list for OFF/ON and the complete library for SMART are intentionally separate. */
+    private var pool: List<TrackDescriptor> = emptyList()
+    private var smartLibrary: List<TrackDescriptor> = emptyList()
+    private var smartLibrarySupplied: Boolean = false
+    private var smartLookahead: Int = DEFAULT_SMART_LOOKAHEAD
+
+    /**
+     * Queue rows that exist because SMART could not recommend, not because it did — published so
+     * the queue can say so, and pruned with the queue itself.
+     */
+    private val smartContinuationIds = mutableSetOf<TrackId>()
+    private val continuationSnapshot = PlaybackContinuationSnapshot()
+
+    /**
+     * SMART's plan position for each row it recommended — see [NowPlaying.smartPlanPositions].
+     * Replaced, narrowed and pruned together with [smartContinuationIds].
+     */
+    private val smartPlanPositions = mutableMapOf<TrackId, Int>()
+    private val planPositionSnapshot = PlaybackPlanPositionSnapshot()
+
+    /**
+     * Tracks the listener removed from this queue, in any mode, which SMART's top-ups no longer offer
+     * (see [recordSmartRemoval]). Not rows, so not pruned with the queue: cleared with the labels above
+     * when a new queue replaces this one.
+     */
+    private val smartRemovedIds = mutableSetOf<TrackId>()
+
+    /**
+     * How the instance at the playhead began. Every load is made here, so each caller states its
+     * cause directly through [beginStart]; nothing needs announcing ahead of an asynchronous player.
+     */
+    private val startLedger = PlaybackStartLedger()
+    private val pendingAdvance = PendingPlaybackAdvance()
+
+    private var mode: ShuffleMode = ShuffleMode.OFF
+
+    // The last row of the newest curated start (playInOrder), which a SMART policy change keeps.
+    private var curatedTailId: String? = null
+    private var repeat: RepeatMode = RepeatMode.OFF
+    private var playing: Boolean = false
+
+    /**
+     * True while the system silenced us mid-play (a call, Siri, another app).
+     * Gates the auto-resume so we only pick playback back up if we did not stop
+     * on purpose — matching Media3's `handleAudioFocus = true` on Android.
+     */
+    private var pausedByInterruption: Boolean = false
+
+    /** The playback category and activation are both lazy: browsing must not interrupt other audio. */
+    private var audioSessionConfigured: Boolean = false
+    private var audioSessionActive: Boolean = false
+
+    /**
+     * Uptime of the last play/pause the *system* performed for us.
+     *
+     * One press of an AirPod arrives twice: as an audio-session interruption and
+     * as a remote toggle. Absolute commands (play, pause) are idempotent and
+     * survive that, but a bare toggle would undo whatever the interruption just
+     * did — pressing pause would keep playing, pressing play would stay paused.
+     * The toggle therefore ignores anything that lands in the same instant.
+     */
+    private var lastSystemTransportChange: Double = 0.0
+
+    /** See the Android controller: read-then-append must be one atomic step. */
+    private val appendMutex = Mutex()
+
+    /** Invalidates a SMART result whenever the queue or its candidate universe is replaced. */
+    private var queueGeneration: Long = 0L
+
+    /** See Android: policy may change while launch restore has not installed its queue yet. */
+    private var smartFutureInvalidationPending: Boolean = false
+
+    private var tickerJob: Job? = null
+
+    /** Last values pushed to the lock screen, to keep the ticker off that path. */
+    private var lastInfoTrackId: String? = null
+    private var lastInfoPlaying: Boolean? = null
+
+    /** Bounded to tracks that have actually reached the playhead. */
+    private val realArtworkIds = mutableSetOf<String>()
+    private val latentArtworkIds = mutableSetOf<String>()
+    private val fallbackArtworkInFlight = mutableSetOf<String>()
+    private val artworkCache = mutableMapOf<String, UIImage>()
+    private val artworkOrder = ArrayDeque<String>()
+
+    init {
+        // LatentJam implements repeat itself so it can apply the same queue semantics to imported
+        // files and protected Music-library items. `Default` would inherit the user's Music.app
+        // preference and can loop a one-item native queue without ever notifying us it ended.
+        mediaPlayer.repeatMode = MPMusicRepeatMode.MPMusicRepeatModeNone
+        wireAudioSessionObservers()
+        wireMediaPlayer()
+        wireRemoteCommands()
+    }
+
+    override suspend fun setSmartLibrary(tracks: List<TrackDescriptor>): Unit =
+        withContext(Dispatchers.Main) {
+            // Eligibility is part of a pending chooser's input even when pruning leaves the visible
+            // queue unchanged, so invalidate before publishing the replacement universe.
+            queueGeneration++
+            smartLibrary = tracks.distinctBy { it.id }
+            smartLibrarySupplied = true
+            if (mode == ShuffleMode.SMART && queue.isNotEmpty()) {
+                queue = retainEligibleSmartTail(
+                    queue = queue,
+                    currentIndex = queueIndex,
+                    eligibleIds = smartLibrary.mapTo(HashSet()) { it.id },
+                )
+                pushState()
+                appendSmartNextIfNeeded()
+            }
+        }
+
+    override suspend fun setSmartQueueLength(length: Int): Unit = withContext(Dispatchers.Main) {
+        val sanitized = length.coerceIn(1, MAX_SMART_LOOKAHEAD)
+        if (smartLookahead != sanitized) {
+            smartLookahead = sanitized
+            queueGeneration++
+        }
+        appendSmartNextIfNeeded()
+    }
+
+    override suspend fun invalidateSmartFuture(): Unit = withContext(Dispatchers.Main) {
+        // Reject a suspended chooser result before pruning the old policy's unplayed plan. The
+        // current backend remains loaded because history and the current row are left untouched.
+        queueGeneration++
+        smartFutureInvalidationPending = true
+        if (mode != ShuffleMode.SMART || queue.isEmpty()) return@withContext
+        val rows = queue
+        queue = rows.take(
+            smartFutureKeepThrough(rows.size, queueIndex, curatedTailId) { rows[it].id.value } + 1,
+        )
+        if (queueIndex !in queue.indices) queueIndex = 0
+        smartFutureInvalidationPending = false
+        pushState()
+        appendSmartNextIfNeeded()
+    }
+
+    override suspend fun play(
+        tracks: List<TrackDescriptor>,
+        startIndex: Int,
+        smartPlanPositions: Map<TrackId, Int>,
+    ): Unit = startQueue(tracks, startIndex, smartPlanPositions, keepOrderInSmart = false)
+
+    override suspend fun playInOrder(
+        tracks: List<TrackDescriptor>,
+        startIndex: Int,
+        smartPlanPositions: Map<TrackId, Int>,
+    ): Unit = startQueue(tracks, startIndex, smartPlanPositions, keepOrderInSmart = true)
+
+    private suspend fun startQueue(
+        tracks: List<TrackDescriptor>,
+        startIndex: Int,
+        smartPlanPositions: Map<TrackId, Int>,
+        keepOrderInSmart: Boolean,
+    ): Unit =
+        withContext(Dispatchers.Main) {
+            if (tracks.isEmpty()) return@withContext
+            pendingAdvance.invalidate()
+            val previousQueue = queue
+            val previousContinuations = smartContinuationIds.toSet()
+            val previousPlanPositions = this@IosPlaybackController.smartPlanPositions.toMap()
+            val previousRemovals = smartRemovedIds.toSet()
+            val previousPool = pool
+            val previousIndex = queueIndex
+            val previousPositionMs = positionMs()
+            val wasPlaying = playing
+            val start = startIndex.coerceIn(0, tracks.lastIndex)
+            pool = tracks
+            // These are new user-selected rows, even if their ids were in the previous queue.
+            smartContinuationIds.clear()
+            this@IosPlaybackController.smartPlanPositions.apply {
+                clear()
+                putAll(smartPlanPositions)
+            }
+            smartRemovedIds.clear()
+            curatedTailId = if (keepOrderInSmart) tracks.last().id.value else null
+            // A new queue is a new request: rows that refused to start under the old one get their
+            // chance again instead of being skipped by the recovery chain.
+            mediaStartRefusedIds.clear()
+
+            // A curated start keeps its rows in order; SMART continues after the last one.
+            if (mode == ShuffleMode.SMART && keepOrderInSmart) {
+                queue = tracks
+                queueIndex = start
+                smartFutureInvalidationPending = false
+            } else when (mode) {
+                // SMART owns its queue: begin with the tapped track alone and let
+                // the chooser build the path forward from it.
+                ShuffleMode.SMART -> {
+                    queue = listOf(tracks[start])
+                    queueIndex = 0
+                    // A newly seeded queue has no future planned under an earlier policy.
+                    smartFutureInvalidationPending = false
+                }
+                ShuffleMode.ON -> {
+                    val started = tracks[start]
+                    queue = listOf(started) + tracks.filter { it.id != started.id }.shuffled()
+                    queueIndex = 0
+                }
+                ShuffleMode.OFF -> {
+                    queue = tracks
+                    queueIndex = start
+                }
+            }
+            queueGeneration++
+            val requestedIndex = queueIndex
+            var loaded = loadPlayableFrom(
+                startIndex = requestedIndex,
+                direction = 1,
+                autoPlay = true,
+                wrap = false,
+            )
+            // The listener chose the requested row; one reached past it because it would not open
+            // was chosen by nobody.
+            if (loaded) beginStart(StartCause.USER_PICK.takeIf { queueIndex == requestedIndex })
+            // A failed replacement must not leave the old backend sounding under the new queue.
+            // If there was a valid prior selection, reload it and its position instead of claiming
+            // an unreadable row from the requested collection.
+            if (!loaded && previousIndex in previousQueue.indices) {
+                queue = previousQueue
+                smartContinuationIds.clear()
+                smartContinuationIds.addAll(previousContinuations)
+                this@IosPlaybackController.smartPlanPositions.apply {
+                    clear()
+                    putAll(previousPlanPositions)
+                }
+                smartRemovedIds.addAll(previousRemovals)
+                pool = previousPool
+                queueGeneration++
+                loaded = restorePreviousPlayback(
+                    previousIndex = previousIndex,
+                    previousPositionMs = previousPositionMs,
+                    wasPlaying = wasPlaying,
+                )
+            }
+            pushState()
+            if (loaded) appendSmartNextIfNeeded()
+        }
+
+    override suspend fun togglePlayPause(): Unit = withContext(Dispatchers.Main) {
+        pendingAdvance.invalidate()
+        if (queue.isEmpty()) return@withContext
+        if (playing) {
+            fadeOutAndPause()
+            playing = false
+        } else {
+            playing = playActiveBackend(fadeIn = true)
+            if (!playing) deactivateAudioSession()
+        }
+        updateTicker()
+        pushState()
+    }
+
+    override suspend fun pause(): Unit = withContext(Dispatchers.Main) {
+        pendingAdvance.invalidate()
+        if (queue.isEmpty() || !playing) return@withContext
+        fadeOutAndPause()
+        playing = false
+        updateTicker()
+        pushState()
+    }
+
+    /**
+     * The sound leaves over [TRANSPORT_FADE_OUT_MS], then the backend pauses and the session
+     * lets go. The state says paused at once. Only the file backend has a mixer to ride; the
+     * music-library player pauses as it always did.
+     */
+    private fun fadeOutAndPause() {
+        transportFadeJob?.cancel()
+        if (activeBackend != PlaybackBackend.FILE) {
+            pauseActiveBackend()
+            deactivateAudioSession()
+            return
+        }
+        transportFade.beginPause(transportTimeMs())
+        audioEngine.setTransportGain(transportFade.gainAt(transportTimeMs()))
+        transportFadeJob = mainScope.launch {
+            while (true) {
+                audioEngine.setTransportGain(transportFade.gainAt(transportTimeMs()))
+                if (!transportFade.active) break
+                delay(TRANSPORT_FADE_TICK_MS)
+            }
+            pauseBackendNow()
+            deactivateAudioSession()
+            resetTransportFade()
+            // The node advanced during the fade after the ticker stopped. Publish its actual
+            // paused position, including to the lock screen, instead of leaving it 160 ms behind.
+            invalidateNowPlayingInfo()
+            pushState()
+        }
+    }
+
+    private fun fadeInAfterStart() {
+        transportFadeJob?.cancel()
+        transportFadeJob = mainScope.launch {
+            while (true) {
+                audioEngine.setTransportGain(transportFade.gainAt(transportTimeMs()))
+                if (!transportFade.active) break
+                delay(TRANSPORT_FADE_TICK_MS)
+            }
+            transportFadeJob = null
+        }
+    }
+
+    private fun transportTimeMs(): Long = (uptimeSeconds() * 1000).toLong()
+
+    private fun resetTransportFade() {
+        transportFadeJob?.cancel()
+        transportFadeJob = null
+        transportFade.reset()
+        audioEngine.setTransportGain(1f)
+    }
+
+    override suspend fun next(): Unit = withContext(Dispatchers.Main) {
+        if (queue.isEmpty()) return@withContext
+        pendingAdvance.invalidate()
+        if (queueIndex in 0 until queue.lastIndex) {
+            // Planning may suspend on inference or another append. A known successor can sound
+            // immediately; replenish its future after the skip, matching the Android transport.
+            advance(StartCause.SKIP_NEXT)
+            mainScope.launch { appendSmartNextIfNeeded() }
+        } else {
+            pendingAdvance.afterPlanning(plan = ::appendSmartNextIfNeeded) { advance(StartCause.SKIP_NEXT) }
+        }
+    }
+
+    override suspend fun previous(): Unit = withContext(Dispatchers.Main) {
+        pendingAdvance.invalidate()
+        if (queue.isEmpty()) return@withContext
+        val previousIndex = queueIndex
+        val previousPositionMs = positionMs()
+        val wasPlaying = playing
+        val targetIndex = previousPlaybackQueueIndex(queue.size, queueIndex, previousPositionMs, repeat)
+        if (targetIndex < 0) return@withContext
+        // Player-standard: restart the track unless you are already at its start.
+        if (targetIndex == previousIndex) {
+            seekActiveBackend(0L)
+            invalidateNowPlayingInfo()
+        } else {
+            val loaded = loadPlayableFrom(
+                startIndex = targetIndex,
+                direction = -1,
+                autoPlay = wasPlaying,
+                wrap = repeat == RepeatMode.ALL,
+            )
+            if (loaded) beginStart(StartCause.SKIP_PREVIOUS.takeIf { queueIndex == targetIndex })
+            if (!loaded) {
+                restorePreviousPlayback(previousIndex, previousPositionMs, wasPlaying)
+            }
+        }
+        pushState()
+    }
+
+    override suspend fun seekTo(positionMs: Long): Unit = withContext(Dispatchers.Main) {
+        pendingAdvance.invalidate()
+        seekActiveBackend(positionMs)
+        // iOS extrapolates the lock-screen position from the playback rate, so a
+        // seek it was not told about leaves the lock screen counting from the old
+        // position for the rest of the track.
+        invalidateNowPlayingInfo()
+        pushState()
+    }
+
+    override suspend fun playAt(queueIndex: Int): Unit = withContext(Dispatchers.Main) {
+        if (queueIndex !in queue.indices) return@withContext
+        val previousIndex = this@IosPlaybackController.queueIndex
+        val previousPositionMs = positionMs()
+        val wasPlaying = playing
+        val loaded = loadPlayableFrom(
+            startIndex = queueIndex,
+            direction = 1,
+            autoPlay = true,
+            wrap = false,
+        )
+        if (loaded) {
+            beginStart(StartCause.USER_PICK.takeIf { this@IosPlaybackController.queueIndex == queueIndex })
+        }
+        if (!loaded && previousIndex in queue.indices) {
+            restorePreviousPlayback(previousIndex, previousPositionMs, wasPlaying)
+        }
+        pushState()
+        if (this@IosPlaybackController.queueIndex >= 0) appendSmartNextIfNeeded()
+    }
+
+    override suspend fun cycleRepeatMode(): RepeatMode = withContext(Dispatchers.Main) {
+        applyRepeatMode(
+            when (repeat) {
+                RepeatMode.OFF -> RepeatMode.ALL
+                RepeatMode.ALL -> RepeatMode.ONE
+                RepeatMode.ONE -> RepeatMode.OFF
+            },
+        )
+    }
+
+    private fun applyRepeatMode(requested: RepeatMode): RepeatMode {
+        if (repeat == requested) {
+            syncRemotePlaybackModes()
+            return repeat
+        }
+        repeat = requested
+        syncRemotePlaybackModes()
+        pushState()
+        return repeat
+    }
+
+    override suspend fun retainQueue(trackIds: Set<TrackId>): Unit = withContext(Dispatchers.Main) {
+        if (queue.isEmpty()) return@withContext
+        val current = queue.getOrNull(queueIndex)
+        val retainedIndex = retainedQueueIndex(queue, queueIndex, trackIds)
+        val wasPlaying = playing
+        val kept = queue.filter { it.id in trackIds }
+        if (kept.size == queue.size) return@withContext
+        pool = pool.filter { it.id in trackIds }
+        queue = kept
+        queueGeneration++
+        if (kept.isEmpty()) {
+            stopBackendsAndClearCurrent()
+            pushState()
+            return@withContext
+        }
+        if (current != null && current.id in trackIds) {
+            // The playing track survived; only its position in the queue may have shifted.
+            queueIndex = retainedIndex
+        } else {
+            // The current entry was deleted: behave like it ended and move to the track that
+            // now occupies its slot, keeping whether we were playing.
+            val replacementIndex = retainedIndex
+            val loaded = loadPlayableFrom(
+                startIndex = replacementIndex,
+                direction = 1,
+                autoPlay = wasPlaying,
+                wrap = false,
+            )
+            if (!loaded && replacementIndex > 0) {
+                loadPlayableFrom(
+                    startIndex = replacementIndex - 1,
+                    direction = -1,
+                    autoPlay = wasPlaying,
+                    wrap = false,
+                )
+            }
+            // Nobody chose the row that took the deleted one's place.
+            beginStart(cause = null)
+        }
+        pushState()
+    }
+
+    override suspend fun refreshTracks(tracks: List<TrackDescriptor>): Unit = withContext(Dispatchers.Main) {
+        if (tracks.isEmpty()) return@withContext
+        val updates = tracks.associateBy { it.id }
+        val refreshedQueue = refreshedTracks(queue, updates)
+        val refreshedPool = refreshedTracks(pool, updates)
+        refreshedTracks(smartLibrary, updates)?.let { smartLibrary = it }
+        if (refreshedQueue == null && refreshedPool == null) return@withContext
+        // The cover URI is content-addressed, so a changed URI is exactly a changed cover.
+        val previousUris = (queue + pool).associate { it.id to it.artworkUri }
+        refreshedQueue?.let { queue = it }
+        refreshedPool?.let { pool = it }
+        // Covers are cached by track id: only an edited cover is read again, so a title-only edit
+        // does not flash the placeholder on the lock screen.
+        tracks.forEach { fresh ->
+            if (fresh.id in previousUris && previousUris[fresh.id] != fresh.artworkUri) {
+                forgetArtwork(fresh.id.value)
+            }
+        }
+        invalidateNowPlayingInfo()
+        pushState()
+    }
+
+    private fun forgetArtwork(id: String) {
+        artworkCache.remove(id)
+        realArtworkIds.remove(id)
+        latentArtworkIds.remove(id)
+        artworkOrder.remove(id)
+    }
+
+    override suspend fun playNext(track: TrackDescriptor): Unit = withContext(Dispatchers.Main) {
+        val insertAt = (queueIndex + 1).coerceIn(0, queue.size)
+        queue = queue.toMutableList().apply { add(insertAt, track) }
+        pool = sourceQueueAfterManualInsert(
+            source = pool,
+            currentId = queue.getOrNull(queueIndex)?.id,
+            track = track,
+            insertion = SourceQueueInsertion.PLAY_NEXT,
+        )
+        releaseSmartProvenance(smartPlanPositions, smartContinuationIds, smartRemovedIds, track.id)
+        queueGeneration++
+        cueIfNothingCurrent()
+        pushState()
+    }
+
+    override suspend fun addToQueue(track: TrackDescriptor): Unit = withContext(Dispatchers.Main) {
+        queue = queue + track
+        pool = sourceQueueAfterManualInsert(
+            source = pool,
+            currentId = queue.getOrNull(queueIndex)?.id,
+            track = track,
+            insertion = SourceQueueInsertion.APPEND,
+        )
+        releaseSmartProvenance(smartPlanPositions, smartContinuationIds, smartRemovedIds, track.id)
+        queueGeneration++
+        cueIfNothingCurrent()
+        pushState()
+    }
+
+    override suspend fun appendSmartPlan(
+        tracks: List<TrackDescriptor>,
+        smartPlanPositions: Map<TrackId, Int>,
+    ): Unit = withContext(Dispatchers.Main) {
+        if (queue.isEmpty() || tracks.isEmpty()) return@withContext
+        for (track in tracks) {
+            queue = queue + track
+            pool = sourceQueueAfterManualInsert(
+                source = pool,
+                currentId = queue.getOrNull(queueIndex)?.id,
+                track = track,
+                insertion = SourceQueueInsertion.APPEND,
+            )
+            releaseSmartProvenance(
+                this@IosPlaybackController.smartPlanPositions,
+                smartContinuationIds,
+                smartRemovedIds,
+                track.id,
+            )
+            smartPlanPositions[track.id]?.let { this@IosPlaybackController.smartPlanPositions[track.id] = it }
+        }
+        queueGeneration++
+        pushState()
+    }
+
+    override suspend fun moveQueueItem(from: Int, to: Int): Unit = withContext(Dispatchers.Main) {
+        if (from !in queue.indices || to !in queue.indices || from == to) return@withContext
+        queue = queue.toMutableList().apply { add(to, removeAt(from)) }
+        queueGeneration++
+        // The current entry is tracked by index; arithmetic (not id search) keeps the right one
+        // anchored even when the same track sits in the queue twice.
+        queueIndex = when {
+            queueIndex == from -> to
+            from < queueIndex && to >= queueIndex -> queueIndex - 1
+            from > queueIndex && to <= queueIndex -> queueIndex + 1
+            else -> queueIndex
+        }
+        pool = sourceQueueAfterVisibleReorder(pool, queue, mode)
+        pushState()
+    }
+
+    override suspend fun removeQueueItem(index: Int): Unit = withContext(Dispatchers.Main) {
+        if (index !in queue.indices) return@withContext
+        val removed = queue[index]
+        val wasCurrent = index == queueIndex
+        val wasPlaying = playing
+        queue = queue.toMutableList().apply { removeAt(index) }
+        queueGeneration++
+        recordSmartRemoval(smartRemovedIds, removed.id)
+        if (queue.none { it.id == removed.id }) {
+            pool = pool.filter { it.id != removed.id }
+        }
+        when {
+            queue.isEmpty() -> {
+                stopBackendsAndClearCurrent()
+            }
+            wasCurrent -> {
+                // Behave like the track ended: the next track now occupies this slot, keeping
+                // whether we were playing — the same contract as retainQueue's deletion path.
+                val startIndex = index.coerceIn(0, queue.lastIndex)
+                val loaded = loadPlayableFrom(
+                    startIndex = startIndex,
+                    direction = 1,
+                    autoPlay = wasPlaying,
+                    wrap = false,
+                )
+                if (!loaded && startIndex > 0) {
+                    loadPlayableFrom(
+                        startIndex = startIndex - 1,
+                        direction = -1,
+                        autoPlay = wasPlaying,
+                        wrap = false,
+                    )
+                }
+                beginStart(cause = null)
+            }
+            index < queueIndex -> queueIndex--
+        }
+        pushState()
+    }
+
+    /**
+     * Makes the first queued track current when the queue was empty.
+     *
+     * Without this, queueing onto an empty queue leaves [queueIndex] at -1 while
+     * the queue holds a track — a state [NowPlaying] has no way to describe, and
+     * one the transport would render as "nothing playing" over a full queue. The
+     * track is cued, not started: queueing is not a request to play.
+     */
+    private fun cueIfNothingCurrent() {
+        if (queueIndex < 0 && queue.isNotEmpty()) {
+            if (loadPlayableFrom(startIndex = 0, direction = 1, autoPlay = false, wrap = false)) {
+                beginStart(cause = null)
+            }
+        }
+    }
+
+    override suspend fun cycleShuffleMode(): ShuffleMode = withContext(Dispatchers.Main) {
+        applyShuffleMode(
+            when (mode) {
+                ShuffleMode.OFF -> ShuffleMode.ON
+                ShuffleMode.ON -> ShuffleMode.SMART
+                ShuffleMode.SMART -> ShuffleMode.OFF
+            },
+        )
+    }
+
+    override suspend fun setShuffleMode(mode: ShuffleMode): Unit = withContext(Dispatchers.Main) {
+        applyShuffleMode(mode)
+    }
+
+    override suspend fun restoreQueue(
+        tracks: List<TrackDescriptor>,
+        startIndex: Int,
+        positionMs: Long,
+        sourceTracks: List<TrackDescriptor>?,
+        smartContinuationIds: Set<TrackId>,
+        smartPlanPositions: Map<TrackId, Int>,
+    ): Unit = withContext(Dispatchers.Main) {
+        if (tracks.isEmpty()) return@withContext
+        pendingAdvance.invalidate()
+        val restorePlan = playbackResumePlan(
+            tracks, startIndex, sourceTracks, smartContinuationIds, smartPlanPositions,
+        )
+        // The live queue and canonical source are independent on resume: SMART's saved future is
+        // restored exactly, while leaving SMART can still reconstruct the originating playlist.
+        pool = restorePlan.sourceQueue
+        queue = restorePlan.liveQueue
+        this@IosPlaybackController.smartContinuationIds.apply {
+            clear()
+            addAll(restorePlan.smartContinuationIds)
+        }
+        this@IosPlaybackController.smartPlanPositions.apply {
+            clear()
+            putAll(restorePlan.smartPlanPositions)
+        }
+        // A resume installs a new queue, so the removals booked against the old one go with it —
+        // exactly as Android's restoreQueue does. Restored rows were never removed from this queue.
+        smartRemovedIds.clear()
+        curatedTailId = null
+        // Same for the rows whose start failed: none of them is this queue's row.
+        mediaStartRefusedIds.clear()
+        queueIndex = restorePlan.currentIndex
+        queueGeneration++
+        val refillAfterPendingInvalidation = mode == ShuffleMode.SMART &&
+            smartFutureInvalidationPending
+        if (refillAfterPendingInvalidation) {
+            queue = smartHistoryThroughCurrent(queue, queueIndex)
+            smartFutureInvalidationPending = false
+            // Rebuild before opening audio so an unreadable saved current row may recover into the
+            // newly planned tail just like an ordinary resume recovers into its saved future.
+            appendSmartNextIfNeeded()
+        }
+        // Paused is the whole point: the session reappears, nothing sounds until asked.
+        val requestedIndex = queueIndex
+        val loaded = loadPlayableFrom(
+            startIndex = requestedIndex,
+            direction = 1,
+            autoPlay = false,
+            wrap = false,
+        )
+        // How the saved row first began belongs to the run that played it; resuming is not a cause.
+        if (loaded) beginStart(cause = null)
+        // A resume position belongs only to the saved row, never to a later row selected because
+        // the saved file disappeared between launches.
+        if (loaded && queueIndex == requestedIndex && positionMs > 0) {
+            seekActiveBackend(positionMs)
+            invalidateNowPlayingInfo()
+        }
+        pushState()
+        if (mode == ShuffleMode.SMART && !refillAfterPendingInvalidation) {
+            // Close the same setSmartLibrary/restore ordering race as Android. Full saved queues
+            // are untouched; only a short tail asks the current chooser to top up.
+            mainScope.launch { appendSmartNextIfNeeded() }
+        }
+    }
+
+    private suspend fun applyShuffleMode(requested: ShuffleMode): ShuffleMode {
+        if (mode == requested) {
+            syncRemotePlaybackModes()
+            return mode
+        }
+        // Invalidate an inference started under the previous mode before it can publish.
+        pendingAdvance.invalidate()
+        queueGeneration++
+        mode = requested
+        val current = queue.getOrNull(queueIndex)
+        var topUpSmartQueue = false
+        when (mode) {
+            ShuffleMode.OFF -> if (current != null) {
+                // Back to source order without changing the logical current. A manual/SMART item
+                // may not exist in the source; keep it at the playhead instead of coercing the
+                // missing lookup to source index zero while its audio continues.
+                val ordered = sourceOrderKeepingCurrent(source = pool, current = current)
+                smartContinuationIds.retainAll(setOf(current.id))
+                smartPlanPositions.keys.retainAll(setOf(current.id))
+                queue = ordered.tracks
+                queueIndex = ordered.currentIndex
+            }
+            ShuffleMode.ON -> if (current != null && pool.isNotEmpty()) {
+                smartContinuationIds.retainAll(setOf(current.id))
+                smartPlanPositions.keys.retainAll(setOf(current.id))
+                queue = listOf(current) + (pool.filter { it.id != current.id }).shuffled()
+                queueIndex = 0
+            }
+            ShuffleMode.SMART -> {
+                // Drop the pre-planned tail; the chooser decides the path now.
+                if (queueIndex >= 0) queue = queue.take(queueIndex + 1)
+                smartFutureInvalidationPending = false
+                topUpSmartQueue = true
+            }
+        }
+        syncRemotePlaybackModes()
+        pushState()
+        // iOS already retains its loaded native item for every queue transformation. Keep model
+        // planning out of the mode-button path as well so the UI/remote state changes immediately.
+        if (topUpSmartQueue) mainScope.launch { appendSmartNextIfNeeded() }
+        return mode
+    }
+
+    /** Main-thread only. Serialised — see [appendMutex]. */
+    private suspend fun appendSmartNextIfNeeded() = appendMutex.withLock { appendSmartNext() }
+
+    private suspend fun appendSmartNext() {
+        if (mode != ShuffleMode.SMART) return
+        if (queue.isEmpty()) return
+
+        var appended = false
+        // Each pass appends exactly one item, so the shortfall shrinks by one and at
+        // most [smartLookahead] passes are ever needed; the counter caps it regardless.
+        var guard = smartLookahead
+        while (
+            guard-- > 0 &&
+            smartQueueNeedsTopUp(queue.size, queueIndex, smartLookahead)
+        ) {
+            val tailIndex = queue.lastIndex
+            val seed = queue[tailIndex]
+            val commitGuard = SmartAppendGuard(
+                queueGeneration = queueGeneration,
+                queueSize = queue.size,
+                tailId = seed.id,
+            )
+            val recentIds = (maxOf(0, tailIndex - RECENT_WINDOW) until tailIndex)
+                .map { queue[it].id }
+            // Everything already queued is off the table, not just the recent window:
+            // a track appended twice would play twice in one sitting, and the queue
+            // would show two rows claiming the same identity. So is every track the
+            // listener removed from this queue.
+            val queued = queue.mapTo(HashSet()) { it.id }
+            val candidates = smartTopUpCandidates(
+                universe = smartCandidatePool(
+                    eligibleLibrary = smartLibrary,
+                    fallbackPool = pool,
+                    eligibleLibrarySupplied = smartLibrarySupplied,
+                ),
+                queuedIds = queued,
+                removedIds = smartRemovedIds,
+            )
+            if (candidates.isEmpty()) break
+
+            val recommended = awaitPlaybackRecommendation { chooser.choose(seed, recentIds, candidates) }
+            // SMART must never present a random row as a recommendation — but abstaining must
+            // not end the session either. A continuation keeps playing under its own label, in
+            // small batches, so the next transition can hand the walk back to the recommender.
+            val continuation = when {
+                recommended != null -> null
+                !smartMayContinue(
+                    queueSize = queue.size,
+                    currentIndex = queueIndex,
+                    isContinuation = { index -> queue[index].id in smartContinuationIds },
+                ) -> null
+                else -> awaitPlaybackRecommendation { chooser.continuation(seed, recentIds, candidates) }
+            }
+            val chosen = recommended?.track ?: continuation ?: break
+            // Inference suspends. Another coroutine may have replaced the queue, switched modes,
+            // manually edited its tail, or refreshed eligibility while the chooser was working.
+            if (
+                !canCommitSmartAppend(
+                    mode = mode,
+                    queueGeneration = queueGeneration,
+                    queue = queue,
+                    guard = commitGuard,
+                    chosenId = chosen.id,
+                )
+            ) {
+                break
+            }
+            queue = queue + chosen
+            if (continuation != null) smartContinuationIds += chosen.id
+            recordSmartPlanPosition(smartPlanPositions, chosen.id, recommended)
+            queueGeneration++
+            appended = true
+        }
+        if (appended) pushState()
+    }
+
+    /**
+     * Moves to the next queue entry, honouring [repeat] at the end of the queue.
+     *
+     * Entries that will not open are skipped rather than stalled on: a file the
+     * user deleted between the scan and now would otherwise leave the transport
+     * showing a track the player never loaded, with the audio stopped.
+     *
+     * [cause] is why playback moved on: the track ended, or the listener pressed Next.
+     */
+    private fun advance(cause: StartCause) {
+        val wasPlaying = playing
+        val previousIndex = queueIndex
+        val previousPositionMs = positionMs()
+        val startIndex = queueIndex + 1
+        val wrap = repeat == RepeatMode.ALL
+        if (playbackQueueTraversal(queue.size, startIndex, direction = 1, wrap = wrap).isEmpty()) {
+            pauseActiveBackend()
+            playing = false
+            deactivateAudioSession()
+            updateTicker()
+            pushState()
+            return
+        }
+        val loaded = loadPlayableFrom(
+            startIndex = startIndex,
+            direction = 1,
+            autoPlay = wasPlaying,
+            wrap = wrap,
+        )
+        if (loaded) beginStart(cause)
+        if (!loaded && previousIndex in queue.indices) {
+            // Every candidate was unreadable. Keep the last real row parked rather than publishing
+            // whichever dead candidate happened to be tried last.
+            restorePreviousPlayback(previousIndex, previousPositionMs, wasPlaying = false)
+        }
+        pushState()
+    }
+
+    /**
+     * Main-thread only. Records how the row just loaded at the playhead began. Restoring the row a
+     * failed replacement displaced does not call this: that play continues with its own start.
+     */
+    private fun beginStart(cause: StartCause?) {
+        queue.getOrNull(queueIndex)?.let { startLedger.begin(it.id, cause) }
+    }
+
+    /**
+     * Points the player at [queueIndex], re-scoping the end-of-item observer to
+     * the new item as it goes. Returns false when the entry cannot be opened.
+     */
+    private fun loadCurrentItem(autoPlay: Boolean): Boolean {
+        pendingAdvance.invalidate()
+        // A delayed pause belongs to the old native item, including when switching backends.
+        resetTransportFade()
+        val track = queue.getOrNull(queueIndex) ?: run {
+            stopBackendsAfterLoadFailure()
+            return false
+        }
+        updateNormalizationGain(snap = true)
+        val isMediaLibraryItem = track.id.value.startsWith(MEDIA_ID_PREFIX)
+        val loaded = if (isMediaLibraryItem && track.audioUri == null) {
+            loadMediaLibraryItem(track, autoPlay)
+        } else {
+            val url = track.audioUri?.let { NSURL.URLWithString(it) }
+            val fileLoaded = url != null && loadFileItem(url, autoPlay)
+            fileLoaded || (isMediaLibraryItem && loadMediaLibraryItem(track, autoPlay))
+        }
+        if (!loaded) stopBackendsAfterLoadFailure()
+        return loaded
+    }
+
+    /** Loads a file after silencing MediaPlayer; [IosAudioEngine] clears itself on failure. */
+    private fun loadFileItem(url: NSURL, autoPlay: Boolean): Boolean {
+        val itemGeneration = ++playbackItemGeneration
+        mediaItemStarted = false
+        mediaPlayerStartRequestedAt = null
+        // Ignore the stop notification from the backend we are replacing.
+        activeBackend = PlaybackBackend.FILE
+        mediaPlayer.stop()
+        if (autoPlay && !activateAudioSession()) return false
+        val loaded = audioEngine.load(url, autoPlay) {
+            mainScope.launch { onItemEnded(itemGeneration) }
+        }
+        if (!loaded) {
+            return false
+        }
+        audioEngine.setOutputSupportsEqualizer(true)
+        playing = autoPlay
+        if (!autoPlay) deactivateAudioSession()
+        updateTicker()
+        invalidateNowPlayingInfo()
+        return true
+    }
+
+    /** Resolves a persistent Music-library ID and cues it in Apple's local player. */
+    private fun loadMediaLibraryItem(track: TrackDescriptor, autoPlay: Boolean): Boolean {
+        val persistentId = track.id.value.removePrefix(MEDIA_ID_PREFIX)
+        val item = resolveMediaItem(persistentId) ?: return false
+        if (autoPlay && !activateAudioSession()) return false
+
+        ++playbackItemGeneration
+        audioEngine.stop()
+        audioEngine.setOutputSupportsEqualizer(false)
+        mediaItemStarted = false
+        mediaPlayerStartRequestedAt = null
+        mediaPlayer.stop()
+        // A one-item native queue is an implementation detail. Never let Music.app's remembered
+        // repeat preference consume its end event before the shared queue controller sees it.
+        mediaPlayer.repeatMode = MPMusicRepeatMode.MPMusicRepeatModeNone
+        mediaPlayer.setQueueWithItemCollection(MPMediaItemCollection(items = listOf(item)))
+        activeBackend = PlaybackBackend.MEDIA_LIBRARY
+        playing = false
+        if (autoPlay) {
+            // The Playing notification, not this request, proves the new native item started.
+            // Keeping this false closes the window in which a delayed Stopped notification from
+            // the queue we just replaced could be mistaken for completion of the new item.
+            //
+            // The stamp is what reconcileMediaPlayerStart waits out: an item Apple cannot fetch
+            // never confirms, and the optimistic flag below would otherwise outlive the sound.
+            mediaPlayerStartRequestedAt = uptimeSeconds()
+            mediaPlayer.play()
+            playing = true
+        } else {
+            deactivateAudioSession()
+        }
+        updateTicker()
+        invalidateNowPlayingInfo()
+        return true
+    }
+
+    /** Tries each candidate once; unreadable rows are skipped without ever being published. */
+    private fun loadPlayableFrom(
+        startIndex: Int,
+        direction: Int,
+        autoPlay: Boolean,
+        wrap: Boolean,
+    ): Boolean {
+        for (candidate in playbackQueueTraversal(queue.size, startIndex, direction, wrap)) {
+            queueIndex = candidate
+            if (loadCurrentItem(autoPlay)) return true
+        }
+        stopBackendsAndClearCurrent()
+        return false
+    }
+
+    /** Re-cues the prior real row after a requested replacement proved unreadable. */
+    private fun restorePreviousPlayback(
+        previousIndex: Int,
+        previousPositionMs: Long,
+        wasPlaying: Boolean,
+    ): Boolean {
+        val restored = loadPlayableFrom(
+            startIndex = previousIndex,
+            direction = 1,
+            autoPlay = false,
+            wrap = false,
+        )
+        if (!restored) return false
+        if (queueIndex == previousIndex && previousPositionMs > 0L) {
+            seekActiveBackend(previousPositionMs)
+        }
+        playing = wasPlaying && playActiveBackend()
+        if (!playing) deactivateAudioSession()
+        updateTicker()
+        invalidateNowPlayingInfo()
+        return true
+    }
+
+    /** Stops both native players while a bounded scan considers another candidate. */
+    private fun stopBackendsAfterLoadFailure() {
+        pendingAdvance.invalidate()
+        ++playbackItemGeneration
+        mediaItemStarted = false
+        mediaPlayerStartRequestedAt = null
+        // Set first so the MediaPlayer stop notification cannot advance the queue being repaired.
+        activeBackend = PlaybackBackend.FILE
+        audioEngine.stop()
+        mediaPlayer.stop()
+        resetTransportFade()
+        audioEngine.setOutputSupportsEqualizer(true)
+        playing = false
+        deactivateAudioSession()
+        updateTicker()
+        invalidateNowPlayingInfo()
+    }
+
+    private fun stopBackendsAndClearCurrent() {
+        stopBackendsAfterLoadFailure()
+        queueIndex = -1
+    }
+
+    /** Refreshes on a miss or Music-library change, so a removed cached item is never claimed. */
+    private fun resolveMediaItem(persistentId: String): platform.MediaPlayer.MPMediaItem? {
+        val modifiedAt = MPMediaLibrary.defaultMediaLibrary().lastModifiedDate.timeIntervalSince1970
+        if (mediaLibraryModifiedAt != modifiedAt || persistentId !in mediaItemsById) {
+            mediaItemsById.clear()
+            MPMediaQuery.songsQuery().items.orEmpty()
+                .mapNotNull { it as? platform.MediaPlayer.MPMediaItem }
+                .forEach { mediaItemsById[it.persistentID.toString()] = it }
+            mediaLibraryModifiedAt = modifiedAt
+        }
+        return mediaItemsById[persistentId]
+    }
+
+    private fun onItemEnded(itemGeneration: Long) {
+        if (!playing || !isCurrentPlaybackItemGeneration(itemGeneration, playbackItemGeneration)) return
+        if (repeat == RepeatMode.ONE) {
+            seekActiveBackend(0L)
+            playing = playActiveBackend()
+            if (playing) beginStart(StartCause.REPEAT)
+            if (!playing) deactivateAudioSession()
+            updateTicker()
+            invalidateNowPlayingInfo()
+            pushState()
+            return
+        }
+        mainScope.launch {
+            if (!playing || !isCurrentPlaybackItemGeneration(itemGeneration, playbackItemGeneration)) {
+                return@launch
+            }
+            // A seek, pause, or newer item chosen during inference also supersedes this end.
+            pendingAdvance.afterPlanning(plan = ::appendSmartNextIfNeeded) {
+                if (playing && isCurrentPlaybackItemGeneration(itemGeneration, playbackItemGeneration)) {
+                    advance(StartCause.AUTO_ADVANCE)
+                }
+            }
+        }
+    }
+
+    /** Configures and activates only when samples are about to be requested. */
+    private fun activateAudioSession(): Boolean {
+        if (audioSessionActive) return true
+        val session = AVAudioSession.sharedInstance()
+        if (!audioSessionConfigured) {
+            // .playback is what makes audio survive the lock screen and ignore the ring/silent
+            // switch. Delaying this category change also means opening the app to browse never
+            // takes audio focus from another player.
+            audioSessionConfigured = session.setCategory(AVAudioSessionCategoryPlayback, null)
+            if (!audioSessionConfigured) return false
+        }
+        audioSessionActive = session.setActive(true, null)
+        return audioSessionActive
+    }
+
+    /** Returns focus after an explicit pause, terminal end, or failed load. */
+    private fun deactivateAudioSession() {
+        if (!audioSessionActive) return
+        val deactivated = AVAudioSession.sharedInstance().setActive(
+            active = false,
+            withOptions = AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation,
+            error = null,
+        )
+        if (deactivated) audioSessionActive = false
+    }
+
+    /**
+     * Mirrors what Media3 gives Android for free (`handleAudioFocus = true` +
+     * `setHandleAudioBecomingNoisy(true)`). The AVAudioEngine graph is otherwise
+     * deaf to everything the system does behind our back, so a headphone tap or
+     * an unplug would silence the audio while the lock screen kept showing a
+     * pause button over dead sound — and no way to resume from there.
+     *
+     * Both handlers force a lock-screen refresh via [invalidateNowPlayingInfo]
+     * so the transport always learns the new rate, even when the play flag was
+     * already what the change-guard expected.
+     *
+     * MediaPlayer-backed items are left alone: MPMusicPlayerController raises its
+     * own interruption state, already handled in [wireMediaPlayer].
+     */
+    private fun wireAudioSessionObservers() {
+        val center = NSNotificationCenter.defaultCenter
+        center.addObserverForName(
+            AVAudioSessionInterruptionNotification,
+            null,
+            NSOperationQueue.mainQueue,
+        ) { note -> onAudioInterruption(note) }
+        center.addObserverForName(
+            AVAudioSessionRouteChangeNotification,
+            null,
+            NSOperationQueue.mainQueue,
+        ) { note -> onAudioRouteChange(note) }
+        center.addObserverForName(
+            AVAudioSessionMediaServicesWereResetNotification,
+            null,
+            NSOperationQueue.mainQueue,
+        ) { _ -> onMediaServicesReset() }
+    }
+
+    /**
+     * Recreates the file graph even while Music.app owns playback: the inactive graph is also
+     * invalidated by a media-services reset and will be used by the next imported file.
+     * Reopening a local file preserves its playhead. As required by AVAudioSession's reset
+     * contract, playback waits for a new user action instead of restarting automatically.
+     *
+     * A cued file that cannot be reopened — deleted or moved while paused — gives way to another
+     * playable row, still paused ([recoverUnreadableRow]). Kept current, the row would have no file
+     * behind it, and Play would do nothing until the listener skipped.
+     */
+    private fun onMediaServicesReset() {
+        mainScope.launch {
+            audioSessionConfigured = false
+            audioSessionActive = false
+            pausedByInterruption = false
+            transportFadeJob?.cancel()
+            transportFadeJob = null
+            transportFade.reset()
+            val localPosition = mutableState.value.positionMs.takeIf { activeBackend == PlaybackBackend.FILE }
+            val recued = audioEngine.rebuildAfterMediaServicesReset(localPosition)
+            if (activeBackend == PlaybackBackend.MEDIA_LIBRARY) mediaPlayer.pause()
+            mediaPlayerStartRequestedAt = null
+            mediaItemStarted = false
+            playing = false
+            updateTicker()
+            invalidateNowPlayingInfo()
+            pushState()
+            if (localPosition != null && !recued) recoverUnreadableRow(localPosition)
+        }
+    }
+
+    /**
+     * Moves the playhead off a file row a media services reset could not reopen, staying paused:
+     * forward the way [advance] goes, around the queue under repeat all, then back the way
+     * [removeQueueItem] falls back, so the queue keeps a current row while any row of it plays. SMART
+     * tops its queue up first, as a resume does after replanning, so a queue that ended at the
+     * unreadable row has somewhere to go. The same row reopening after all keeps [positionMs].
+     */
+    private suspend fun recoverUnreadableRow(positionMs: Long) {
+        val itemGeneration = playbackItemGeneration
+        if (mode == ShuffleMode.SMART) appendSmartNextIfNeeded()
+        // Planning suspends; a track the listener started meanwhile is theirs to keep.
+        if (playbackItemGeneration != itemGeneration) return
+        val unreadableIndex = queueIndex
+        if (unreadableIndex !in queue.indices) return
+        val wrap = repeat == RepeatMode.ALL
+        var loaded = loadPlayableFrom(
+            startIndex = unreadableIndex,
+            direction = 1,
+            autoPlay = false,
+            wrap = wrap,
+        )
+        if (!loaded && !wrap && unreadableIndex > 0) {
+            loaded = loadPlayableFrom(
+                startIndex = unreadableIndex - 1,
+                direction = -1,
+                autoPlay = false,
+                wrap = false,
+            )
+        }
+        if (loaded && queueIndex != unreadableIndex) {
+            beginStart(cause = null)
+        } else if (loaded && positionMs > 0L) {
+            seekActiveBackend(positionMs)
+            invalidateNowPlayingInfo()
+        }
+        pushState()
+    }
+
+    private fun onAudioInterruption(note: NSNotification?) {
+        val info = note?.userInfo ?: return
+        val type = (info[AVAudioSessionInterruptionTypeKey] as? NSNumber)?.longValue ?: return
+        val began = type == AVAudioSessionInterruptionTypeBegan.toLong()
+        val option = (info[AVAudioSessionInterruptionOptionKey] as? NSNumber)?.longValue ?: 0L
+        val shouldResume =
+            option and AVAudioSessionInterruptionOptionShouldResume.toLong() != 0L
+        mainScope.launch {
+            if (activeBackend != PlaybackBackend.FILE) return@launch
+            if (began) {
+                // iOS has already deactivated the session, even during a requested pause fade.
+                audioSessionActive = false
+                if (playing || transportFade.pausePending) {
+                    pausedByInterruption = playing
+                    pauseFromSystem(deactivateSession = false)
+                }
+            } else {
+                if (pausedByInterruption && shouldResume && queue.isNotEmpty()) {
+                    playing = playActiveBackend()
+                    if (!playing) deactivateAudioSession()
+                    lastSystemTransportChange = uptimeSeconds()
+                    updateTicker()
+                    invalidateNowPlayingInfo()
+                    pushState()
+                }
+                pausedByInterruption = false
+            }
+        }
+    }
+
+    private fun onAudioRouteChange(note: NSNotification?) {
+        val reason = (note?.userInfo?.get(AVAudioSessionRouteChangeReasonKey) as? NSNumber)?.longValue
+            ?: return
+        // Only "the thing I was playing to just vanished" — unplugging headphones
+        // or pulling an AirPod. Everything else (new device, category change) is
+        // none of our business and would pause on innocuous route reshuffles.
+        val oldDeviceGone = reason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable.toLong()
+        if (!oldDeviceGone) return
+        mainScope.launch {
+            if (activeBackend == PlaybackBackend.FILE && (playing || transportFade.pausePending)) {
+                pauseFromSystem()
+            }
+        }
+    }
+
+    /** Reflect a system-initiated stop and make sure the lock screen agrees. */
+    private fun pauseFromSystem(deactivateSession: Boolean = true) {
+        pauseActiveBackend()
+        playing = false
+        if (deactivateSession) deactivateAudioSession()
+        lastSystemTransportChange = uptimeSeconds()
+        updateTicker()
+        invalidateNowPlayingInfo()
+        pushState()
+    }
+
+    /** Monotonic seconds; unaffected by the wall clock moving. */
+    private fun uptimeSeconds(): Double = NSProcessInfo.processInfo.systemUptime
+
+    /**
+     * True when the system just moved the transport for us, so a remote toggle
+     * arriving now is the second delivery of one physical press, not a new one.
+     */
+    private fun systemJustChangedTransport(): Boolean =
+        uptimeSeconds() - lastSystemTransportChange < DUPLICATE_TRANSPORT_WINDOW_S
+
+    /** Bridges natural completion from the MediaPlayer backend into the shared queue. */
+    private fun wireMediaPlayer() {
+        mediaPlayer.beginGeneratingPlaybackNotifications()
+        NSNotificationCenter.defaultCenter.addObserverForName(
+            MPMusicPlayerControllerPlaybackStateDidChangeNotification,
+            mediaPlayer,
+            NSOperationQueue.mainQueue,
+        ) { _ ->
+            // The observer is already delivered on the main queue. Handling it synchronously is
+            // important: deferring into another coroutine lets a user play request replace the
+            // queue before an old Stopped event reads these mutable fields.
+            if (activeBackend == PlaybackBackend.MEDIA_LIBRARY) {
+                when (mediaPlayer.playbackState) {
+                    MPMusicPlaybackState.MPMusicPlaybackStatePlaying -> {
+                        // A Playing state that arrives after the start was called off belongs to the
+                        // row we gave up on, not to the replacement (see
+                        // reconcileMediaPlayerStart), so it only counts while one is awaited.
+                        if (mediaPlayerStartRequestedAt != null || mediaItemStarted) {
+                            mediaItemStarted = true
+                            // A start that did happen ends the failed-recovery chain: a row that
+                            // refused earlier gets its chance again in a later pass.
+                            mediaStartRefusedIds.clear()
+                            mediaPlayerStartRequestedAt = null
+                            playing = true
+                            updateTicker()
+                            pushState()
+                        }
+                    }
+                    MPMusicPlaybackState.MPMusicPlaybackStatePaused,
+                    -> {
+                        pendingAdvance.invalidate()
+                        playing = false
+                        deactivateAudioSession()
+                        updateTicker()
+                        pushState()
+                    }
+                    MPMusicPlaybackState.MPMusicPlaybackStateInterrupted -> {
+                        pendingAdvance.invalidate()
+                        playing = false
+                        audioSessionActive = false
+                        updateTicker()
+                        pushState()
+                    }
+                    MPMusicPlaybackState.MPMusicPlaybackStateStopped -> if (mediaItemStarted) {
+                        val itemGeneration = playbackItemGeneration
+                        mediaItemStarted = false
+                        onItemEnded(itemGeneration)
+                    }
+                    else -> Unit
+                }
+            }
+        }
+    }
+
+    /** An immediate pause; any fade in flight is over, and the mixer is back at full gain. */
+    private fun pauseActiveBackend() {
+        pendingAdvance.invalidate()
+        pauseBackendNow()
+        resetTransportFade()
+    }
+
+    private fun pauseBackendNow() {
+        when (activeBackend) {
+            PlaybackBackend.FILE -> audioEngine.pause()
+            PlaybackBackend.MEDIA_LIBRARY -> mediaPlayer.pause()
+        }
+    }
+
+    private fun playActiveBackend(fadeIn: Boolean = false): Boolean {
+        if (!activateAudioSession()) return false
+        transportFadeJob?.cancel()
+        transportFadeJob = null
+        val fading = fadeIn && activeBackend == PlaybackBackend.FILE
+        if (fading) transportFade.beginResume(transportTimeMs()) else transportFade.reset()
+        audioEngine.setTransportGain(transportFade.gainAt(transportTimeMs()))
+        val started = when (activeBackend) {
+            PlaybackBackend.FILE -> audioEngine.play()
+            PlaybackBackend.MEDIA_LIBRARY -> {
+                // Confirmed by wireMediaPlayer's Playing state. Setting it before `play()` would
+                // let a queued stop from the previous item advance this replacement prematurely;
+                // the stamp is what reconcileMediaPlayerStart waits out if no Playing follows.
+                mediaPlayerStartRequestedAt = uptimeSeconds()
+                mediaPlayer.play()
+                true
+            }
+        }
+        if (started && fading) fadeInAfterStart() else resetTransportFade()
+        return started
+    }
+
+    private fun seekActiveBackend(positionMs: Long) {
+        when (activeBackend) {
+            PlaybackBackend.FILE -> audioEngine.seekTo(positionMs)
+            PlaybackBackend.MEDIA_LIBRARY -> {
+                mediaPlayer.currentPlaybackTime = positionMs / 1000.0
+            }
+        }
+    }
+
+    private fun wireRemoteCommands() {
+        val center = MPRemoteCommandCenter.sharedCommandCenter()
+        center.playCommand.addTargetWithHandler { _ ->
+            mainScope.launch { if (!playing) togglePlayPause() }
+            MPRemoteCommandHandlerStatusSuccess
+        }
+        center.pauseCommand.addTargetWithHandler { _ ->
+            mainScope.launch { if (playing) togglePlayPause() }
+            MPRemoteCommandHandlerStatusSuccess
+        }
+        center.togglePlayPauseCommand.addTargetWithHandler { _ ->
+            // A headphone press reaches us twice — once as an interruption, once
+            // here. Undoing the interruption's work would make the button dead.
+            mainScope.launch { if (!systemJustChangedTransport()) togglePlayPause() }
+            MPRemoteCommandHandlerStatusSuccess
+        }
+        center.nextTrackCommand.addTargetWithHandler { _ ->
+            mainScope.launch { next() }
+            MPRemoteCommandHandlerStatusSuccess
+        }
+        center.previousTrackCommand.addTargetWithHandler { _ ->
+            mainScope.launch { previous() }
+            MPRemoteCommandHandlerStatusSuccess
+        }
+        center.changePlaybackPositionCommand.addTargetWithHandler { event ->
+            val scrub = event as? MPChangePlaybackPositionCommandEvent
+            if (scrub == null) {
+                MPRemoteCommandHandlerStatusCommandFailed
+            } else {
+                mainScope.launch { seekTo((scrub.positionTime * 1000).toLong()) }
+                MPRemoteCommandHandlerStatusSuccess
+            }
+        }
+        center.changeRepeatModeCommand.addTargetWithHandler { event ->
+            val change = event as? MPChangeRepeatModeCommandEvent
+            val requested = change?.repeatType?.toLatentJamRepeatMode()
+            if (requested == null) {
+                MPRemoteCommandHandlerStatusCommandFailed
+            } else {
+                mainScope.launch { applyRepeatMode(requested) }
+                MPRemoteCommandHandlerStatusSuccess
+            }
+        }
+        center.changeShuffleModeCommand.addTargetWithHandler { event ->
+            val change = event as? MPChangeShuffleModeCommandEvent
+            val requested = change?.shuffleType?.toLatentJamShuffleMode()
+            if (requested == null) {
+                MPRemoteCommandHandlerStatusCommandFailed
+            } else {
+                mainScope.launch { applyShuffleMode(requested) }
+                MPRemoteCommandHandlerStatusSuccess
+            }
+        }
+        center.changeRepeatModeCommand.enabled = true
+        center.changeShuffleModeCommand.enabled = true
+        syncRemotePlaybackModes()
+    }
+
+    /**
+     * MPRemoteCommandCenter has only off/items shuffle states. SMART therefore advertises as
+     * shuffled, remains SMART while the system leaves shuffle enabled, and turns off when the
+     * system asks for off. Selecting shuffle from off starts ordinary random shuffle; SMART still
+     * remains an explicit LatentJam choice because iOS has no third standard shuffle value.
+     */
+    private fun syncRemotePlaybackModes() {
+        // MPRemoteCommandCenter describes LatentJam's repeat state, while the one-item native
+        // MediaPlayer queue must always remain non-repeating so completion reaches this controller.
+        mediaPlayer.repeatMode = MPMusicRepeatMode.MPMusicRepeatModeNone
+        val center = MPRemoteCommandCenter.sharedCommandCenter()
+        center.changeRepeatModeCommand.currentRepeatType = repeat.toPlatformRepeatType()
+        center.changeShuffleModeCommand.currentShuffleType = mode.toPlatformShuffleType()
+    }
+
+    private fun MPRepeatType.toLatentJamRepeatMode(): RepeatMode = when (this) {
+        MPRepeatType.MPRepeatTypeOff -> RepeatMode.OFF
+        MPRepeatType.MPRepeatTypeAll -> RepeatMode.ALL
+        MPRepeatType.MPRepeatTypeOne -> RepeatMode.ONE
+    }
+
+    private fun RepeatMode.toPlatformRepeatType(): MPRepeatType = when (this) {
+        RepeatMode.OFF -> MPRepeatType.MPRepeatTypeOff
+        RepeatMode.ALL -> MPRepeatType.MPRepeatTypeAll
+        RepeatMode.ONE -> MPRepeatType.MPRepeatTypeOne
+    }
+
+    private fun MPShuffleType.toLatentJamShuffleMode(): ShuffleMode = when (this) {
+        MPShuffleType.MPShuffleTypeOff -> ShuffleMode.OFF
+        MPShuffleType.MPShuffleTypeItems,
+        MPShuffleType.MPShuffleTypeCollections,
+        -> if (mode == ShuffleMode.SMART) ShuffleMode.SMART else ShuffleMode.ON
+    }
+
+    private fun ShuffleMode.toPlatformShuffleType(): MPShuffleType = when (this) {
+        ShuffleMode.OFF -> MPShuffleType.MPShuffleTypeOff
+        ShuffleMode.ON,
+        ShuffleMode.SMART,
+        -> MPShuffleType.MPShuffleTypeItems
+    }
+
+    /** Coarse position refresh while playing; idle otherwise. */
+    private fun updateTicker() {
+        if (playing) {
+            if (tickerJob == null) {
+                tickerJob = mainScope.launch {
+                    while (isActive) {
+                        reconcilePlayingState()
+                        pushState()
+                        delay(TICKER_INTERVAL_MS)
+                    }
+                }
+            }
+        } else {
+            tickerJob?.cancel()
+            tickerJob = null
+        }
+    }
+
+    /**
+     * Believes the player over our own flag.
+     *
+     * The system pauses playback for things we never asked about — headphones
+     * unplugged, a phone call, another app taking the audio session. Without
+     * this the transport keeps showing a pause button over silence.
+     *
+     * Only `Paused` counts: `WaitingToPlayAtSpecifiedRate` is a normal step on
+     * the way into playback, and treating it as stopped would flicker the
+     * button on every track change. `Stopped` is a start that never happened rather
+     * than a system pause, so it is settled by [reconcileMediaPlayerStart] after a grace
+     * window instead of here.
+     */
+    private fun reconcilePlayingState() {
+        val backendPaused = when (activeBackend) {
+            PlaybackBackend.FILE -> !audioEngine.playing
+            PlaybackBackend.MEDIA_LIBRARY ->
+                mediaPlayer.playbackState == MPMusicPlaybackState.MPMusicPlaybackStatePaused ||
+                    mediaPlayer.playbackState == MPMusicPlaybackState.MPMusicPlaybackStateInterrupted
+        }
+        if (playing && backendPaused) {
+            pendingAdvance.invalidate()
+            playing = false
+            deactivateAudioSession()
+            // Same press, same rule as the observers: this is the system moving
+            // the transport, so a remote toggle chasing it must not undo it.
+            lastSystemTransportChange = uptimeSeconds()
+            updateTicker()
+            // The ticker stops here, so this is the last chance to tell the lock
+            // screen the rate is now zero.
+            invalidateNowPlayingInfo()
+            return
+        }
+        if (activeBackend == PlaybackBackend.MEDIA_LIBRARY) reconcileMediaPlayerStart()
+    }
+
+    /**
+     * Gives up on a MediaPlayer start that never happened.
+     *
+     * `mediaPlayer.play()` only asks: an item Apple cannot fetch (an undownloaded or protected
+     * Music-library item) leaves the backend Stopped and never posts the Playing notification that
+     * proves a start, while [playing] was already set optimistically — so without this the
+     * transport shows Pause over silence and the queue never advances by itself. This is the iOS
+     * counterpart of the Android controller's onPlayerError recovery. Once the grace window since
+     * the request has passed, the row is dropped and the queue moves on to the next one that has
+     * not refused yet; when none is left, playback parks in an honest paused state rather than
+     * looping over a queue nothing in it can play.
+     */
+    private fun reconcileMediaPlayerStart() {
+        val requestedAt = mediaPlayerStartRequestedAt ?: return
+        if (!playing || mediaItemStarted) return
+        // A Stopped state alone is not proof: the stop of the item we replaced arrives here too,
+        // which is why the wait is measured rather than reacted to.
+        if (mediaPlayer.playbackState != MPMusicPlaybackState.MPMusicPlaybackStateStopped) return
+        if (uptimeSeconds() - requestedAt < MEDIA_PLAYER_START_GRACE_S) return
+
+        queue.getOrNull(queueIndex)?.let { mediaStartRefusedIds += it.id }
+        pendingAdvance.invalidate()
+        // Nothing this row reports later can belong to the attempt that just ended.
+        ++playbackItemGeneration
+        mediaPlayerStartRequestedAt = null
+        invalidateNowPlayingInfo()
+        val wrap = repeat == RepeatMode.ALL
+        val recoverable = playbackQueueTraversal(
+            queueSize = queue.size,
+            startIndex = queueIndex + 1,
+            direction = 1,
+            wrap = wrap,
+        ).any { index -> queue.getOrNull(index)?.id?.let { it !in mediaStartRefusedIds } == true }
+        if (!recoverable) {
+            // Every reachable row refused once: park on the silent row with honest state, as the
+            // Android chain does when its candidates run out, and leave the user a Play that may
+            // retry it. The native player is parked too, so an item Apple starts late cannot sound
+            // under a paused transport.
+            pauseActiveBackend()
+            playing = false
+            deactivateAudioSession()
+            updateTicker()
+            pushState()
+            return
+        }
+        // Keep the intent: a row that cannot play is skipped, not turned into a stop. `playing`
+        // stays true across the advance, so the replacement starts playing as well.
+        advance(StartCause.AUTO_ADVANCE)
+    }
+
+    /** Forces the next [pushState] to re-publish lock-screen metadata. */
+    private fun invalidateNowPlayingInfo() {
+        lastInfoTrackId = null
+        lastInfoPlaying = null
+    }
+
+    @OptIn(ExperimentalForeignApi::class)
+    private fun positionMs(): Long {
+        if (activeBackend == PlaybackBackend.MEDIA_LIBRARY) {
+            return (mediaPlayer.currentPlaybackTime * 1000.0).toLong().coerceAtLeast(0L)
+        }
+        return audioEngine.positionMs()
+    }
+
+    @OptIn(ExperimentalForeignApi::class)
+    private fun durationMs(): Long? {
+        if (activeBackend == PlaybackBackend.MEDIA_LIBRARY) {
+            return mediaPlayer.nowPlayingItem?.playbackDuration
+                ?.takeIf { it.isFinite() && it > 0.0 }
+                ?.times(1000.0)
+                ?.toLong()
+        }
+        return audioEngine.durationMs()
+    }
+
+    private fun pushState() {
+        val track = queue.getOrNull(queueIndex)
+        mutableState.value = NowPlaying(
+            track = track,
+            isPlaying = playing,
+            shuffleMode = mode,
+            repeatMode = repeat,
+            positionMs = positionMs(),
+            durationMs = durationMs() ?: track?.durationMs ?: 0,
+            queue = queue,
+            queueIndex = if (queue.isEmpty()) -1 else queueIndex,
+            sourceQueue = pool,
+            smartContinuationIds = continuationSnapshot.get(queue, smartContinuationIds),
+            smartPlanPositions = planPositionSnapshot.get(queue, smartPlanPositions),
+            playbackStart = startLedger.current,
+        )
+        publishNowPlayingInfo(track)
+    }
+
+    /**
+     * Pushes lock-screen metadata only when the track or play state changes.
+     *
+     * iOS extrapolates elapsed time from the playback rate, so re-publishing on
+     * every ticker emission would be twice-a-second work for no visible gain.
+     */
+    private fun publishNowPlayingInfo(track: TrackDescriptor?) {
+        // MediaPlayer owns its lock-screen payload. Publishing AVPlayer-style metadata on top of
+        // it can briefly replace Apple's artwork and duration with stale values during a change.
+        if (activeBackend == PlaybackBackend.MEDIA_LIBRARY) return
+        val trackId = track?.id?.value
+        if (trackId == lastInfoTrackId && playing == lastInfoPlaying) return
+        lastInfoTrackId = trackId
+        lastInfoPlaying = playing
+
+        if (track == null) {
+            MPNowPlayingInfoCenter.defaultCenter().nowPlayingInfo = null
+            return
+        }
+        val info = mutableMapOf<Any?, Any?>()
+        track.title?.let { info[MPMediaItemPropertyTitle] = it }
+        track.artist?.let { info[MPMediaItemPropertyArtist] = it }
+        track.album?.let { info[MPMediaItemPropertyAlbumTitle] = it }
+        nowPlayingArtwork(track)?.let { info[MPMediaItemPropertyArtwork] = it }
+        (durationMs() ?: track.durationMs)?.let {
+            info[MPMediaItemPropertyPlaybackDuration] = NSNumber(double = it / 1000.0)
+        }
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] =
+            NSNumber(double = positionMs() / 1000.0)
+        info[MPNowPlayingInfoPropertyPlaybackRate] =
+            NSNumber(double = if (playing) 1.0 else 0.0)
+        MPNowPlayingInfoCenter.defaultCenter().nowPlayingInfo = info
+    }
+
+    /** Real embedded art first; otherwise publish the same identity/latent colour idea as Android. */
+    private fun nowPlayingArtwork(track: TrackDescriptor): MPMediaItemArtwork? {
+        val id = track.id.value
+        val image = artworkCache[id]
+            ?: renderFallbackArtwork(identityTrackColorSeed(id).toArgb())?.also { fallback ->
+                cacheArtwork(id, fallback)
+            }
+            ?: return null
+
+        if (id !in realArtworkIds && id !in latentArtworkIds) requestArtwork(track)
+        return MPMediaItemArtwork(boundsSize = image.size) { _ -> image }
+    }
+
+    /** Identity is immediate; bounded real cover I/O and optional latent lookup are asynchronous. */
+    private fun requestArtwork(track: TrackDescriptor) {
+        val id = track.id.value
+        if (!fallbackArtworkInFlight.add(id)) return
+        mainScope.launch {
+            // A tag edit can swap the cover while this load is suspended. What it read then
+            // belongs to the old cover and is dropped; the request is made again once the
+            // in-flight marker is released.
+            var superseded = false
+            try {
+                val cover = withContext(Dispatchers.Default) { loadPlaybackArtwork(track.artworkUri) }
+                if (!hasArtworkOf(track)) {
+                    superseded = true
+                } else if (cover != null) {
+                    cacheArtwork(id, cover, real = true)
+                } else {
+                    val embedding = try {
+                        engine.embedding(track.id)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        null
+                    } ?: return@launch
+                    if (!hasArtworkOf(track)) {
+                        superseded = true
+                    } else {
+                        val image = renderFallbackArtwork(latentTrackColorSeed(embedding).toArgb())
+                            ?: return@launch
+                        cacheArtwork(id, image, latent = true)
+                    }
+                }
+                if (!superseded && queue.getOrNull(queueIndex)?.id == track.id) {
+                    invalidateNowPlayingInfo()
+                    pushState()
+                }
+            } finally {
+                fallbackArtworkInFlight.remove(id)
+            }
+            if (superseded && queue.getOrNull(queueIndex)?.id == track.id) {
+                invalidateNowPlayingInfo()
+                pushState()
+            }
+        }
+    }
+
+    /** Whether the queued copy of [track] still has the cover [track] was read with. */
+    private fun hasArtworkOf(track: TrackDescriptor): Boolean {
+        val held = queue.firstOrNull { it.id == track.id } ?: pool.firstOrNull { it.id == track.id }
+        return held == null || held.artworkUri == track.artworkUri
+    }
+
+    private fun cacheArtwork(
+        id: String,
+        image: UIImage,
+        real: Boolean = false,
+        latent: Boolean = false,
+    ) {
+        if (id !in artworkCache) {
+            if (artworkOrder.size >= MAX_ARTWORK_CACHE) {
+                val evicted = artworkOrder.removeFirst()
+                artworkCache.remove(evicted)
+                realArtworkIds.remove(evicted)
+                latentArtworkIds.remove(evicted)
+            }
+            artworkOrder.addLast(id)
+        }
+        artworkCache[id] = image
+        if (real) realArtworkIds += id
+        if (latent) latentArtworkIds += id
+    }
+
+    /** A small local cover is enough for System UI to derive a stable player colour. */
+    private fun renderFallbackArtwork(argb: Int): UIImage? {
+        val size = FALLBACK_ARTWORK_SIZE
+        // This is a fixed-size media-session thumbnail, not a point-sized view on a 3x display.
+        UIGraphicsBeginImageContextWithOptions(CGSizeMake(size, size), true, 1.0)
+        try {
+            val context = UIGraphicsGetCurrentContext() ?: return null
+            val red = ((argb ushr 16) and 0xFF) / 255.0
+            val green = ((argb ushr 8) and 0xFF) / 255.0
+            val blue = (argb and 0xFF) / 255.0
+            val background = UIColor(red = red, green = green, blue = blue, alpha = 1.0)
+            CGContextSetFillColorWithColor(context, background.CGColor)
+            CGContextFillRect(context, CGRectMake(0.0, 0.0, size, size))
+
+            val mark = if (relativeLuminance(red, green, blue) > 0.48) {
+                UIColor.blackColor.colorWithAlphaComponent(0.74)
+            } else {
+                UIColor.whiteColor.colorWithAlphaComponent(0.82)
+            }
+            CGContextSetStrokeColorWithColor(context, mark.CGColor)
+            CGContextSetLineWidth(context, size * 0.055)
+            CGContextSetLineCap(context, CGLineCap.kCGLineCapRound)
+            val center = size / 2.0
+            val spacing = size * 0.13
+            val heights = doubleArrayOf(0.20, 0.40, 0.62, 0.40, 0.20)
+            heights.forEachIndexed { index, height ->
+                val x = center + (index - 2) * spacing
+                val half = size * height / 2.0
+                CGContextBeginPath(context)
+                CGContextMoveToPoint(context, x, center - half)
+                CGContextAddLineToPoint(context, x, center + half)
+                CGContextStrokePath(context)
+            }
+            return UIGraphicsGetImageFromCurrentImageContext()
+        } finally {
+            UIGraphicsEndImageContext()
+        }
+    }
+
+    private fun relativeLuminance(red: Double, green: Double, blue: Double): Double {
+        fun channel(value: Double): Double =
+            if (value <= 0.04045) value / 12.92 else ((value + 0.055) / 1.055).pow(2.4)
+        return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue)
+    }
+
+    private companion object {
+        const val MEDIA_ID_PREFIX = "ios-media:"
+        const val DEFAULT_SMART_LOOKAHEAD = 20
+        const val MAX_SMART_LOOKAHEAD = 100
+        const val MAX_ARTWORK_CACHE = 16
+        const val FALLBACK_ARTWORK_SIZE = 96.0
+
+        /** How many queue entries before the seed are passed to the chooser. */
+        const val RECENT_WINDOW = 10
+
+        /** Seek-bar refresh cadence while playing. */
+        const val TICKER_INTERVAL_MS = 500L
+
+        /**
+         * How long the MediaPlayer backend may stay Stopped after `play()` before the start counts
+         * as refused: long enough for a cloud item to begin, short enough not to sit in silence
+         * with a Pause button on screen.
+         */
+        const val MEDIA_PLAYER_START_GRACE_S = 5.0
+
+        /** Fine enough for a 160 ms fade to sound like one movement, not steps. */
+        const val TRANSPORT_FADE_TICK_MS = 20L
+
+        /**
+         * How close two transport events have to be to count as one press.
+         * Long enough to cover the gap between an interruption and its remote
+         * toggle, far shorter than any real double-press of a headphone button.
+         */
+        const val DUPLICATE_TRANSPORT_WINDOW_S = 0.6
+
+    }
+
+    private enum class PlaybackBackend { FILE, MEDIA_LIBRARY }
+}
+
+public actual fun playbackModule(): Module = module {
+    single<PlaybackController> {
+        IosPlaybackController(chooser = get(), audioEngine = get(), engine = get())
+    }
+}

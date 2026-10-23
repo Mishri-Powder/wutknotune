@@ -1,0 +1,15 @@
+Riff Level 2 public-beta model package
+
+DEPLOYMENT: public beta. Model quality and future compatibility are not guaranteed.
+
+The frozen EfficientAT mn10_as_mels_64 checkpoint and implementation originate
+from fschmid56/EfficientAT at the revision recorded in manifest.json. EfficientAT
+source is MIT licensed. This beta includes the derived model weights and records
+their exact upstream revision and hashes in manifest.json and SHA256SUMS.json.
+
+Training supervision includes MTG-Jamendo labels and offline Essentia-derived teacher
+values. No Essentia code, binary, graph, or model is contained in this package.
+The public beta discloses this research-derived supervision provenance. No stable
+or commercial-quality claim is made.
+
+LiteRT conversion uses litert-torch. Android execution uses Google LiteRT.

@@ -1,0 +1,127 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import android.content.Context
+import io.github.nikitasud.latentjam.app.shared.R
+import io.github.nikitasud.latentjam.playback.MediaBrowseCatalog
+import io.github.nikitasud.latentjam.playback.MediaBrowseCollection
+import io.github.nikitasud.latentjam.playback.MediaBrowseRegistry
+import io.github.nikitasud.latentjam.playback.MediaPlaybackResume
+import io.github.nikitasud.latentjam.playback.ShuffleMode
+import io.github.nikitasud.latentjam.smart.TrackId
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+
+/**
+ * Publishes the app's library to external media browsers (Android Auto).
+ *
+ * The provider runs per browse request against the live library and playlists, so a car screen
+ * always sees the current state without any refresh plumbing. Failures collapse to null — an
+ * empty browse tree, never a crashed session.
+ */
+internal fun installMediaBrowseCatalog(context: Context) {
+    val appContext = context.applicationContext
+    MediaBrowseRegistry.catalog = {
+        try {
+            val tracks = AppGraph.library.tracks().filter { !it.audioUri.isNullOrBlank() }
+            val byId = tracks.associateBy { it.id.value }
+            val orders = AppGraph.settings.playlistSortOrders.value
+            MediaBrowseCatalog(
+                collectionsTitle = appContext.getString(R.string.browse_playlists),
+                tracksTitle = appContext.getString(R.string.browse_tracks),
+                collections = AppGraph.playlists.all().mapNotNull { playlist ->
+                    // In the order the playlist's page shows, so the car plays what the phone shows.
+                    val members = playlist.tracksInChosenOrder(playlist.trackIds.mapNotNull(byId::get), orders)
+                    if (members.isEmpty()) return@mapNotNull null
+                    MediaBrowseCollection(
+                        id = "browse-playlist-${playlist.id}",
+                        title = playlist.name,
+                        tracks = members,
+                    )
+                },
+                tracks = tracks,
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Throwable) {
+            null
+        }
+    }
+    // A queue from Android Auto, a voice request or another app did not come from what the app last
+    // started: keeping that source would label the player and the listening log with it.
+    MediaBrowseRegistry.onExternalQueue = { AppGraph.queueSource.value = null }
+    MediaBrowseRegistry.resumption = {
+        try {
+            buildMediaPlaybackResume()?.also { resume ->
+                // A headset, the widget or a voice request resumes the saved queue without the UI,
+                // whose launch restore then finds it playing and leaves it be. The saved source
+                // still describes this queue; without it the player, the listening log and the
+                // next save would all lose where it came from.
+                if (AppGraph.queueSource.value == null) {
+                    AppGraph.queueSource.value = AppGraph.settings.resumePlayback.value?.savedQueueSource()
+                }
+                MediaBrowseRegistry.announceActiveResumption(resume)
+                // A widget/tile/Auto controller can start playback without ever opening the UI.
+                // Connect the app controller too, so it owns queue/source transitions and its
+                // state is hydrated if the Activity is opened later.
+                AppGraph.appScope.launch {
+                    AppGraph.playback.synchronizeWithPlatformSession()
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Throwable) {
+            null
+        }
+    }
+}
+
+/** Reuses the exact queue/source fallback rules used by the Compose launch restore. */
+private suspend fun buildMediaPlaybackResume(): MediaPlaybackResume? {
+    val saved = AppGraph.settings.resumePlayback.value ?: return null
+    val library = AppGraph.library.tracks().filter { !it.audioUri.isNullOrBlank() }
+    if (library.isEmpty()) return null
+    val mode = ShuffleMode.entries.firstOrNull { it.name == saved.shuffleMode }
+        ?: ShuffleMode.OFF
+    val byId = library.associateBy { it.id.value }
+    val playlists = AppGraph.playlists.all()
+    val source = resolveResumeSourceQueue(
+        saved = saved,
+        library = library,
+        playlists = playlists,
+        playlistOrders = AppGraph.settings.playlistSortOrders.value,
+    )
+    val resolvedSavedQueue = saved.queueTrackIds.mapIndexedNotNull { persistedIndex, id ->
+        byId[id]?.let { persistedIndex to it }
+    }
+    val savedQueue = resolvedSavedQueue.map { it.second }
+    val savedQueueIndex = resolvedSavedQueue.indexOfFirst { (persistedIndex, track) ->
+        persistedIndex == saved.queueIndex && track.id.value == saved.trackId
+    }.takeIf { it >= 0 } ?: savedQueue.indexOfFirst { it.id.value == saved.trackId }
+
+    if (savedQueueIndex >= 0) {
+        return MediaPlaybackResume(
+            tracks = savedQueue,
+            startIndex = savedQueueIndex,
+            positionMs = saved.positionMs.coerceAtLeast(0L),
+            shuffleMode = mode,
+            sourceTracks = source,
+            smartContinuationIds = saved.smartContinuationIds.mapTo(HashSet(), ::TrackId),
+            smartPlanPositions = saved.smartPlanPositions.mapKeys { (id, _) -> TrackId(id) },
+        )
+    }
+
+    val current = byId[saved.trackId] ?: return null
+    val fallbackSource = source ?: library
+    val fallback = fallbackResumeQueue(mode = mode, current = current, source = fallbackSource)
+    return MediaPlaybackResume(
+        tracks = fallback.liveQueue,
+        startIndex = fallback.currentIndex,
+        positionMs = saved.positionMs.coerceAtLeast(0L),
+        shuffleMode = mode,
+        sourceTracks = fallbackSource,
+    )
+}

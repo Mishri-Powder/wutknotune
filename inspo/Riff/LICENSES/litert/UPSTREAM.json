@@ -1,0 +1,22 @@
+[
+  {
+    "artifact": "litert",
+    "version": "2.3.0",
+    "source": "https://dl.google.com/dl/android/maven2/com/google/ai/edge/litert/litert/2.3.0/litert-2.3.0.aar",
+    "archiveSha256": "9508c6e9142646f0f2bc1fe68b3925fb470ee7ddd29114540339a04a8ab189dc",
+    "files": {
+      "litert-LICENSE": "71c6915d04265772a0339bed47276942c678b45cc01534210ebe6984fd1aec65",
+      "litert-THIRD_PARTY_NOTICE.txt": "db6e1ff4b16c11eb01c45f135928527a50a05282739054686793ec70f442f119"
+    }
+  },
+  {
+    "artifact": "litert-api",
+    "version": "2.3.0",
+    "source": "https://dl.google.com/dl/android/maven2/com/google/ai/edge/litert/litert-api/2.3.0/litert-api-2.3.0.aar",
+    "archiveSha256": "20f630e9ed0b4f0564da616fd3d6406f3013cacad7d492cbe2963330f519256b",
+    "files": {
+      "litert-api-LICENSE": "71c6915d04265772a0339bed47276942c678b45cc01534210ebe6984fd1aec65",
+      "litert-api-THIRD_PARTY_NOTICE.txt": "db6e1ff4b16c11eb01c45f135928527a50a05282739054686793ec70f442f119"
+    }
+  }
+]

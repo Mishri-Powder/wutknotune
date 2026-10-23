@@ -1,0 +1,11 @@
+include "common.fbs";
+
+namespace link.roadio.cuetree.fbs;
+
+table Gnrv {
+  header: Header (required);
+  genres: [Genre] (required);
+}
+
+root_type Gnrv;
+file_identifier "GNRV";

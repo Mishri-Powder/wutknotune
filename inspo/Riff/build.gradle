@@ -1,0 +1,141 @@
+// Plugin classpaths are build-host code, but remain part of the monthly CVE inventory.
+// AI-INTENT: Retain fixed plugin transitives in exported independent builds as well.
+// https://wiki.271.pics/Riff/LATEST/dependency-security#inventory-and-remediation
+buildscript {
+    configurations.classpath {
+        resolutionStrategy.force 'org.apache.commons:commons-lang3:3.21.0',
+            'org.bitbucket.b_c:jose4j:0.9.7',
+            'org.bouncycastle:bcpkix-jdk18on:1.86',
+            'org.bouncycastle:bcprov-jdk18on:1.86',
+            'org.bouncycastle:bcutil-jdk18on:1.86',
+            'org.jdom:jdom2:2.0.6.1'
+    }
+}
+
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '2.4.21' apply false
+    id 'com.android.application' version '9.4.1' apply false
+    id 'com.android.library' version '9.4.1' apply false
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.4.21' apply false
+    id 'org.jlleitschuh.gradle.ktlint' version '14.2.0' apply false
+}
+
+def genreToolDir = file("${rootDir}/tools/genre-retrieval")
+def genreCacheDir = providers.gradleProperty('genreCacheDir')
+    .map { file(it) }
+    .getOrElse(file("${genreToolDir}/cache"))
+def genreVenvDir = providers.gradleProperty('genreVenv')
+    .getOrElse("${System.getProperty('user.home')}/venv/riff-genre")
+def gnreAsset = file('indexer/src/main/assets/gnre/gnre.fb')
+
+tasks.register('verifyGenreRetrieval', Exec) {
+    group = 'verification'
+    description = 'Validate the imported genre retrieval Python sources without network access.'
+    workingDir rootDir
+    commandLine 'python3', "${genreToolDir}/retrieve_genres.py", '--self-check'
+
+    inputs.files(fileTree(genreToolDir) {
+        include '*.py'
+        include 'requirements.txt'
+    })
+    inputs.files(file('config/project.json'), file('tools/project_config.py'))
+}
+
+tasks.register('retrieveGenres', Exec) {
+    group = 'data'
+    description = 'Retrieve and persistently cache the merged Wikidata/MusicBrainz genre graph.'
+    workingDir rootDir
+
+    inputs.files(fileTree(genreToolDir) {
+        include '*.py'
+        include 'requirements.txt'
+    })
+    inputs.files(file('config/project.json'), file('tools/project_config.py'))
+    outputs.file(file("${genreCacheDir}/genres.merged.json"))
+    outputs.upToDateWhen {
+        providers.gradleProperty('refreshGenres').orNull != 'true'
+    }
+
+    doFirst {
+        def invocation = [
+            'python3',
+            "${genreToolDir}/retrieve_genres.py",
+            '--cache-dir', genreCacheDir.absolutePath,
+            '--venv', genreVenvDir,
+        ]
+        providers.gradleProperty('genreContact').orNull?.with { contact ->
+            invocation.addAll(['--contact', contact])
+        }
+        if (providers.gradleProperty('refreshGenres').orNull == 'true') {
+            invocation.add('--refresh')
+        }
+        commandLine invocation
+    }
+}
+
+tasks.register('buildGnre', Exec) {
+    group = 'data'
+    description = 'Compile cached merged genre data into the bundled GNRE asset.'
+    dependsOn tasks.named('retrieveGenres')
+    workingDir rootDir
+    inputs.file(file("${genreCacheDir}/genres.merged.json"))
+    inputs.file(file("${genreToolDir}/build_gnre.py"))
+    inputs.file(file("${genreToolDir}/project_genres.py"))
+    inputs.files(file('config/project.json'), file('tools/project_config.py'))
+    inputs.file(file('indexer/src/main/fbs/gnre.fbs'))
+    inputs.file(file('indexer/src/main/resources/link/roadio/riff/indexer/core/tags/confusables/confusables-one-to-one.bin'))
+    outputs.file(gnreAsset)
+    commandLine(
+        "${genreVenvDir}/bin/python",
+        "${genreToolDir}/build_gnre.py",
+        '--input', "${genreCacheDir}/genres.merged.json",
+        '--output', gnreAsset,
+    )
+}
+
+tasks.register('verifyGnreAsset', Exec) {
+    group = 'verification'
+    description = 'Require a valid raw GNRE resource for uncompressed APK packaging.'
+    mustRunAfter tasks.named('buildGnre')
+    workingDir rootDir
+    inputs.file(gnreAsset)
+    inputs.file(file("${genreToolDir}/verify_gnre_asset.py"))
+    inputs.files(file('config/project.json'), file('tools/project_config.py'))
+    commandLine 'python3', "${genreToolDir}/verify_gnre_asset.py", gnreAsset
+}
+
+def confusablesTool = file('tools/unicode-confusables/generate_confusables.py')
+def confusablesOutput =
+    file('indexer/src/main/resources/link/roadio/riff/indexer/core/tags/confusables')
+
+tasks.register('refreshConfusables', Exec) {
+    group = 'data'
+    description = 'Explicitly refresh and compile the official latest Unicode confusables data.'
+    workingDir rootDir
+    commandLine 'python3', confusablesTool, '--refresh', '--output-dir', confusablesOutput
+}
+
+tasks.register('verifyConfusables', Exec) {
+    group = 'verification'
+    description = 'Verify the checked-in compact Unicode confusables table without network access.'
+    workingDir rootDir
+    commandLine 'python3', confusablesTool, '--verify', '--output-dir', confusablesOutput
+    inputs.file(confusablesTool)
+    inputs.files(fileTree('indexer/src/main/resources') {
+        include '**/confusables-one-to-one.bin'
+        include '**/confusables-one-to-one.properties'
+    })
+}
+
+// The formatter runs only on the build host; its logging dependency still needs CVE maintenance.
+// AI-INTENT: Keep this policy inside each independent build so source exports remain self-contained.
+// https://wiki.271.pics/Riff/LATEST/dependency-security#monthly-cve-review
+allprojects {
+    plugins.withId('org.jlleitschuh.gradle.ktlint') {
+        ktlint { version = '1.8.0' }
+        configurations.matching { it.name.startsWith('ktlint') }.configureEach {
+            resolutionStrategy.force 'ch.qos.logback:logback-core:1.6.5',
+                'ch.qos.logback:logback-classic:1.6.5'
+        }
+    }
+}

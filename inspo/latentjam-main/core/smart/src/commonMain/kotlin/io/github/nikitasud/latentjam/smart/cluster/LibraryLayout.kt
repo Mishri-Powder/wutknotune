@@ -1,0 +1,742 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.smart.cluster
+
+import io.github.nikitasud.latentjam.smart.IndexStore
+import io.github.nikitasud.latentjam.smart.TrackId
+import kotlin.math.sqrt
+
+/** Where one track sits on the Map, in a normalized 0..1 box. */
+public data class LayoutPoint(
+    public val trackId: TrackId,
+    public val x: Float,
+    public val y: Float,
+)
+
+/** Persisted positions plus the vector content identity they were computed from. */
+public data class StoredLibraryLayout(
+    /** Always safe to use as a warm start, even when [fingerprint] is stale or absent. */
+    public val positions: Map<TrackId, FloatArray>,
+    /** `null` for a missing, legacy, or malformed metadata entry. */
+    public val fingerprint: Long?,
+)
+
+private fun FloatArray.isUsableLayoutPosition(): Boolean =
+    size == 2 && this[0].isFinite() && this[1].isFinite()
+
+/**
+ * The library's 2-D shape.
+ *
+ * Projects the layout fusion into a stable position per track. Region discovery independently
+ * reweights its own copy; this projection preserves the existing layout weights.
+ *
+ * Pure and deterministic: identical input yields byte-identical output. The Map is a place people
+ * learn, and a page that rearranges itself between visits is indistinguishable from a broken one.
+ *
+ * NOTE: [LibraryVectorSpace] is one-shot. Callers must obtain their own space from
+ * `SimilarityEngine.libraryMixFeatures`; passing the instance already consumed by
+ * [LibraryWorlds.discover] throws.
+ */
+public object LibraryLayout {
+
+    /**
+     * Layout identity. Part of the cache key, so bumping it invalidates every stored map — which
+     * is the point: a different algorithm is a different picture.
+     */
+    public const val VERSION: String = "tsne-p20-pca50-v2"
+    /** The alternative remains opt-in until full-app speed, memory and quality gates pass. */
+    public val experimentalBackend: Boolean get() = MapBuildFlags.EXPERIMENTAL
+    public val cacheVersion: String
+        get() = if (experimentalBackend) BarnesHutMapEmbedding.VERSION else VERSION
+
+    /** Pre-reduction width. Measured: keeping this step is worth ~0.01 on both quality metrics. */
+    public const val COMPONENTS: Int = 50
+
+    /**
+     * Hard ceiling on the library size [compute] will lay out.
+     *
+     * Up to [EXACT_MAX_TRACKS] the map uses exact t-SNE ([Tsne]), whose quadratic matrices hold
+     * `n * (n - 1)` floats. Above it [BarnesHutTsne] keeps memory linear: about 30 MB of its own
+     * working set at 10,000 tracks, plus the 54 MB fused input and PCA buffers. This ceiling is the
+     * largest size measured on a 256 MB heap (docs/map-scaling-10k-2026-10-15.md). Above it the
+     * caller shows an explicit limit instead of silently drawing a subset; [compute] also enforces
+     * the guard independently of the UI.
+     */
+    public const val MAX_TRACKS: Int = 10_000
+
+    /**
+     * Largest library laid out with exact t-SNE; larger libraries use [BarnesHutTsne].
+     *
+     * Measured (docs/map-scaling-10k-2026-10-15.md): Barnes-Hut matches exact on trustworthiness,
+     * neighbour recall and same-playlist neighbours at 1,104 real and 3,000 synthetic tracks, and
+     * is several times faster from about 1,000 tracks. Exact stays below this size so small
+     * libraries, including the 1,107-track library the map was tuned on, keep their pictures.
+     * A library crossing it warm-starts from its stored positions, as after any library change.
+     */
+    public const val EXACT_MAX_TRACKS: Int = 2000
+
+    private const val SEED: Int = 0x1A7E27
+
+    /**
+     * Minimum correspondence points before [alignToPrevious] attempts a similarity fit.
+     *
+     * Two points is an exact-isometry problem with two equally valid solutions: both the direct
+     * and the x-mirrored hypothesis in [applyTransform] reconstruct a 2-point overlap with residual
+     * 0, so the tie-break that picks between them has nothing but floating-point noise to go on --
+     * and whichever it picks gets applied to every point in the layout. Three points breaks the tie
+     * for any non-degenerate (non-collinear) overlap, which is what real t-SNE output produces.
+     */
+    private const val MIN_ALIGNMENT_OVERLAP: Int = 3
+
+    /**
+     * @param previous the last stored layout, used as a warm start so an added album nudges the map
+     *   rather than redrawing it. Tracks it does not cover start from the centroid of the tracks it
+     *   does, so newcomers appear in the middle rather than at a corner.
+     * @param isActive cooperative abort hook, checked once per outer iteration of both the PCA
+     *   pre-reduction and the t-SNE pass -- see [Tsne.embed]'s parameter of the same name. A caller
+     *   running this under a coroutine (the only realistic caller: see [MAX_TRACKS]'s doc on why
+     *   this can take real wall time) passes its own `{ isActive }` so a reader who has already
+     *   navigated away stops the work. Cancellation throws; a partial embedding is never returned.
+     * @param workBudgetBytes free heap measured while [space] already holds its input matrix;
+     *   compared against [MapMemoryBudget.projectionWorkBytes]
+     * @throws kotlinx.coroutines.CancellationException when [isActive] becomes false
+     * @throws MapComputationUnavailable before unsafe allocation or when a backend fails
+     * @throws IllegalArgumentException if `space.size` exceeds [MAX_TRACKS]
+     */
+    public fun compute(
+        space: LibraryVectorSpace,
+        previous: Map<TrackId, FloatArray> = emptyMap(),
+        isActive: () -> Boolean = { true },
+        workBudgetBytes: Long = Long.MAX_VALUE,
+    ): List<LayoutPoint> {
+        val ids = space.trackIds
+        val n = space.size
+        if (n == 0) return emptyList()
+        // Below 3 points, both the reduction and t-SNE are degenerate anyway (see their own n < 3
+        // guards); short-circuit before space.takeRows() so this path never touches the one-shot
+        // matrix at all.
+        if (n < 3) return ids.map { id -> LayoutPoint(id, 0.5f, 0.5f) }
+        require(n <= MAX_TRACKS) {
+            "Library has $n laid-out tracks, above MAX_TRACKS ($MAX_TRACKS); the caller must check " +
+                "this before calling compute() and show an honest state instead of hitting this"
+        }
+        return computeWith(space, previous, isActive, workBudgetBytes, backendFor(n))
+    }
+
+    /** [compute] with an explicit backend, so replays can compare backends at any size. */
+    internal fun computeWith(
+        space: LibraryVectorSpace,
+        previous: Map<TrackId, FloatArray>,
+        isActive: () -> Boolean,
+        workBudgetBytes: Long,
+        backend: MapEmbeddingBackend,
+    ): List<LayoutPoint> {
+        val ids = space.trackIds
+        val n = space.size
+        val dim = space.dim
+        // The space already holds the input matrix, so the measured budget already reflects it.
+        if (MapMemoryBudget.projectionWorkBytes(n, dim, experimentalBackend) > workBudgetBytes) {
+            throw MapComputationUnavailable("Insufficient memory for map projection", memoryLimited = true)
+        }
+        if (!isActive()) throw kotlinx.coroutines.CancellationException("Map cancelled before PCA")
+        val rows = space.takeRows()
+
+        val reduced = reduceForEmbedding(rows, n, dim, isActive)
+        val reducedDim = reduced.size / n
+
+        val warm = warmStart(ids, previous, n)
+        var embedded = when (val result = backend.embed(reduced, n, reducedDim, warm, isActive)) {
+            is MapEmbeddingResult.Complete -> result.coordinates
+            MapEmbeddingResult.Cancelled -> throw kotlinx.coroutines.CancellationException("Map cancelled")
+            is MapEmbeddingResult.Failed -> throw MapComputationUnavailable(result.reason)
+        }
+
+        if (warm != null) {
+            embedded = alignToPrevious(ids, embedded, previous, n)
+        }
+        return normalize(ids, embedded, n)
+    }
+
+    /**
+     * [compute] reading [rows] on demand instead of from a held matrix.
+     *
+     * The reduction is [Pca.reduceStreamed]: one pass over the rows for the mean, one per
+     * subspace iteration and one for the projection, accumulating in the same order as the held
+     * path, so for the same rows the result is identical to [compute]'s, bit for bit. Only the
+     * `n x COMPONENTS` reduction and one [LibraryVectorRows.CHUNK_ROWS] buffer are held, never the
+     * `n x dim` input: 54 MB fewer at 10,000 tracks.
+     *
+     * @param workBudgetBytes free heap measured before the call; compared against
+     *   [MapMemoryBudget.projectionStreamedBytes]
+     * Vectors the indexer adds or replaces while the rows are read do not discard the result. Once
+     * the space is hybrid every added audio vector moves the fingerprint, more often than a large
+     * library's read takes, so a layout that waited for a still index would wait for the end of
+     * the analysis, and nothing would ask for it again before then. Each
+     * row is still a real vector of its track, so the map is a picture of the library as it was
+     * during the read, as a held matrix was a picture of it at its build; the caller files it under
+     * [LibraryVectorRows.fingerprint], which no longer matches, so the next visit redraws it.
+     *
+     * @return null when the population changed while the rows were read (a track gained or lost
+     *   its last vector, or the space changed modality); nothing is laid out from the mixed rows
+     * @throws kotlinx.coroutines.CancellationException when [isActive] becomes false
+     * @throws MapComputationUnavailable before unsafe allocation or when a backend fails
+     * @throws IllegalArgumentException if `rows.size` exceeds [MAX_TRACKS]
+     */
+    public suspend fun compute(
+        rows: LibraryVectorRows,
+        previous: Map<TrackId, FloatArray> = emptyMap(),
+        isActive: () -> Boolean = { true },
+        workBudgetBytes: Long = Long.MAX_VALUE,
+    ): List<LayoutPoint>? {
+        val ids = rows.trackIds
+        val n = ids.size
+        if (n == 0) return emptyList()
+        if (n < 3) return ids.map { id -> LayoutPoint(id, 0.5f, 0.5f) }
+        require(n <= MAX_TRACKS) {
+            "Library has $n laid-out tracks, above MAX_TRACKS ($MAX_TRACKS); the caller must check " +
+                "this before calling compute() and show an honest state instead of hitting this"
+        }
+        if (MapMemoryBudget.projectionStreamedBytes(n, rows.dim, experimentalBackend) > workBudgetBytes) {
+            throw MapComputationUnavailable("Insufficient memory for map projection", memoryLimited = true)
+        }
+        return computeStreamed(
+            ids, rows::read, rows.dim, previous, isActive, keepsPopulation = rows::keepsPopulation,
+        )
+    }
+
+    /**
+     * Streamed [compute] over any [source]; also the device-test entry point.
+     * [keepsPopulation] runs once, after the last row is read and before the embedding.
+     */
+    internal suspend fun computeStreamed(
+        ids: List<TrackId>,
+        source: LayoutRowSource,
+        dim: Int,
+        previous: Map<TrackId, FloatArray> = emptyMap(),
+        isActive: () -> Boolean = { true },
+        onPhase: (String) -> Unit = {},
+        keepsPopulation: suspend () -> Boolean = { true },
+        backend: MapEmbeddingBackend = backendFor(ids.size),
+    ): List<LayoutPoint>? {
+        val n = ids.size
+        if (n < 3) return ids.map { id -> LayoutPoint(id, 0.5f, 0.5f) }
+        if (!isActive()) throw kotlinx.coroutines.CancellationException("Map cancelled before PCA")
+        val reduced = SampledTsne.reduce(source, n, dim, null, COMPONENTS, SEED, isActive)
+            ?: throw kotlinx.coroutines.CancellationException("Map cancelled during PCA")
+        onPhase("reduced")
+        if (!keepsPopulation()) return null
+        val warm = warmStart(ids, previous, n)
+        var embedded = when (val result = backend.embed(reduced, n, reduced.size / n, warm, isActive)) {
+            is MapEmbeddingResult.Complete -> result.coordinates
+            MapEmbeddingResult.Cancelled -> throw kotlinx.coroutines.CancellationException("Map cancelled")
+            is MapEmbeddingResult.Failed -> throw MapComputationUnavailable(result.reason)
+        }
+        if (warm != null) embedded = alignToPrevious(ids, embedded, previous, n)
+        return normalize(ids, embedded, n)
+    }
+
+    /**
+     * Prototype "sample and place" layout (docs/map-sample-place-2026-10-16.md): [compute]'s warm
+     * start, alignment and normalization around [SampledTsne], reading rows from [source] one at a
+     * time instead of from a held matrix.
+     */
+    internal suspend fun computeSampled(
+        ids: List<TrackId>,
+        source: LayoutRowSource,
+        dim: Int,
+        previous: Map<TrackId, FloatArray> = emptyMap(),
+        isActive: () -> Boolean = { true },
+        sampleSize: Int = SampledTsne.SAMPLE_SIZE,
+        refineIterations: Int = SampledTsne.REFINE_ITERATIONS,
+        refineRate: Float = 1f,
+        neighbours: Int = SampledTsne.PLACE_NEIGHBORS,
+        onPhase: (String) -> Unit = {},
+        fullIterations: Int = 0,
+        sampleIterations: Int = Tsne.ITERATIONS,
+        samplePca: Boolean = false,
+    ): List<LayoutPoint> {
+        val n = ids.size
+        if (n < 3) return ids.map { id -> LayoutPoint(id, 0.5f, 0.5f) }
+        val sample = SampledTsne.sampleRows(ids, sampleSize)
+        val reduced = SampledTsne.reduce(source, n, dim, sample.takeIf { samplePca }, COMPONENTS, SEED, isActive)
+            ?: throw kotlinx.coroutines.CancellationException("Map cancelled during PCA")
+        onPhase("reduced")
+        val reducedDim = reduced.size / n
+        val warm = warmStart(ids, previous, n)
+        var embedded = SampledTsne.embed(
+            reduced, n, reducedDim, sample, SEED, warm, isActive, refineIterations, refineRate, neighbours, onPhase,
+            fullIterations, sampleIterations,
+        ) ?: throw kotlinx.coroutines.CancellationException("Map cancelled")
+        if (!isActive()) throw kotlinx.coroutines.CancellationException("Map cancelled")
+        if (!embedded.all(Float::isFinite)) throw MapComputationUnavailable("Non-finite coordinates")
+        if (warm != null) embedded = alignToPrevious(ids, embedded, previous, n)
+        return normalize(ids, embedded, n)
+    }
+
+    internal fun backendFor(n: Int): MapEmbeddingBackend = when {
+        experimentalBackend && n >= 61 -> BarnesHutMapEmbedding
+        n > EXACT_MAX_TRACKS -> ApproximateMapEmbedding
+        else -> ExactMapEmbedding
+    }
+
+    /**
+     * Whether [stored] is the layout for exactly [trackIds], and can be shown as-is.
+     *
+     * When false the stored layout is stale — but still the best available warm start, which is why
+     * it is kept under [VERSION] alone rather than under a key that encodes the track set.
+     */
+    public fun covers(stored: Map<TrackId, FloatArray>, trackIds: List<TrackId>): Boolean =
+        stored.size == trackIds.size &&
+            stored.keys.containsAll(trackIds) &&
+            stored.values.all(FloatArray::isUsableLayoutPosition)
+
+    /**
+     * Whether [stored] is drawable as-is for both the selected population and its raw vector
+     * content. A false result deliberately leaves [StoredLibraryLayout.positions] available to
+     * [compute] as a warm start.
+     */
+    public fun covers(
+        stored: StoredLibraryLayout,
+        trackIds: List<TrackId>,
+        fingerprint: Long,
+    ): Boolean = stored.fingerprint == fingerprint && covers(stored.positions, trackIds)
+
+    /** Convenience overload for the coverage object callers already have. */
+    public fun covers(
+        stored: StoredLibraryLayout,
+        coverage: LibraryVectorCoverage,
+    ): Boolean = covers(stored, coverage.trackIds, coverage.fingerprint)
+
+    /**
+     * Aligns [embedded] to [previous] via [applyTransform], or leaves it untouched when there
+     * aren't enough correspondence points to trust the fit -- see [MIN_ALIGNMENT_OVERLAP].
+     *
+     * Visibility is `internal`, not `private`, so [LibraryLayoutTest] can pin the overlap == 2
+     * boundary directly: forcing that exact tie-break through [compute] would depend on t-SNE's
+     * convergence, which a test cannot reliably steer.
+     */
+    internal fun alignToPrevious(
+        ids: List<TrackId>,
+        embedded: FloatArray,
+        previous: Map<TrackId, FloatArray>,
+        n: Int,
+    ): FloatArray {
+        val overlap = ids.withIndex().filter {
+            previous[it.value]?.isUsableLayoutPosition() == true
+        }
+        if (overlap.size < MIN_ALIGNMENT_OVERLAP) return embedded
+        val candidate = FloatArray(overlap.size * 2)
+        val reference = FloatArray(overlap.size * 2)
+        overlap.forEachIndexed { slot, (row, id) ->
+            candidate[slot * 2] = embedded[row * 2]
+            candidate[slot * 2 + 1] = embedded[row * 2 + 1]
+            val stored = previous.getValue(id)
+            reference[slot * 2] = stored[0]
+            reference[slot * 2 + 1] = stored[1]
+        }
+        return applyTransform(embedded, candidate, reference, overlap.size, n)
+    }
+
+    /**
+     * Pre-reduction for [Tsne.embed]: mean-center (the only precondition [Pca.reduce] documents),
+     * unit-normalize so PCA sees per-track *directions* rather than magnitude, reduce, then
+     * unit-normalize the *reduced* rows so [Tsne.embed]'s own precondition holds too.
+     *
+     * Both normalize steps are needed and neither substitutes for the other:
+     *
+     * - The pre-PCA one guards [Pca.reduce] itself. [rows] arrives already unit-normalized (fusion
+     *   guarantees that -- see `LibraryVectorFusion.copyNormalized`), but [center] does not preserve
+     *   it: subtracting a shared per-dimension mean from a set of unit vectors leaves each row with
+     *   a magnitude that depends on how far its *direction* sits from the corpus-mean direction, not
+     *   on anything meaningful about the track -- a track whose fused vector happens to point near
+     *   the library's average direction shrinks much more than one that points away from it. Left
+     *   uncorrected, [Pca.reduce]'s leading components chase that centering-induced magnitude spread
+     *   instead of the cosine structure the rest of this pipeline is built on -- changing *which* 50
+     *   components come out, not merely their scale. Re-normalizing after centering removes that
+     *   artifact without undoing the centering [Pca.reduce] still requires.
+     * - The post-PCA one guards [Tsne.embed]. [Pca.reduce] is a partial orthogonal projection, which
+     *   does not preserve vector norm except for a row that happens to lie entirely inside the
+     *   retained subspace -- so even unit-length input generally comes out with a row-dependent norm
+     *   less than one, and squared Euclidean distance between such rows is no longer a monotone
+     *   function of their cosine distance. Normalizing has to happen again on the array
+     *   [Tsne.embed] actually receives.
+     *
+     * Visibility is `internal`, not `private`, so [LibraryLayoutTest] can assert directly on the
+     * array handed to [Tsne.embed] rather than only on `compute`'s final, twice-removed output.
+     *
+     * @param rows row-major `n x dim`, mutated in place by centering and the first normalize
+     * @param isActive forwarded to [Pca.reduce] -- see [compute]'s parameter of the same name
+     * @return row-major `n x COMPONENTS` (fewer if `dim` or `n` is smaller), unit-normalized per row
+     */
+    internal fun reduceForEmbedding(
+        rows: FloatArray,
+        n: Int,
+        dim: Int,
+        isActive: () -> Boolean = { true },
+    ): FloatArray {
+        prepareForPca(rows, n, dim)
+        val reduced = Pca.reduce(rows, n, dim, COMPONENTS, SEED, isActive)
+        val reducedDim = reduced.size / n
+        unitize(reduced, n, reducedDim)
+        return reduced
+    }
+
+    /**
+     * Centers [rows], then unit-normalizes each row, so [Pca.reduce] sees per-track direction
+     * relative to the library's centroid rather than per-track magnitude. See [reduceForEmbedding]
+     * for why both steps -- and this ordering -- matter.
+     *
+     * Mutates [rows] in place, satisfying [Pca.reduce]'s own documented precondition (mean-centered
+     * input) since centering runs first. Strictly, the per-row `unitize` that follows is a nonlinear
+     * reweighting and reintroduces a nonzero mean -- but only because it rescales each row by a
+     * *different* factor (that row's own inverse norm): if every row happened to share the same
+     * post-centering norm, dividing by one common scalar would preserve the exact zero mean [center]
+     * just established instead. So whatever mean `unitize` reintroduces is driven entirely by how
+     * much the rows' norms vary after centering, not by anything unbounded, and is left uncorrected
+     * rather than spending a second centering pass on it.
+     *
+     * Visibility is `internal`, not `private`, so [LibraryLayoutTest] can assert directly that the
+     * rows handed to [Pca.reduce] are unit-norm, rather than trusting this ran from downstream
+     * output alone.
+     */
+    internal fun prepareForPca(rows: FloatArray, n: Int, dim: Int) {
+        center(rows, n, dim)
+        unitize(rows, n, dim)
+    }
+
+    private fun warmStart(
+        ids: List<TrackId>,
+        previous: Map<TrackId, FloatArray>,
+        n: Int,
+    ): FloatArray? {
+        if (previous.isEmpty()) return null
+        var covered = 0
+        var cx = 0f
+        var cy = 0f
+        for (id in ids) {
+            val stored = previous[id] ?: continue
+            if (!stored.isUsableLayoutPosition()) continue
+            covered++
+            cx += stored[0]
+            cy += stored[1]
+        }
+        if (covered < 2) return null
+        cx /= covered
+        cy /= covered
+        val out = FloatArray(n * 2)
+        ids.forEachIndexed { row, id ->
+            val stored = previous[id]
+            if (stored != null && stored.isUsableLayoutPosition()) {
+                out[row * 2] = stored[0]
+                out[row * 2 + 1] = stored[1]
+            } else {
+                out[row * 2] = cx
+                out[row * 2 + 1] = cy
+            }
+        }
+        return out
+    }
+
+    /**
+     * Recovers the similarity transform [LayoutAnchor.align] applied to the overlap and applies it
+     * to every row, so newcomers travel with the tracks around them instead of staying in the raw
+     * t-SNE frame.
+     *
+     * [LayoutAnchor.align] is documented to reflect as well as rotate, and a reflection is not
+     * representable as a single complex scale-rotation `alignedOverlap = z * candidate`: that model
+     * is holomorphic (it can only rotate and scale), while a reflection is anti-holomorphic. Fitting
+     * the holomorphic model against reflected data does not recover a transform that reproduces
+     * [alignedOverlap] -- it recovers whatever minimizes squared error under a model that cannot
+     * represent the true relationship, which is a materially different, wrong transform, not a
+     * close approximation. So both hypotheses -- direct and x-mirrored -- are fit, and whichever
+     * actually reconstructs [alignedOverlap] from [candidate] (residual ~0, since alignment is an
+     * exact isometry on the overlap) is the one applied to the full embedding.
+     *
+     * Callers must supply at least [MIN_ALIGNMENT_OVERLAP] correspondence points ([alignToPrevious]
+     * enforces this). Below that, both hypotheses reconstruct the overlap exactly, so the residual
+     * comparison this function relies on to choose between them carries no signal.
+     *
+     * Visibility is `internal`, not `private`, solely so [LibraryLayoutTest] can pin this down with
+     * a direct regression test: reaching the mirrored branch through [compute] would depend on
+     * t-SNE's convergence landing in a particular orientation, which is not something a test can
+     * reliably force.
+     */
+    internal fun applyTransform(
+        embedded: FloatArray,
+        candidate: FloatArray,
+        reference: FloatArray,
+        overlap: Int,
+        n: Int,
+    ): FloatArray {
+        val alignedOverlap = LayoutAnchor.align(candidate, reference, overlap)
+
+        var cx = 0f
+        var cy = 0f
+        var ax = 0f
+        var ay = 0f
+        for (i in 0 until overlap) {
+            cx += candidate[i * 2]
+            cy += candidate[i * 2 + 1]
+            ax += alignedOverlap[i * 2]
+            ay += alignedOverlap[i * 2 + 1]
+        }
+        cx /= overlap
+        cy /= overlap
+        ax /= overlap
+        ay /= overlap
+
+        val direct = fitSimilarity(candidate, alignedOverlap, overlap, cx, cy, ax, ay, mirror = false)
+        val mirrored = fitSimilarity(candidate, alignedOverlap, overlap, cx, cy, ax, ay, mirror = true)
+        val useMirror = mirrored.residual < direct.residual
+        val chosen = if (useMirror) mirrored else direct
+        if (chosen.denominator < 1e-12f) return embedded
+
+        val out = FloatArray(n * 2)
+        for (i in 0 until n) {
+            var dx = embedded[i * 2] - cx
+            val dy = embedded[i * 2 + 1] - cy
+            if (useMirror) dx = -dx
+            out[i * 2] = ax + dx * chosen.cosScale - dy * chosen.sinScale
+            out[i * 2 + 1] = ay + dx * chosen.sinScale + dy * chosen.cosScale
+        }
+        return out
+    }
+
+    private class SimilarityFit(
+        val cosScale: Float,
+        val sinScale: Float,
+        val denominator: Float,
+        val residual: Float,
+    )
+
+    /**
+     * Least-squares complex scale-rotation fitting `target ~= z * source` (or, when [mirror] is
+     * set, `target ~= z * mirror-x(source)`), both centered on their respective centroids.
+     * [SimilarityFit.residual] is the sum of squared reconstruction error, which is what
+     * [applyTransform] uses to tell a genuine fit from a model that cannot represent the data.
+     */
+    private fun fitSimilarity(
+        source: FloatArray,
+        target: FloatArray,
+        overlap: Int,
+        sourceCx: Float,
+        sourceCy: Float,
+        targetCx: Float,
+        targetCy: Float,
+        mirror: Boolean,
+    ): SimilarityFit {
+        var scaleNumerator = 0f
+        var sinNumerator = 0f
+        var denominator = 0f
+        for (i in 0 until overlap) {
+            var dx = source[i * 2] - sourceCx
+            val dy = source[i * 2 + 1] - sourceCy
+            if (mirror) dx = -dx
+            val ex = target[i * 2] - targetCx
+            val ey = target[i * 2 + 1] - targetCy
+            scaleNumerator += dx * ex + dy * ey
+            sinNumerator += dx * ey - dy * ex
+            denominator += dx * dx + dy * dy
+        }
+        if (denominator < 1e-12f) return SimilarityFit(0f, 0f, denominator, Float.MAX_VALUE)
+        val cosScale = scaleNumerator / denominator
+        val sinScale = sinNumerator / denominator
+
+        var residual = 0f
+        for (i in 0 until overlap) {
+            var dx = source[i * 2] - sourceCx
+            val dy = source[i * 2 + 1] - sourceCy
+            if (mirror) dx = -dx
+            val ex = target[i * 2] - targetCx
+            val ey = target[i * 2 + 1] - targetCy
+            val px = dx * cosScale - dy * sinScale
+            val py = dx * sinScale + dy * cosScale
+            val rx = px - ex
+            val ry = py - ey
+            residual += rx * rx + ry * ry
+        }
+        return SimilarityFit(cosScale, sinScale, denominator, residual)
+    }
+
+    /**
+     * Fits [embedded] into the 0..1 box with a single, uniform scale for both axes, so this step
+     * is a rigid-plus-uniform-scale map and cannot undo the rotation [applyTransform] just spent an
+     * exact isometry recovering.
+     *
+     * An independent per-axis scale (the old behaviour) is not rotation-invariant: two recomputes
+     * that agree on orientation upstream can still render at different x:y aspect ratios whenever
+     * the raw embedding's spans shift even slightly, which is the generic case whenever the track
+     * set changes at all. It also lies about the shape of the space -- a cluster that is round in
+     * the embedding can render as an ellipse merely because its bounding box wasn't square.
+     *
+     * The longer axis fills its full 0..1 range; the shorter axis is centered in the leftover room
+     * rather than pinned to the edge, so a single-file line of points (or, in the fully degenerate
+     * case, a single shared position on one axis) lands in the middle of the box instead of its
+     * corner.
+     *
+     * Visibility is `internal`, not `private`, so [LibraryLayoutTest] can assert aspect-ratio
+     * preservation directly against a hand-built, deliberately elongated `embedded` array, rather
+     * than depend on t-SNE happening to produce an elongated embedding.
+     */
+    internal fun normalize(ids: List<TrackId>, embedded: FloatArray, n: Int): List<LayoutPoint> {
+        var minX = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+        for (i in 0 until n) {
+            minX = minOf(minX, embedded[i * 2])
+            maxX = maxOf(maxX, embedded[i * 2])
+            minY = minOf(minY, embedded[i * 2 + 1])
+            maxY = maxOf(maxY, embedded[i * 2 + 1])
+        }
+        val spanX = maxX - minX
+        val spanY = maxY - minY
+        val scale = maxOf(spanX, spanY).takeIf { it > 1e-6f } ?: 1f
+        // Half of whatever room the shorter axis doesn't need, so it centers instead of hugging 0.
+        val offsetX = (scale - spanX) / 2f
+        val offsetY = (scale - spanY) / 2f
+        return ids.mapIndexed { row, id ->
+            LayoutPoint(
+                trackId = id,
+                x = ((embedded[row * 2] - minX + offsetX) / scale).coerceIn(0f, 1f),
+                y = ((embedded[row * 2 + 1] - minY + offsetY) / scale).coerceIn(0f, 1f),
+            )
+        }
+    }
+
+    private fun center(rows: FloatArray, n: Int, dim: Int) {
+        for (d in 0 until dim) {
+            var mean = 0f
+            for (i in 0 until n) mean += rows[i * dim + d]
+            mean /= n
+            for (i in 0 until n) rows[i * dim + d] -= mean
+        }
+    }
+
+    private fun unitize(rows: FloatArray, n: Int, dim: Int) {
+        for (i in 0 until n) {
+            var norm = 0f
+            for (d in 0 until dim) {
+                val value = rows[i * dim + d]
+                norm += value * value
+            }
+            norm = sqrt(norm)
+            if (norm < 1e-12f) continue
+            for (d in 0 until dim) rows[i * dim + d] /= norm
+        }
+    }
+}
+
+/*
+ * IndexStore intentionally supports one uniform vector width per snapshot. Layout coordinates are
+ * two floats, so fingerprint metadata must also be two finite floats: iOS drops non-finite rows on
+ * decode. The finite-pattern codec below retains all 63 bits emitted by LibraryVectorFusion while
+ * avoiding every NaN/infinity bit pattern.
+ */
+private const val STORED_TRACK_PREFIX: String = "\u0000lj-layout-track:"
+private val STORED_FINGERPRINT_KEY: TrackId = TrackId("\u0000lj-layout-meta:fingerprint")
+private const val POSITIVE_FINITE_PATTERN_COUNT: Long = 0x7f800000L
+private const val FINITE_PATTERN_COUNT: Long = 0xff000000L
+private const val FLOAT_SIGN_BIT: Long = 0x80000000L
+private const val UNSIGNED_INT_MASK: Long = 0xffffffffL
+
+private fun storedTrackKey(trackId: TrackId): TrackId =
+    TrackId("$STORED_TRACK_PREFIX${trackId.value.length}:${trackId.value}")
+
+private fun TrackId.realTrackIdOrNull(): TrackId? {
+    if (!value.startsWith(STORED_TRACK_PREFIX)) return null
+    val lengthEnd = value.indexOf(':', startIndex = STORED_TRACK_PREFIX.length)
+    if (lengthEnd < 0) return null
+    val expectedLength = value.substring(STORED_TRACK_PREFIX.length, lengthEnd).toIntOrNull()
+        ?: return null
+    if (expectedLength < 0) return null
+    val realValue = value.substring(lengthEnd + 1)
+    return realValue.takeIf { it.length == expectedLength }?.let(::TrackId)
+}
+
+private fun finiteFloatForCode(code: Long): Float {
+    require(code in 0 until FINITE_PATTERN_COUNT)
+    val rawBits = if (code < POSITIVE_FINITE_PATTERN_COUNT) {
+        code
+    } else {
+        FLOAT_SIGN_BIT + code - POSITIVE_FINITE_PATTERN_COUNT
+    }
+    return Float.fromBits(rawBits.toInt()).also { check(it.isFinite()) }
+}
+
+private fun Float.finiteCodeOrNull(): Long? {
+    if (!isFinite()) return null
+    val rawBits = toRawBits().toLong() and UNSIGNED_INT_MASK
+    return if (rawBits < FLOAT_SIGN_BIT) {
+        rawBits
+    } else {
+        POSITIVE_FINITE_PATTERN_COUNT + rawBits - FLOAT_SIGN_BIT
+    }
+}
+
+private fun encodeFingerprint(fingerprint: Long): FloatArray {
+    require(fingerprint >= 0L) { "Library vector fingerprints must be non-negative" }
+    return floatArrayOf(
+        finiteFloatForCode(fingerprint / FINITE_PATTERN_COUNT),
+        finiteFloatForCode(fingerprint % FINITE_PATTERN_COUNT),
+    )
+}
+
+private fun FloatArray.decodeFingerprintOrNull(): Long? {
+    if (size != 2) return null
+    val high = this[0].finiteCodeOrNull() ?: return null
+    val low = this[1].finiteCodeOrNull() ?: return null
+    if (high > Long.MAX_VALUE / FINITE_PATTERN_COUNT) return null
+    val prefix = high * FINITE_PATTERN_COUNT
+    if (low > Long.MAX_VALUE - prefix) return null
+    return prefix + low
+}
+
+/**
+ * Reads the current layout snapshot. A missing/corrupt fingerprint is a cache miss, while every
+ * valid decoded position remains available as a warm start.
+ */
+public suspend fun IndexStore.loadStoredLayout(): StoredLibraryLayout {
+    val current = load(LibraryLayout.cacheVersion).orEmpty()
+    // An old exact layout remains a warm start when entering the experimental build.
+    val legacy = current.isEmpty() && LibraryLayout.experimentalBackend
+    val stored = if (legacy) load(LibraryLayout.VERSION).orEmpty() else current
+    val positions = LinkedHashMap<TrackId, FloatArray>(stored.size)
+    for ((storedId, vector) in stored) {
+        if (storedId == STORED_FINGERPRINT_KEY) continue
+        val realId = storedId.realTrackIdOrNull() ?: continue
+        if (vector.isUsableLayoutPosition()) positions[realId] = vector.copyOf()
+    }
+    return StoredLibraryLayout(
+        positions = positions,
+        fingerprint = if (legacy) null else stored[STORED_FINGERPRINT_KEY]?.decodeFingerprintOrNull(),
+    )
+}
+
+/** Compatibility view for callers that only need warm-start positions. */
+public suspend fun IndexStore.loadLayout(): Map<TrackId, FloatArray> =
+    loadStoredLayout().positions
+
+/** Replaces the positions and records the vector content they represent. */
+public suspend fun IndexStore.saveLayout(points: List<LayoutPoint>, fingerprint: Long) {
+    saveLayoutEntries(points, fingerprint)
+}
+
+/** Compatibility overload for callers migrating from the population-only cache identity. */
+public suspend fun IndexStore.saveLayout(points: List<LayoutPoint>) {
+    saveLayoutEntries(points, fingerprint = null)
+}
+
+private suspend fun IndexStore.saveLayoutEntries(points: List<LayoutPoint>, fingerprint: Long?) {
+    val entries = LinkedHashMap<TrackId, FloatArray>(points.size + 1)
+    for (point in points) {
+        require(point.x.isFinite() && point.y.isFinite()) {
+            "Layout position for ${point.trackId.value} must be finite"
+        }
+        entries[storedTrackKey(point.trackId)] = floatArrayOf(point.x, point.y)
+    }
+    if (fingerprint != null) entries[STORED_FINGERPRINT_KEY] = encodeFingerprint(fingerprint)
+    save(LibraryLayout.cacheVersion, entries)
+}

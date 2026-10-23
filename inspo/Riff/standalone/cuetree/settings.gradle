@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories { gradlePluginPortal(); mavenCentral() }
+    resolutionStrategy { eachPlugin {
+        if (requested.id.id == 'org.jetbrains.kotlin.jvm') {
+            useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:${requested.version}")
+        }
+    } }
+}
+dependencyResolutionManagement {
+    repositories {
+        if (providers.gradleProperty('dependencyRepo').isPresent()) {
+            maven { url = uri(providers.gradleProperty('dependencyRepo').get()) }
+        }
+        mavenCentral()
+    }
+}
+// A consumer chooses a published dependency or an explicit development checkout.
+if (providers.gradleProperty('cuegrainDir').isPresent()) {
+    includeBuild(providers.gradleProperty('cuegrainDir').get()) {
+        dependencySubstitution {
+            substitute module('link.roadio.cuegrain:cuegrain-core') using project(':core')
+        }
+    }
+}
+rootProject.name = 'cuetree'
+include 'core', 'cli'
+
+include 'flatbuffers-runtime'
+project(':flatbuffers-runtime').projectDir = file('third_party/flatbuffers')

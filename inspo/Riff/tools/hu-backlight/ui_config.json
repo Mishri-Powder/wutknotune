@@ -1,0 +1,13 @@
+{
+  "skins": {
+    "default": {
+      "behavior": {
+        "systemBrightnessWorkaroundEnabled": true,
+        "dimBacklightPercent": {
+          "day": 15,
+          "night": 1
+        }
+      }
+    }
+  }
+}

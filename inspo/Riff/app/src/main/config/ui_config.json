@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 3,
+  "applicationMode": "phone",
+  "activeSkin": "default",
+  "indexer": {
+    "retentionGenerations": 128,
+    "pipelineDepth": 3
+  },
+  "player": {
+    "highlightFragments": false,
+    "recentHistoryGenerations": 128,
+    "bookmarkMinSpacingSeconds": 15,
+    "rewindPreviousThresholdSeconds": {
+      "music": 3,
+      "audiobook": 15
+    },
+    "excludedGenreIds": ["-100000", "-100001", "-100002", "-100003"],
+    "screenDiagonalChoicesInches": [
+      6.8, 7.0, 8.0, 8.8, 9.0, 10.1, 10.25, 10.4,
+      11.0, 11.6, 12.3, 12.4, 12.95, 13.3, 14.1, 15.1
+    ]
+  },
+  "ai": {
+    "heatmapValenceCells": 32,
+    "heatmapArousalCells": 32,
+    "heatmapColors": {
+      "day": {
+        "topRight": "#C58C24",
+        "bottomRight": "#2C8D76",
+        "bottomLeft": "#456FA8",
+        "topLeft": "#BD596A"
+      },
+      "night": {
+        "topRight": "#B49A5A",
+        "bottomRight": "#518D7B",
+        "bottomLeft": "#617EA5",
+        "topLeft": "#AC687A"
+      }
+    },
+    "heatmapAlphaMap": ["3F", "5F", "7F", "9F", "BF", "DF", "FF"],
+    "selectionModel": {
+      "temperature": 1.0,
+      "axisMinimumSpan": 0.1,
+      "pteMinimumGroupSize": 42,
+      "directoryDecay": 0.5,
+      "historyDecay": 0.5,
+      "weights": {
+        "arousalDistance": 1.0,
+        "valenceDistance": 1.0,
+        "pteDistance": 1.0,
+        "trackLikeDeficit": 1.0,
+        "trackDislikePenalty": 1.0,
+        "directoryLikeDeficit": 0.5,
+        "directoryDislikePenalty": 0.5,
+        "albumLikeDeficit": 0.5,
+        "albumDislikePenalty": 0.5,
+        "artistLikeDeficit": 0.5,
+        "artistDislikePenalty": 0.5,
+        "genreLikeDeficit": 0.25,
+        "genreDislikePenalty": 0.25,
+        "playHistoryPenalty": 1.0
+      }
+    }
+  },
+  "skins": {
+    "default": {
+      "geometry": {
+        "wideThreshold": 800,
+        "touchTargetMin": 76,
+        "touchTargetPrimary": 128,
+        "mainCategoryTileSide": 240,
+        "mainCategoryIconSide": 160,
+        "targetSpacingMin": 24,
+        "screenEdgeMargin": 24,
+        "topBarHeight": 80,
+        "navTarget": 80,
+        "bottomBarHeight": 88,
+        "listRowHeight": 100,
+        "listRowHeightTwoTier": 176,
+        "listRowGap": 10,
+        "playbackButtonHeight": 120,
+        "ratingTarget": 100,
+        "ratingTargetNarrow": 76,
+        "ratingButtonWidth": 296,
+        "ratingButtonHeight": 128,
+        "aiStatusInset": 16,
+        "progressBarHeight": 10,
+        "cornerRadius": 20,
+        "nowPlayingBorder": 4,
+        "countdownRingStroke": 6,
+        "countdownRingInset": 8,
+        "iconButtonIconInset": 10,
+        "hierarchyRowIconInset": 10,
+        "mixedButtonIconInset": 10,
+        "mixedButtonTextGap": 8
+      },
+      "typography": {
+        "textTitleList": 40,
+        "textTitlePlayback": 60,
+        "textSecondary": 24,
+        "textStatusLine": 20,
+        "textInMotionFloor": 36,
+        "mixedButtonMinFontSize": 36,
+        "mixedButtonMaxFontSize": 40,
+        "topBarFontFamily": "sans-serif",
+        "topBarFontWeight": 400
+      },
+      "colors": {
+        "screenBackground": {"day": "#EEF1F5", "night": "#101419"},
+        "rowSurface": {"day": "#E1E6EC", "night": "#1C2229"},
+        "rowSurfaceNowPlaying": {"day": "#CADBEA", "night": "#293846"},
+        "nowPlayingBorderColor": {"day": "#174B75", "night": "#9ABCD8"},
+        "controlPlate": {"day": "#D8DFE7", "night": "#232B34"},
+        "textPrimaryColor": {"day": "#152536", "night": "#DEE5ED"},
+        "fragmentTitleColor": {"day": "#12483D", "night": "#B4DCCB"},
+        "textSecondaryColor": {"day": "#44566A", "night": "#ADB9C7"},
+        "textSuppressedColor": {"day": "#515D69", "night": "#9AA7B6"},
+        "accentActive": {"day": "#174B75", "night": "#9ABCD8"},
+        "accentCircle": {"day": "#174B75", "night": "#9ABCD8"},
+        "iconInactive": {"day": "#515D69", "night": "#9AA7B6"},
+        "iconDisabled": {"day": "#96A1AD", "night": "#64717F"},
+        "focusRingColor": {"day": "#174B75", "night": "#9ABCD8"},
+        "positive": {"day": "#226449", "night": "#A0CBB6"},
+        "error": {"day": "#923F48", "night": "#D7A0A6"},
+        "circleFillActiveAlpha": {"day": 0.30, "night": 0.28},
+        "circleFillPartialAlpha": 0.13
+      },
+      "shape": {
+        "panelAlpha": 230,
+        "panelStrokeDp": 0
+      },
+      "behavior": {
+        "enableStatusLines": true,
+        "statusLineTextSp": 20,
+        "artworkAlpha": 128,
+        "azRgbSubtract": 32,
+        "azDisabledAlpha": 51,
+        "idleTimeoutSeconds": 30,
+        "systemBrightnessWorkaroundEnabled": false,
+        "dimBacklightPercent": { "day": 30, "night": 30 },
+        "hierarchyRootUpBehavior": "disabled",
+        "rowsPerPageMax": 5,
+        "rowsPerPageMin": 2,
+        "maxStringLength": 120,
+        "pressFeedbackMaxMs": 100,
+        "skipLatencyMaxMs": 200,
+        "undoWindowSeconds": 4
+      }
+    }
+  }
+}

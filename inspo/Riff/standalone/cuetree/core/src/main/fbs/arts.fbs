@@ -1,0 +1,11 @@
+include "common.fbs";
+
+namespace link.roadio.cuetree.fbs;
+
+table Arts {
+  header: Header (required);
+  artists: [Artist] (required);
+}
+
+root_type Arts;
+file_identifier "ARTS";

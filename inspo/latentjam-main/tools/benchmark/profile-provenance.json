@@ -1,0 +1,21 @@
+{
+  "apk_sha256": "6c6012ec2cc18d2cc423e4904a9fcb5aaaeffd2cd0eb88f38ae4cec5135d63ac",
+  "fixture": "Committed 0.9.1 rules (LJ-big36, startup, search, player, return) plus Tracks scrolling (#18) on the read-only LJ-api30 ARM64 emulator, API 30, 421 real tracks after analysis. Generation only, not performance evidence.",
+  "profiles": {
+    "baseline": {
+      "rules": 41281,
+      "sha256": "d6652f32e5c5c76566fc1094c20da9626b8a2b3a596058abbeb306f966094e0c",
+      "inputs": {
+        "AppBaselineProfile_scrollLongList-baseline-prof.txt": "1b11f68da7345637105ba38f5a645e7d88daddf679aa84a6894800635088ea0b",
+        "committed-0.9.1-baseline-prof.txt": "e883c15e7d74e12786a2492db1fcc68bc9accfa1fc2d7f1644abffdb33a92d07"
+      }
+    },
+    "startup": {
+      "rules": 24842,
+      "sha256": "36dbfec09b2afa802c2931b5eff9c7a4aaddf31988bcb24bd1095e911ac42ae0",
+      "inputs": {
+        "committed-0.9.1-startup-prof.txt": "36dbfec09b2afa802c2931b5eff9c7a4aaddf31988bcb24bd1095e911ac42ae0"
+      }
+    }
+  }
+}

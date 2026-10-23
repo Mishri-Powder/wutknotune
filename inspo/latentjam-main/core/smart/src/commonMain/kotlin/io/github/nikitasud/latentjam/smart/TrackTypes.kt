@@ -1,0 +1,142 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.smart
+
+import kotlin.jvm.JvmInline
+
+/**
+ * Stable, opaque identifier of a track in the caller's library.
+ *
+ * The engine never interprets the value; it only uses it as a key. Callers map
+ * their own domain identifiers (database row ids, content URIs, file hashes, …)
+ * into [TrackId] at the boundary and back out when a result is returned. This
+ * is the only "identity" concept shared between the engine and the app, which
+ * is what keeps the engine free of any media-library or playback types.
+ */
+@JvmInline
+public value class TrackId(public val value: String)
+
+/**
+ * Everything the engine may know about a single track.
+ *
+ * This is a pure data snapshot — deliberately NOT a reference to any player,
+ * media-session, or library entity. All fields except [id] are optional so the
+ * caller can provide whatever it has; backends degrade gracefully with less.
+ *
+ * @property id Stable identifier of the track. Required.
+ * @property title Track title tag, if known.
+ * @property artist Artist tag, if known.
+ * @property album Album tag, if known.
+ * @property genre Genre tag, if known.
+ * @property durationMs Track duration in milliseconds, if known.
+ * @property audioUri Platform-resolvable locator of the raw audio (a
+ *   `content://` URI on Android, a file URL on iOS, …). Backends that embed
+ *   raw audio (the CNN encoder) use this to decode the waveform; metadata-only
+ *   backends ignore it. `null` means "audio not available for this track".
+ * @property artworkUri Platform-resolvable locator of the track's cover art,
+ *   for UI and media-notification display. The engine ignores it.
+ * @property addedAtMs When the track appeared in the device library (epoch
+ *   ms), for recency sorting. The engine ignores it.
+ * @property folderPath User-facing source folder, relative to shared storage
+ *   when the platform exposes one. The engine ignores it; the library browser
+ *   uses it to keep Downloads, Music, Telegram, and imported files separate.
+ * @property sourceRevision Optional opaque revision of the underlying media bytes. Platform
+ *   libraries should change it when content at the same [id]/[audioUri] may have been replaced
+ *   (for example MediaStore size + modified generation, or an imported file's size + mtime).
+ *   SMART uses it only for cache invalidation and never interprets its value.
+ */
+public data class TrackDescriptor(
+    public val id: TrackId,
+    public val title: String? = null,
+    public val artist: String? = null,
+    public val album: String? = null,
+    public val genre: String? = null,
+    public val durationMs: Long? = null,
+    public val audioUri: String? = null,
+    public val artworkUri: String? = null,
+    public val addedAtMs: Long? = null,
+    public val folderPath: String? = null,
+    /** Release year. Feeds the chain's era penalty, so a missing value simply costs that signal. */
+    public val year: Int? = null,
+    /** Loudness in `[0, 1]`, or null when unmeasured. Feeds the chain's energy-smoothness term. */
+    public val energy: Float? = null,
+    public val sourceRevision: String? = null,
+    /**
+     * Credited individuals read from the file's own tags (the Picard `ARTISTS` convention);
+     * [artist] remains the display credit ("X feat. Y"). Empty until tag enrichment has read
+     * the file — consumers must treat empty as "unknown", never as "solo".
+     */
+    public val artists: List<String> = emptyList(),
+    /** First-release year from the tags; [year] is the edition year the scanner reported. */
+    public val originalYear: Int? = null,
+    /** File size in bytes as the library source reports it; null when the source has none. */
+    public val sizeBytes: Long? = null,
+    /** File name with its extension, the honest source of a "FLAC"/"MP3" label; null when unknown. */
+    public val fileName: String? = null,
+    /**
+     * Vocal language as the file's own tags state it (`LANGUAGE`, ID3 `TLAN`): an ISO 639 code or
+     * a plain name, uninterpreted. Null when the tags say nothing; consumers may fall back to
+     * script detection but must not invent a language from silence.
+     */
+    public val language: String? = null,
+    /** Position on its disc as the tags number it (`TRCK`, `TRACKNUMBER`); null when untagged. */
+    public val trackNumber: Int? = null,
+    /** Disc of a multi-disc release (`TPOS`, `DISCNUMBER`); null when untagged. */
+    public val discNumber: Int? = null,
+    /**
+     * The album's own artist (`TPE2`, `ALBUMARTIST`, `aART`): "Various Artists" on a compilation.
+     * Albums group by it when present, so a compilation's tracks stay one album. Null when untagged.
+     */
+    public val albumArtist: String? = null,
+    /**
+     * The album's cover locator when [artworkUri] is this track's own instead: on Android 10+ every
+     * song's locator is its own cover (see MediaStoreArtwork), and on any release the one LatentJam
+     * saved into it, while MediaStore keeps one cover per album. Album grouping compares this, so songs with
+     * covers of their own still make one album. Null when [artworkUri] already is the album's.
+     */
+    public val albumArtworkUri: String? = null,
+    /**
+     * The storage volume the file is on, as the platform names it (Android's MediaStore volume:
+     * `external_primary` for the device's own storage, a card's lowercase id such as `1a2b-3c4d`).
+     * [folderPath] is relative to it, so the folder browser can show each volume as its own root.
+     * Null where the platform has a single store (iOS). The engine ignores it.
+     */
+    public val storageVolume: String? = null,
+)
+
+/**
+ * The listening situation a next-track query is made from.
+ *
+ * This is the engine-facing projection of "what is happening right now",
+ * expressed without any playback-state-machine types: the caller observes its
+ * player however it likes and distills the result into this value object.
+ *
+ * @property seed The track to find a nearest neighbor for — typically the
+ *   currently playing track.
+ * @property recentTrackIds Recently played tracks, excluded from results to
+ *   avoid immediate repeats. Order is irrelevant to the engine.
+ * @property excludedTrackIds Additional tracks the caller never wants returned
+ *   (e.g. user-banned tracks, tracks already queued).
+ */
+public data class ListeningContext(
+    public val seed: TrackDescriptor,
+    public val recentTrackIds: List<TrackId> = emptyList(),
+    public val excludedTrackIds: Set<TrackId> = emptySet(),
+)
+
+/**
+ * One local listening observation supplied to SMART queue planning.
+ *
+ * This deliberately mirrors only the signals the models consume; it is not a persistence or
+ * playback type. Events stay on the device and should be ordered oldest first. [playedFraction]
+ * is clamped by the engine, so callers may pass a best estimate when duration metadata is absent.
+ */
+public data class SmartHistoryEvent(
+    public val trackId: TrackId,
+    public val startedAtMs: Long,
+    public val playedFraction: Float,
+    public val completed: Boolean,
+    public val skipped: Boolean,
+)

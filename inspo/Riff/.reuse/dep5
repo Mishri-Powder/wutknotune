@@ -1,0 +1,35 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Riff
+
+Files: app/**
+       indexer/build.gradle
+       indexer/src/androidTest/**
+       indexer/src/debug/**
+       indexer/src/main/AndroidManifest.xml
+       indexer/src/main/cpp/riff_ced_jni.cc
+       indexer/src/main/cpp/riff_level2_audio_jni.cc
+       indexer/src/main/cpp/riff_xxh3.c
+       indexer/src/main/java/**
+       indexer/src/test/**
+       status/**
+       tools/**
+       build.gradle
+       settings.gradle
+       gradle/**
+       README.md
+Copyright: 2026 Riff contributors
+License: GPL-3.0-or-later
+
+Files: compact_enc_det/autogen.sh
+       compact_enc_det/compact_enc_det/**
+       compact_enc_det/util/**
+Copyright: Google LLC and compact_enc_det contributors
+License: Apache-2.0
+
+Files: indexer/src/main/generated/**
+Copyright: Google LLC and FlatBuffers contributors
+License: Apache-2.0
+
+Files: indexer/src/main/cpp/third_party/xxhash/**
+Copyright: Yann Collet
+License: BSD-2-Clause

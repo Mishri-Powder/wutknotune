@@ -1,0 +1,424 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import io.github.nikitasud.latentjam.history.ListenEvent
+import io.github.nikitasud.latentjam.history.TrackStats
+import io.github.nikitasud.latentjam.smart.TrackDescriptor
+import io.github.nikitasud.latentjam.smart.TrackId
+import io.github.nikitasud.latentjam.smart.cluster.LibraryWorld
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * The timing rules, pinned. These decide when a section may CLAIM something about the listener
+ * ("your mornings", "your X phase"), and a wrong claim reads as broken — so the gates matter as
+ * much as the picks.
+ */
+class ForYouRhythmTest {
+
+    private val hour = 60L * 60 * 1000
+    private val day = 24 * hour
+    private val now = 1_000_000_000_000L
+
+    private fun track(id: String, artist: String? = "A") =
+        TrackDescriptor(id = TrackId(id), title = "T$id", artist = artist)
+
+    private fun event(
+        id: String,
+        at: Long,
+        completed: Boolean = true,
+        skipped: Boolean = false,
+    ) = ListenEvent(
+        trackId = TrackId(id),
+        startedAtMs = at,
+        playedMs = 60_000,
+        trackDurationMs = 120_000,
+        completed = completed,
+        skipped = skipped,
+    )
+
+    private fun stats(plays: Int, completions: Int = plays, lastPlayedAtMs: Long = 0) =
+        TrackStats(
+            plays = plays,
+            completions = completions,
+            skips = 0,
+            totalPlayedMs = plays * 60_000L,
+            lastPlayedAtMs = lastPlayedAtMs,
+        )
+
+    private fun world(name: String, tracks: List<TrackDescriptor>) =
+        LibraryWorld(name = name, tracks = tracks)
+
+    // Fixed epoch-to-hour mapping: hour-of-day is the epoch hour modulo 24, so tests control
+    // the daypart by choosing timestamps rather than by mocking a timezone.
+    private val hourOf: (Long) -> Int = { ((it / hour) % 24).toInt() }
+
+    private fun atHour(dayIndex: Int, hourOfDay: Int): Long = dayIndex * day + hourOfDay * hour
+
+    @Test
+    fun daypartBoundariesMatchThePublishedPhases() {
+        assertEquals(ForYouDaypart.NIGHT, ForYouRhythm.daypartOf(0))
+        assertEquals(ForYouDaypart.NIGHT, ForYouRhythm.daypartOf(5))
+        assertEquals(ForYouDaypart.MORNING, ForYouRhythm.daypartOf(6))
+        assertEquals(ForYouDaypart.MORNING, ForYouRhythm.daypartOf(11))
+        assertEquals(ForYouDaypart.DAY, ForYouRhythm.daypartOf(12))
+        assertEquals(ForYouDaypart.DAY, ForYouRhythm.daypartOf(17))
+        assertEquals(ForYouDaypart.EVENING, ForYouRhythm.daypartOf(18))
+        assertEquals(ForYouDaypart.EVENING, ForYouRhythm.daypartOf(23))
+    }
+
+    @Test
+    fun daypartAffinityCountsOnlyItsOwnPhaseAndIgnoresSkips() {
+        val events = listOf(
+            event("m", atHour(0, 7)),
+            event("m", atHour(1, 8)),
+            event("e", atHour(0, 20)),
+            event("skipped", atHour(2, 7), completed = false, skipped = true),
+        )
+        val affinity = ForYouRhythm.daypartAffinity(events, ForYouDaypart.MORNING, hourOf)
+        assertEquals(setOf(TrackId("m")), affinity.keys)
+        assertEquals(2, affinity.getValue(TrackId("m")).plays)
+        // Completions count double in the ranking weight.
+        assertEquals(4, affinity.getValue(TrackId("m")).weight)
+    }
+
+    @Test
+    fun daypartRowBlendsProvenWithUnheardFromTheSameWorlds() {
+        val proven = (1..8).map { track("p$it") }
+        val unheard = (1..6).map { track("u$it") }
+        val byId = (proven + unheard).associateBy { it.id }
+        val events = proven.flatMapIndexed { index, t ->
+            List(index + 1) { n -> event(t.id.value, atHour(n, 7)) }
+        }
+        val affinity = ForYouRhythm.daypartAffinity(events, ForYouDaypart.MORNING, hourOf)
+        val stats = proven.associate { it.id to stats(plays = 3) }
+        val row = ForYouRhythm.daypartRow(
+            affinity = affinity,
+            byId = byId,
+            worlds = listOf(world("W", proven.take(2) + unheard)),
+            stats = stats,
+            used = emptySet(),
+            dayIndex = 0,
+        )
+        assertTrue(row.isNotEmpty())
+        val unheardShown = row.count { it.id.value.startsWith("u") }
+        assertEquals(ForYouRhythm.DAYPART_FRESH_SLOTS, unheardShown)
+        // Sandwich: opens on a proven track, and no two unheard tracks sit together while
+        // anchors remain.
+        assertTrue(row.first().id.value.startsWith("p"))
+        row.zipWithNext().forEachIndexed { index, (a, b) ->
+            val bothUnheard = a.id.value.startsWith("u") && b.id.value.startsWith("u")
+            if (bothUnheard) {
+                // Only permissible once anchors have run out (tail of the list).
+                assertTrue(
+                    row.drop(index + 1).all { it.id.value.startsWith("u") },
+                    "unheard pair before anchors ran out at $index in ${row.map { it.id.value }}",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun daypartRowRotatesAcrossDays() {
+        val proven = (1..20).map { track("p$it") }
+        val byId = proven.associateBy { it.id }
+        val events = proven.flatMapIndexed { index, t ->
+            List(index + 1) { n -> event(t.id.value, atHour(n % 5, 9)) }
+        }
+        val affinity = ForYouRhythm.daypartAffinity(events, ForYouDaypart.MORNING, hourOf)
+        val stats = proven.associate { it.id to stats(plays = 2) }
+        val day0 = ForYouRhythm.daypartRow(affinity, byId, emptyList(), stats, emptySet(), 0)
+        val day1 = ForYouRhythm.daypartRow(affinity, byId, emptyList(), stats, emptySet(), 1)
+        assertTrue(day0 != day1, "the row must not be identical day after day")
+    }
+
+    @Test
+    fun bingeRequiresVolumeShareAndLift() {
+        // A steady long-term artist: high volume every week, no lift — not a phase.
+        val steady = (0 until 28).flatMap { d ->
+            List(3) { n -> event("steady$n", now - d * day + n * hour) }
+        }
+        val artists = mapOf<TrackId, String?>(
+            TrackId("steady0") to "Steady", TrackId("steady1") to "Steady",
+            TrackId("steady2") to "Steady", TrackId("new0") to "New",
+            TrackId("new1") to "New", TrackId("new2") to "New", TrackId("new3") to "New",
+        )
+        assertNull(
+            ForYouRhythm.currentBinge(steady, now, { artists[it] }, { it.lowercase() }),
+            "constant listening is taste, not a phase",
+        )
+
+        // A NEW artist spiking this week: 12 plays, zero baseline — the strongest phase signal.
+        val spike = steady + (0 until 12).map { n ->
+            event("new${n % 4}", now - (n % 6) * day + n * hour)
+        }
+        val binge = ForYouRhythm.currentBinge(spike, now, { artists[it] }, { it.lowercase() })
+        assertNotNull(binge)
+        assertEquals("New", binge.artistName)
+    }
+
+    @Test
+    fun bingeDeepCutsPreferTheWorldsThePhaseActuallyTouched(): Unit {
+        val played = track("played", artist = "Kanno")
+        val sameWorld = track("same-world", artist = "Kanno")
+        val otherWorld = track("other-world", artist = "Kanno")
+        val library = listOf(played, sameWorld, otherWorld)
+        val events = listOf(event("played", now - day))
+        val cuts = ForYouRhythm.bingeDeepCuts(
+            binge = ForYouRhythm.Binge("kanno", "Kanno", 12),
+            library = library,
+            events = events,
+            stats = mapOf(played.id to stats(plays = 12, lastPlayedAtMs = now - day)),
+            worlds = listOf(
+                world("phase", listOf(played, sameWorld)),
+                world("elsewhere", listOf(otherWorld)),
+            ),
+            nowMs = now,
+            used = emptySet(),
+            artistKeyOf = { it.lowercase() },
+        )
+        assertEquals(listOf("same-world", "other-world"), cuts.map { it.id.value })
+    }
+
+    @Test
+    fun bingeDeepCutsPutStrangersAheadOfCooledRepeats() {
+        val played = track("played", artist = "Kanno")
+        // The cooled cut leads the fit order, so the row used to open on yesterday's repeat while
+        // the artist's unoffered cuts waited behind it.
+        val cooled = track("a-cooled", artist = "Kanno")
+        val strangers = (1..3).map { track("b-new$it", artist = "Kanno") }
+        val statsMap = mapOf(played.id to stats(plays = 12, lastPlayedAtMs = now - day))
+        val cuts = ForYouRhythm.bingeDeepCuts(
+            binge = ForYouRhythm.Binge("kanno", "Kanno", 12),
+            library = listOf(played, cooled) + strangers,
+            events = listOf(event("played", now - day)),
+            stats = statsMap,
+            worlds = emptyList(),
+            nowMs = now,
+            used = emptySet(),
+            cooled = setOf(cooled.id),
+            artistKeyOf = { it.lowercase() },
+        )
+        // Every card on this row is an unheard offer whose show is journalled, so a cut shown on
+        // a recent day and passed over is a repeat, not a discovery: it yields to the strangers.
+        assertEquals(strangers.map { it.id } + cooled.id, cuts.map { it.id })
+
+        // With nothing but repeats left the row still fills from the cooling tail: an empty slot
+        // helps nobody.
+        val allCooling = ForYouRhythm.bingeDeepCuts(
+            binge = ForYouRhythm.Binge("kanno", "Kanno", 12),
+            library = listOf(played, cooled) + strangers,
+            events = listOf(event("played", now - day)),
+            stats = statsMap,
+            worlds = emptyList(),
+            nowMs = now,
+            used = emptySet(),
+            cooled = (strangers.map { it.id } + cooled.id).toSet(),
+            artistKeyOf = { it.lowercase() },
+        )
+        assertEquals(listOf(cooled.id) + strangers.map { it.id }, allCooling.map { it.id })
+    }
+
+    @Test
+    fun wildcardComesFromALovedDormantWorldAndRotates() {
+        val lovedDormant = listOf(
+            track("anchor"),
+            track("gem1"),
+            track("gem2"),
+        )
+        val recentWorld = listOf(track("recent-fav"), track("recent-gem"))
+        val statsMap = mapOf(
+            TrackId("anchor") to stats(plays = 9, lastPlayedAtMs = now - 45 * day),
+            TrackId("recent-fav") to stats(plays = 9, lastPlayedAtMs = now - 1 * day),
+        )
+        val worlds = listOf(world("dormant", lovedDormant), world("hot", recentWorld))
+        val pick = ForYouRhythm.wildcard(worlds, statsMap, now, emptySet(), dayIndex = 0)
+        assertNotNull(pick)
+        // Only the dormant loved world qualifies; the hot world was touched yesterday.
+        assertTrue(pick.pick.id.value.startsWith("gem"))
+        assertEquals("anchor", pick.anchor.id.value)
+        val nextDay = ForYouRhythm.wildcard(worlds, statsMap, now + day, emptySet(), dayIndex = 1)
+        assertNotNull(nextDay)
+        assertTrue(pick.pick.id != nextDay.pick.id, "the wildcard must rotate day to day")
+    }
+
+    @Test
+    fun wildcardStaysSilentWithoutProvenLove() {
+        val worlds = listOf(
+            world("visited", listOf(track("once"), track("unheard"))),
+        )
+        val statsMap = mapOf(
+            TrackId("once") to stats(plays = 2, completions = 2, lastPlayedAtMs = now - 60 * day),
+        )
+        assertNull(ForYouRhythm.wildcard(worlds, statsMap, now, emptySet(), dayIndex = 0))
+    }
+
+    @Test
+    fun cooledOffersYieldTheirSlotsToStrangers() {
+        val proven = (1..8).map { track("p$it") }
+        val unheard = (1..6).map { track("u$it") }
+        val byId = (proven + unheard).associateBy { it.id }
+        val events = proven.flatMapIndexed { index, t ->
+            List(index + 1) { n -> event(t.id.value, atHour(n, 7)) }
+        }
+        val affinity = ForYouRhythm.daypartAffinity(events, ForYouDaypart.MORNING, hourOf)
+        val stats = proven.associate { it.id to stats(plays = 3) }
+        val worlds = listOf(world("W", proven.take(2) + unheard))
+        val hot = ForYouRhythm.daypartRow(
+            affinity, byId, worlds, stats, emptySet(), 0,
+        ).filter { it.id.value.startsWith("u") }.map { it.id }
+        // Yesterday's ignored offers step aside: every stranger that has not had a turn comes
+        // BEFORE any cooled repeat. Cooled offers may still fill leftover slots — an empty slot
+        // helps nobody — but never ahead of someone new.
+        val next = ForYouRhythm.daypartRow(
+            affinity, byId, worlds, stats, emptySet(), 0, cooled = hot.toSet(),
+        ).filter { it.id.value.startsWith("u") }.map { it.id }
+        val strangers = unheard.map { it.id }.filterNot { it in hot.toSet() }
+        assertEquals(
+            strangers.toSet(),
+            next.take(strangers.size).toSet(),
+            "the strangers must occupy the earliest fresh slots in $next",
+        )
+    }
+
+    @Test
+    fun sandwichOpensFamiliarAndSeparatesDiscoveries() {
+        val known = (1..3).map { track("k$it") }
+        val unknown = (1..3).map { track("n$it") }
+        val statsMap = known.mapIndexed { i, t -> t.id to stats(plays = 3 - i) }.toMap()
+        val ordered = ForYouRhythm.familiaritySandwich(unknown + known, statsMap)
+        assertEquals("k1", ordered.first().id.value)
+        ordered.zipWithNext().forEach { (a, b) ->
+            assertTrue(
+                statsMap.containsKey(a.id) || statsMap.containsKey(b.id),
+                "two unheard tracks adjacent in ${ordered.map { it.id.value }}",
+            )
+        }
+    }
+
+    @Test
+    fun aPhaseNeedsTwoWeeksOfHistoryBeforeIt() {
+        val artists = mapOf<TrackId, String?>(TrackId("new0") to "New", TrackId("old") to "Old")
+        val week = (0 until 12).map { n -> event("new0", now - (n % 6) * day + n * hour) }
+        // First week of the log: every artist's lift is infinite, so "phase" would just mean
+        // "favourite". The row stays silent until there is a baseline to rise above.
+        assertNull(ForYouRhythm.currentBinge(week, now, { artists[it] }, { it.lowercase() }))
+        // A heavy listener's newest events can all fall inside one week; the stats still know the
+        // log is older.
+        assertEquals(
+            "New",
+            ForYouRhythm.currentBinge(
+                week, now, { artists[it] }, { it.lowercase() }, logStartMs = now - 60 * day,
+            )?.artistName,
+        )
+        val withHistory = week + event("old", now - 30 * day)
+        assertEquals(
+            "New",
+            ForYouRhythm.currentBinge(withHistory, now, { artists[it] }, { it.lowercase() })?.artistName,
+        )
+    }
+
+    @Test
+    fun demotionKeepsTheRankingAndNeverRemoves() {
+        val ordered = listOf("a", "b", "c", "d")
+        assertEquals(listOf("b", "d", "a", "c"), ForYouRhythm.demoteIgnored(ordered, mapOf("a" to 5L, "c" to 5L)))
+        assertEquals(ordered, ForYouRhythm.demoteIgnored(ordered, emptyMap()))
+        // All shown recently: they take turns, the one that has waited longest leads.
+        assertEquals(
+            listOf("c", "a", "d", "b"),
+            ForYouRhythm.demoteIgnored(ordered, mapOf("a" to 6L, "b" to 9L, "c" to 5L, "d" to 8L)),
+        )
+    }
+
+    @Test
+    fun anUnheardTrackRetiresAfterThreeIgnoredDaysAndComesBack() {
+        assertNull(ForYouRhythm.retiredUntil(listOf(1, 2)))
+        assertEquals(65L, ForYouRhythm.retiredUntil(listOf(1, 2, 5)))
+        // Shown again during its retirement counts nothing; after it, three more days retire it
+        // again from the last of them.
+        assertEquals(132L, ForYouRhythm.retiredUntil(listOf(1, 2, 5, 30, 70, 71, 72)))
+        assertEquals(65L, ForYouRhythm.retiredUntil(listOf(5, 2, 2, 1)))
+    }
+
+    @Test
+    fun daypartRowKeepsYesterdayAndIgnoredTracksOutOfTheLead() {
+        val proven = (1..8).map { track("p$it") }
+        val unheard = (1..6).map { track("u$it") }
+        val byId = (proven + unheard).associateBy { it.id }
+        // p8 is the phase's strongest track (most plays), p7 the next.
+        val events = proven.flatMapIndexed { index, t ->
+            List(index + 1) { n -> event(t.id.value, atHour(n, 7)) }
+        }
+        val affinity = ForYouRhythm.daypartAffinity(events, ForYouDaypart.MORNING, hourOf)
+        val stats = proven.associate { it.id to stats(plays = 3) }
+        fun row(recent: Set<TrackId> = emptySet(), ignored: Map<TrackId, Long> = emptyMap()) =
+            ForYouRhythm.daypartRow(
+                affinity = affinity,
+                byId = byId,
+                worlds = listOf(world("W", proven.take(2) + unheard)),
+                stats = stats,
+                used = emptySet(),
+                dayIndex = 0,
+                recentlyPlayed = recent,
+                ignored = ignored,
+            ).map { it.id.value }
+        assertEquals("p8", row().first())
+        // Played yesterday: memory, not a pick for this morning.
+        assertTrue("p8" !in row(recent = setOf(TrackId("p8"))))
+        // Shown and not played: it steps out of the lead, not out of the row.
+        val demoted = row(ignored = mapOf(TrackId("p8") to 1L))
+        assertEquals("p7", demoted.first())
+        assertTrue("p8" in demoted)
+    }
+
+    @Test
+    fun theFarPickTakesTheLastDiscoverySlot() {
+        val proven = (1..8).map { track("p$it") }
+        val unheard = (1..6).map { track("u$it") }
+        val far = track("far")
+        val byId = (proven + unheard + far).associateBy { it.id }
+        val events = proven.flatMapIndexed { index, t ->
+            List(index + 1) { n -> event(t.id.value, atHour(n, 7)) }
+        }
+        val row = ForYouRhythm.daypartRow(
+            affinity = ForYouRhythm.daypartAffinity(events, ForYouDaypart.MORNING, hourOf),
+            byId = byId,
+            worlds = listOf(world("W", proven.take(2) + unheard)),
+            stats = proven.associate { it.id to stats(plays = 3) },
+            used = emptySet(),
+            dayIndex = 0,
+            farPick = far,
+        ).map { it.id.value }
+        val discoveries = row.filter { !it.startsWith("p") }
+        assertEquals(ForYouRhythm.DAYPART_FRESH_SLOTS, discoveries.size)
+        assertEquals("far", discoveries.last())
+    }
+
+    @Test
+    fun theFarPickNeverTakesTheFirstDiscoverySlot() {
+        val proven = (1..8).map { track("p$it") }
+        val far = track("far")
+        val byId = (proven + far).associateBy { it.id }
+        val events = proven.flatMapIndexed { index, t ->
+            List(index + 1) { n -> event(t.id.value, atHour(n, 7)) }
+        }
+        // No region offers a time-of-day discovery, so the far pick would be the first unheard
+        // card on screen: it sits out instead.
+        val row = ForYouRhythm.daypartRow(
+            affinity = ForYouRhythm.daypartAffinity(events, ForYouDaypart.MORNING, hourOf),
+            byId = byId,
+            worlds = emptyList(),
+            stats = proven.associate { it.id to stats(plays = 3) },
+            used = emptySet(),
+            dayIndex = 0,
+            farPick = far,
+        ).map { it.id.value }
+        assertTrue("far" !in row, "far pick shown without a time-of-day pick: $row")
+    }
+}

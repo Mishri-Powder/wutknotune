@@ -1,0 +1,569 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.smart.chain
+
+import io.github.nikitasud.latentjam.smart.TrackId
+import kotlin.math.sqrt
+import kotlin.random.Random
+
+/** One track's inputs to the chain. Only [audio] is required; the rest sharpen the result. */
+internal data class SmartTrack(
+    val id: TrackId,
+    val audio: FloatArray,
+    val text: FloatArray? = null,
+    /** Optional second semantic space for experiments and recorded parity fixtures. */
+    val descriptor: FloatArray? = null,
+    val energy: Float = Float.NaN,
+    val meta: TrackMeta,
+) {
+    override fun equals(other: Any?): Boolean = other is SmartTrack && other.id == id
+    override fun hashCode(): Int = id.hashCode()
+}
+
+/**
+ * A snapshot row: the [SmartTrack] without its vectors, which the snapshot's matrices hold. A snapshot
+ * lives as long as the engine's cache, so keeping the input arrays as well would hold the library's
+ * vectors once more for that long.
+ */
+internal class SnapshotTrack(
+    val id: TrackId,
+    val energy: Float,
+    val meta: TrackMeta,
+) {
+    override fun equals(other: Any?): Boolean = other is SnapshotTrack && other.id == id
+    override fun hashCode(): Int = id.hashCode()
+}
+
+/**
+ * The library prepared for chain building: centered spaces, hub penalties and availability masks,
+ * all computed once per SMART activation.
+ *
+ * Centering matters more than it looks. Raw embedding cosines are dominated by a shared mean
+ * direction, which makes everything look similar to everything; subtracting the corpus mean and
+ * renormalising is what turns cosine into a usable ranking signal.
+ */
+internal class SmartSnapshot private constructor(
+    val tracks: List<SnapshotTrack>,
+    /** Raw audio rows, N × [AUDIO_DIM], as the scorer consumes them. */
+    val rawAudio: ScaledRows,
+    /** Centered, renormalised audio rows — the space all chain cosines are measured in. */
+    val centeredAudio: FloatArray,
+    /** Per-row CSLS hub penalty, zero-meaned across the corpus. */
+    val hubPenalty: FloatArray,
+    /**
+     * Per-row projection onto the corpus mean direction, z-scored — how much of this library
+     * sounds like the track. This is precisely the axis [centeredAudio] removes, kept because
+     * the removal is not free: measured against real listening it predicts whether a track is
+     * kept better than the centered cosine does. See TypicalityTest for the numbers.
+     */
+    val typicality: FloatArray,
+    val centeredText: FloatArray?,
+    val hasText: BooleanArray?,
+    val centeredDescriptor: FloatArray?,
+    val hasDescriptor: BooleanArray?,
+    /**
+     * Width of the descriptor rows, taken from the data. The recorded research fixtures carry 768,
+     * and the artist knowledge pack decodes to 384.
+     */
+    val descriptorDim: Int,
+    /**
+     * Unit-normalised but UNCENTERED text rows. Candidate generation ranks this space separately;
+     * the learned scorer receives it as optional conditioning. Rows without text read as zeros.
+     */
+    val rawText: ScaledRows?,
+    private val batchDotProducts: BatchDotProducts,
+) {
+    val size: Int get() = tracks.size
+
+    /** Optional exact-order acceleration for large batches; no matrix copies or retained scratch. */
+    fun batchDots(
+        matrix: FloatArray, dim: Int, query: FloatArray, offset: Int,
+        rows: IntArray, count: Int, out: FloatArray,
+    ) {
+        if (count >= 2_048 && dim >= 16 &&
+            batchDotProducts.compute(matrix, dim, query, offset, rows, count, out)
+        ) return
+        BatchDotProducts.Portable.compute(matrix, dim, query, offset, rows, count, out)
+    }
+
+    private val rowById: Map<TrackId, Int> =
+        tracks.withIndex().associate { (index, track) -> track.id to index }
+
+    fun rowOf(id: TrackId): Int = rowById[id] ?: -1
+
+    /** Centered-space cosine between two rows. Both rows are unit-norm, so this is a dot product. */
+    fun centeredCosine(rowA: Int, rowB: Int): Float {
+        if (rowA < 0 || rowB < 0) return 0f
+        var dot = 0f
+        val baseA = rowA * AUDIO_DIM
+        val baseB = rowB * AUDIO_DIM
+        for (d in 0 until AUDIO_DIM) dot += centeredAudio[baseA + d] * centeredAudio[baseB + d]
+        return dot
+    }
+
+    /**
+     * Centered-descriptor cosine between two rows, or `null` when the descriptor space is absent or
+     * either row lacks a descriptor — callers then fall back to audio-only (see [Reanchor.fusedCos]).
+     */
+    fun descriptorCosine(rowA: Int, rowB: Int): Float? {
+        val dc = centeredDescriptor ?: return null
+        val has = hasDescriptor ?: return null
+        if (rowA < 0 || rowB < 0 || !has[rowA] || !has[rowB]) return null
+        var dot = 0f
+        val baseA = rowA * descriptorDim
+        val baseB = rowB * descriptorDim
+        for (d in 0 until descriptorDim) dot += dc[baseA + d] * dc[baseB + d]
+        return dot
+    }
+
+    /** [centeredCosine] of [reference] with every row: the same floats, a whole library at a time. */
+    fun centeredCosines(reference: Int): FloatArray {
+        val out = FloatArray(size)
+        if (reference < 0) return out
+        batchDots(centeredAudio, AUDIO_DIM, centeredAudio, reference * AUDIO_DIM, IntArray(size) { it }, size, out)
+        return out
+    }
+
+    /**
+     * [descriptorCosine] of [reference] with every row, read where [hasDescriptor] is set (elsewhere it
+     * is null); null when it is null for every row.
+     */
+    fun descriptorCosines(reference: Int): FloatArray? {
+        val dc = centeredDescriptor ?: return null
+        val has = hasDescriptor ?: return null
+        if (reference < 0 || !has[reference]) return null
+        val rows = IntArray(size)
+        var count = 0
+        for (row in 0 until size) if (has[row]) rows[count++] = row
+        val out = FloatArray(size)
+        batchDots(dc, descriptorDim, dc, reference * descriptorDim, rows, count, out)
+        return out
+    }
+
+    /** Centered-text cosine between two rows, or `null` when either row has no text vector. */
+    fun textCosine(rowA: Int, rowB: Int): Float? {
+        val tc = centeredText ?: return null
+        val has = hasText ?: return null
+        if (rowA < 0 || rowB < 0 || !has[rowA] || !has[rowB]) return null
+        var dot = 0f
+        val baseA = rowA * TEXT_DIM
+        val baseB = rowB * TEXT_DIM
+        for (d in 0 until TEXT_DIM) dot += tc[baseA + d] * tc[baseB + d]
+        return dot
+    }
+
+    companion object {
+        const val AUDIO_DIM = 960
+        const val TEXT_DIM = 384
+        /** Descriptor width when no track carries one; the recorded research fixtures' width. */
+        const val DESCRIPTOR_DIM = 768
+
+        /**
+         * Rows whose embedding is essentially zero are dropped outright: they sit at the origin of
+         * the centered space and therefore look equally similar to everything, which lets them
+         * surface as neighbours of any seed.
+         */
+        const val DEGENERATE_NORM_EPS = 1e-3f
+
+        /** CSLS neighbourhood size for the hub penalty. */
+        const val HUB_TOPK = 10
+
+        /**
+         * [descriptorOf] reads a row's descriptor; the engine decodes it there, so that one row's decoded
+         * descriptor is alive at a time instead of the whole library's. It is called at most twice per
+         * row and must return the same values each time.
+         */
+        fun build(
+            tracks: List<SmartTrack>,
+            batchDotProducts: BatchDotProducts = BatchDotProducts.Portable,
+            descriptorOf: (SmartTrack) -> FloatArray? = SmartTrack::descriptor,
+        ): SmartSnapshot? {
+            val usable = tracks.filter { it.audio.size == AUDIO_DIM && norm(it.audio) >= DEGENERATE_NORM_EPS }
+            val n = usable.size
+            if (n == 0) return null
+
+            // Renormalised on the way in. The encoder emits unit vectors already, but persisted
+            // and migrated rows drift, and both the scorer and the raw retrieval cosines assume
+            // unit norm — a single long row would otherwise rank first against every query. The
+            // rows keep the input arrays and apply their scale where they are read (see ScaledRows).
+            val raw = ScaledRows(
+                Array(n) { usable[it].audio },
+                FloatArray(n) { 1f / norm(usable[it].audio).coerceAtLeast(1e-12f) },
+                AUDIO_DIM,
+            )
+
+            // Centered + renormalised copy.
+            val row = FloatArray(AUDIO_DIM)
+            val mean = FloatArray(AUDIO_DIM)
+            for (i in 0 until n) {
+                raw.copyInto(i, row)
+                for (d in 0 until AUDIO_DIM) mean[d] += row[d]
+            }
+            for (d in 0 until AUDIO_DIM) mean[d] /= n
+            val centered = FloatArray(n * AUDIO_DIM)
+            for (i in 0 until n) {
+                raw.copyInto(i, row)
+                val base = i * AUDIO_DIM
+                var sumSq = 0.0
+                for (d in 0 until AUDIO_DIM) {
+                    val v = row[d] - mean[d]
+                    centered[base + d] = v
+                    sumSq += v.toDouble() * v
+                }
+                val scale = 1f / sqrt(sumSq).toFloat().coerceAtLeast(1e-12f)
+                for (d in 0 until AUDIO_DIM) centered[base + d] *= scale
+            }
+
+            val (text, hasText) = centeredMasked(usable, TEXT_DIM) { it.text }
+            // One width per snapshot: the first usable descriptor sets it, and rows of another width
+            // count as absent rather than being truncated.
+            val descriptorDim = usable.firstNotNullOfOrNull { track ->
+                descriptorOf(track)?.takeIf { it.isNotEmpty() && norm(it) > 1e-9f }?.size
+            } ?: DESCRIPTOR_DIM
+            val (descriptor, hasDescriptor) = centeredMasked(usable, descriptorDim, descriptorOf)
+            val rawText = if (hasText == null) null else ScaledRows(
+                Array(n) { if (hasText[it]) usable[it].text else null },
+                FloatArray(n) { if (hasText[it]) 1f / norm(usable[it].text!!).coerceAtLeast(1e-12f) else 0f },
+                TEXT_DIM,
+            )
+
+            return SmartSnapshot(
+                tracks = usable.map { SnapshotTrack(it.id, it.energy, it.meta) },
+                batchDotProducts = batchDotProducts,
+                rawAudio = raw,
+                centeredAudio = centered,
+                hubPenalty = computeHubPenalty(centered, n),
+                typicality = computeTypicality(raw, mean, n),
+                centeredText = text,
+                hasText = hasText,
+                centeredDescriptor = descriptor,
+                hasDescriptor = hasDescriptor,
+                descriptorDim = descriptorDim,
+                rawText = rawText,
+            )
+        }
+
+        /**
+         * Projection of every row onto the corpus mean direction, z-scored.
+         *
+         * The z-score is what makes the chain's weight portable: the raw projection's scale
+         * depends on how tightly a particular library clusters, so an absolute weight tuned on
+         * one collection would mean something else on another. After z-scoring, a weight is
+         * expressed in standard deviations of *this* library and behaves the same everywhere.
+         *
+         * Returns all zeros — a term that cannot fire — when the mean direction is degenerate or
+         * every row projects identically, which is the correct neutral for a library too small or
+         * too uniform to have a centre.
+         */
+        private fun computeTypicality(raw: ScaledRows, mean: FloatArray, n: Int): FloatArray {
+            val out = FloatArray(n)
+            val meanNorm = norm(mean)
+            if (meanNorm < DEGENERATE_NORM_EPS) return out
+            val scale = 1f / meanNorm
+            val row = FloatArray(AUDIO_DIM)
+            var sum = 0.0
+            for (i in 0 until n) {
+                raw.copyInto(i, row)
+                var dot = 0f
+                for (d in 0 until AUDIO_DIM) dot += row[d] * mean[d] * scale
+                out[i] = dot
+                sum += dot
+            }
+            val average = (sum / n).toFloat()
+            var sumSq = 0.0
+            for (i in 0 until n) {
+                val delta = out[i] - average
+                sumSq += delta.toDouble() * delta
+            }
+            val deviation = sqrt(sumSq / n).toFloat()
+            if (deviation < DEGENERATE_NORM_EPS) return FloatArray(n)
+            for (i in 0 until n) out[i] = (out[i] - average) / deviation
+            return out
+        }
+
+        /**
+         * CSLS hub correction: a track's mean centered cosine to its [HUB_TOPK] nearest
+         * neighbours, zero-meaned across the corpus. Dense clusters (cinematic/game/anime) score
+         * high here and get pushed down in retrieval, which stops them acting as everyone's
+         * neighbour.
+         *
+         * Exact all-pairs is O(N²·D) — fine to ~1k tracks (~0.5–1 s for 810×960) but quadratic
+         * beyond. At or below [HUB_ANCHOR_SAMPLE] the reference set is the whole corpus, so the
+         * result is byte-identical to the historical exact behaviour and to the parity fixtures.
+         * Above it, each row is scored against a fixed seeded sample of anchors instead —
+         * O(N·[HUB_ANCHOR_SAMPLE]·D). Hubs are near *everything*, so they are near a random sample
+         * too, which preserves the relative hubness ordering; the zero-mean keeps the score scale
+         * intact so downstream floors and temperature calibration are unaffected. The anchor
+         * permutation is seeded so repeated snapshot builds rank identically.
+         *
+         * The outer loop is intentionally serial. The reference (`Retrieval.computeHubPenalty`,
+         * commit 9e978bb) parallelizes it across `Dispatchers.Default` workers, but that requires a
+         * suspend seam and `SmartSnapshot.build` is a synchronous factory reached from several
+         * non-suspend call sites; making it suspend would ripple through the engine and every test.
+         * Each row's penalty is independent and written to its own slot, so the values here are
+         * identical to the parallel path — only the wall-clock cost differs.
+         */
+        internal fun computeHubPenalty(
+            centered: FloatArray,
+            n: Int,
+            anchorLimit: Int = HUB_ANCHOR_SAMPLE,
+        ): FloatArray {
+            val penalty = FloatArray(n)
+            val anchors: IntArray? =
+                if (n > anchorLimit) {
+                    val perm = IntArray(n) { it }
+                    val rng = Random(HUB_ANCHOR_SEED)
+                    for (i in n - 1 downTo 1) {
+                        val j = rng.nextInt(i + 1)
+                        val tmp = perm[i]
+                        perm[i] = perm[j]
+                        perm[j] = tmp
+                    }
+                    perm.copyOf(anchorLimit)
+                } else {
+                    null
+                }
+            val candidates = anchors?.size ?: n
+            val k = HUB_TOPK.coerceAtMost(candidates - 1)
+            if (k <= 0) return penalty
+            val top = FloatArray(k)
+            for (i in 0 until n) {
+                top.fill(Float.NEGATIVE_INFINITY)
+                val baseI = i * AUDIO_DIM
+                for (c in 0 until candidates) {
+                    val j = anchors?.get(c) ?: c
+                    if (j == i) continue
+                    var dot = 0f
+                    val baseJ = j * AUDIO_DIM
+                    for (d in 0 until AUDIO_DIM) dot += centered[baseI + d] * centered[baseJ + d]
+                    var minIdx = 0
+                    for (t in 1 until k) if (top[t] < top[minIdx]) minIdx = t
+                    if (dot > top[minIdx]) top[minIdx] = dot
+                }
+                var sum = 0f
+                for (t in 0 until k) sum += top[t]
+                penalty[i] = sum / k
+            }
+            var mean = 0f
+            for (v in penalty) mean += v
+            mean /= n
+            for (i in 0 until n) penalty[i] -= mean
+            return penalty
+        }
+
+        /**
+         * Libraries at or under this size take the exact all-pairs path (byte-identical to the
+         * historical behaviour and to recorded parity fixtures); larger ones score each row against
+         * a seeded anchor sample of this size. Mirrors `Retrieval.HUB_ANCHOR_SAMPLE`.
+         */
+        internal const val HUB_ANCHOR_SAMPLE = 1024
+
+        /** Seeds the anchor permutation so repeated snapshot builds rank identically. */
+        private const val HUB_ANCHOR_SEED = 0x1A7E47L
+
+        /**
+         * Centered + renormalised copy of an optional space, computed over the rows that HAVE a
+         * vector (so absent rows don't drag the mean) and zeroed elsewhere. Each row is read once,
+         * straight into the matrix, which exists only once some row has a vector.
+         */
+        private inline fun centeredMasked(
+            tracks: List<SmartTrack>,
+            dim: Int,
+            select: (SmartTrack) -> FloatArray?,
+        ): Pair<FloatArray?, BooleanArray?> {
+            val n = tracks.size
+            val has = BooleanArray(n)
+            var present = 0
+            var allocated: FloatArray? = null
+            for (i in 0 until n) {
+                val v = select(tracks[i])
+                if (v == null || v.size != dim) continue
+                val length = norm(v)
+                if (!(length > 1e-9f)) continue
+                val rows = allocated ?: FloatArray(n * dim).also { allocated = it }
+                has[i] = true
+                present++
+                val scale = 1f / length.coerceAtLeast(1e-12f)
+                val base = i * dim
+                for (d in 0 until dim) rows[base + d] = v[d] * scale
+            }
+            val matrix = allocated ?: return null to null
+
+            val mean = FloatArray(dim)
+            for (i in 0 until n) if (has[i]) {
+                val base = i * dim
+                for (d in 0 until dim) mean[d] += matrix[base + d]
+            }
+            for (d in 0 until dim) mean[d] /= present
+            for (i in 0 until n) {
+                if (!has[i]) continue
+                val base = i * dim
+                var sumSq = 0.0
+                for (d in 0 until dim) {
+                    val v = matrix[base + d] - mean[d]
+                    matrix[base + d] = v
+                    sumSq += v.toDouble() * v
+                }
+                val scale = 1f / sqrt(sumSq).toFloat().coerceAtLeast(1e-12f)
+                for (d in 0 until dim) matrix[base + d] *= scale
+            }
+            return matrix to has
+        }
+
+        private fun norm(v: FloatArray): Float {
+            var sumSq = 0.0
+            for (x in v) sumSq += x.toDouble() * x
+            return sqrt(sumSq).toFloat()
+        }
+    }
+}
+
+/**
+ * Unit-normalised rows kept as the arrays they were built from, each with the scale that normalises
+ * it: element `d` of row `r` is `vectors[r][d] * scales[r]`, the very float a matrix of its own would
+ * store. Every read repeats that one multiplication, so every value, copy and sum below is the same
+ * float as it would be read from such a matrix, without holding the library's vectors a second time
+ * beside the index that owns them. A null row reads as zeros.
+ *
+ * The arrays must not change while these rows are read; the engine builds them from the index's own
+ * arrays (see [io.github.nikitasud.latentjam.smart.VectorIndex.storedEntries]).
+ */
+internal class ScaledRows(
+    private val vectors: Array<out FloatArray?>,
+    private val scales: FloatArray,
+    val dim: Int,
+) {
+    val size: Int get() = vectors.size
+
+    operator fun get(row: Int, d: Int): Float {
+        val vector = vectors[row] ?: return 0f
+        return vector[d] * scales[row]
+    }
+
+    /** Writes [row] into [out] from [offset]. */
+    fun copyInto(row: Int, out: FloatArray, offset: Int = 0) {
+        val vector = vectors[row]
+        if (vector == null) {
+            out.fill(0f, offset, offset + dim)
+            return
+        }
+        val scale = scales[row]
+        for (d in 0 until dim) out[offset + d] = vector[d] * scale
+    }
+
+    fun row(row: Int): FloatArray = FloatArray(dim).also { copyInto(row, it) }
+
+    /** `Σ row[d] · query[offset + d]`, d ascending. */
+    fun dot(row: Int, query: FloatArray, offset: Int = 0): Float {
+        val vector = vectors[row] ?: zeros
+        val scale = scales[row]
+        var dot = 0f
+        for (d in 0 until dim) dot += vector[d] * scale * query[offset + d]
+        return dot
+    }
+
+    /** [batchDots] over these rows: the same order, four rows side by side, so the same floats. */
+    fun dots(query: FloatArray, offset: Int, rows: IntArray, count: Int, out: FloatArray) {
+        var index = 0
+        while (index + 4 <= count) {
+            val row0 = rows[index]
+            val row1 = rows[index + 1]
+            val row2 = rows[index + 2]
+            val row3 = rows[index + 3]
+            val v0 = vectors[row0] ?: zeros
+            val v1 = vectors[row1] ?: zeros
+            val v2 = vectors[row2] ?: zeros
+            val v3 = vectors[row3] ?: zeros
+            val s0 = scales[row0]
+            val s1 = scales[row1]
+            val s2 = scales[row2]
+            val s3 = scales[row3]
+            var dot0 = 0f
+            var dot1 = 0f
+            var dot2 = 0f
+            var dot3 = 0f
+            for (d in 0 until dim) {
+                val q = query[offset + d]
+                dot0 += v0[d] * s0 * q
+                dot1 += v1[d] * s1 * q
+                dot2 += v2[d] * s2 * q
+                dot3 += v3[d] * s3 * q
+            }
+            out[row0] = dot0
+            out[row1] = dot1
+            out[row2] = dot2
+            out[row3] = dot3
+            index += 4
+        }
+        while (index < count) {
+            out[rows[index]] = dot(rows[index], query, offset)
+            index++
+        }
+    }
+
+    private val zeros by lazy { FloatArray(dim) }
+}
+
+/**
+ * `out[row] = Σ matrix[row · dim + d] · query[offset + d]`, d ascending, for the first [count] of [rows].
+ * Each sum runs in the same order as a loop over one row, so it is the same float; four rows go at a time
+ * so that their sums, independent of each other, run side by side instead of each addition waiting for
+ * the one before.
+ */
+internal fun batchDots(
+    matrix: FloatArray,
+    dim: Int,
+    query: FloatArray,
+    offset: Int,
+    rows: IntArray,
+    count: Int,
+    out: FloatArray,
+) {
+    var index = 0
+    while (index + 4 <= count) {
+        val base0 = rows[index] * dim
+        val base1 = rows[index + 1] * dim
+        val base2 = rows[index + 2] * dim
+        val base3 = rows[index + 3] * dim
+        var dot0 = 0f
+        var dot1 = 0f
+        var dot2 = 0f
+        var dot3 = 0f
+        for (d in 0 until dim) {
+            val q = query[offset + d]
+            dot0 += matrix[base0 + d] * q
+            dot1 += matrix[base1 + d] * q
+            dot2 += matrix[base2 + d] * q
+            dot3 += matrix[base3 + d] * q
+        }
+        out[rows[index]] = dot0
+        out[rows[index + 1]] = dot1
+        out[rows[index + 2]] = dot2
+        out[rows[index + 3]] = dot3
+        index += 4
+    }
+    while (index < count) {
+        val base = rows[index] * dim
+        var dot = 0f
+        for (d in 0 until dim) dot += matrix[base + d] * query[offset + d]
+        out[rows[index]] = dot
+        index++
+    }
+}
+
+/** Optional platform kernel. False leaves [out] untouched and requests the portable implementation. */
+internal fun interface BatchDotProducts {
+    fun compute(
+        matrix: FloatArray, dim: Int, query: FloatArray, offset: Int,
+        rows: IntArray, count: Int, out: FloatArray,
+    ): Boolean
+
+    companion object {
+        val Portable = BatchDotProducts { matrix, dim, query, offset, rows, count, out ->
+            batchDots(matrix, dim, query, offset, rows, count, out)
+            true
+        }
+    }
+}

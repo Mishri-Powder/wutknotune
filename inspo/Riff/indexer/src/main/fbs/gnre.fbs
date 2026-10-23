@@ -1,0 +1,94 @@
+enum GenreRelationEnum : ubyte {
+  based_on = 0,
+  basis_for = 1,
+  child = 2,
+  different_from = 3,
+  facet_of = 4,
+  followed_by = 5,
+  follows = 6,
+  fusion_of = 7,
+  has_facet = 8,
+  has_fusion_genre = 9,
+  has_part = 10,
+  influenced = 11,
+  influenced_by = 12,
+  inspired = 13,
+  inspired_by = 14,
+  parent = 15,
+  part_of = 16,
+  same_as = 17,
+}
+
+table GenreIndex {
+  // Lookup ID is the signed long carrying the unchanged XXH3-64 bits
+  // of canonical UTF-8 produced by central requirements section 5.2.
+  // TL;DR: fast lookup of a hash for the XXH3(Confusable(genre))
+  // Must be sorted by `hash` for the `key` to work.
+  id: ulong (key);
+  genre_index: int32; // -> GenreList
+}
+
+table GenreRelation {
+  kind: GenreRelationEnum;
+  genre_index: int32; // -> GenreList
+}
+
+table GenreName {
+  locale: string (required); // e.g.: `en`
+  name: string (required); // e.g.: `Rock`
+}
+
+table Genre {
+  /// This data is to be trusted; no runtime sanitization is required.
+  /// The raw APK resource is stored uncompressed and mapped read-only by its
+  /// exact asset offset/length; XXH3-64 is supplied in Binder metadata.
+  /// Note: this file is never rebuilt at runtime; APK supplied version is
+  /// final. Valid data is assumed and is outside of this scheme.
+
+  /// Numeric part of a Wikidata Q-id (or a synthetic ID starting at -1).
+  /// e.g.: 10334882 for Wikidata Q-id "Q10334882"
+  /// Note: synthetic Qids must be stable across builds.
+  /// Note: it must be sorted while building an FB for the key to work.
+  /// Note: it is tempting to compact the indexes like first Qid -> 0, …
+  ///       but this is going to break MediaLibrary if Wikidata remove
+  ///       any genre in the future.
+  id: ulong (key); // long is an overkill but lets keep it for consistency
+
+  /// Related genres. Cycles are allowed; client must limit the depth.
+  related: [GenreRelation];
+
+  /// Names support UI display and compound-genre comparison (GP-2).
+  /// For display, vtable traversal does not matter because
+  /// this gets resolved only for the already selected genres (estimated ~5 max)
+  /// per playlist construction.
+  ///
+  /// When building:
+  ///
+  ///   1. Group by locale name, place `en` first, sort the rest alphabetically.
+  ///   2. Include the preferred name for each locale as the FIRST in the group.
+  ///
+  /// When playing:
+  ///
+  ///   IF player locale matches any existing locale:
+  ///     Use the first record matching the player locale
+  ///     e.g.: Player is `zh` and `zh` group is present: use first `zh` record.
+  ///   ELSE IF English locale defined:
+  ///     Use the English locale
+  ///     e.g.: Player is `zh` and `zh` group is NOT present -> `en`.
+  ///   ELSE:
+  ///     Use the first available locale
+  ///     e.g.: Player is `zh` and not `zh`, nor `en` is present, only `es`
+  ///     and `pt` is present with `es` come first -> `es`
+  names: [GenreName] (required);
+}
+
+table GenreList {
+  /// Positive, monotonic bundled-resource revision. A deployed Indexer upgrades
+  /// a valid genre DB when this value is greater than the deployed value.
+  generation: int32;
+  genres: [Genre] (required);
+  indexes: [GenreIndex] (required);
+}
+
+root_type GenreList;
+file_identifier "GNRE";

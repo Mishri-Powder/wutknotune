@@ -1,0 +1,45 @@
+namespace link.roadio.riff.indexer.analysis.fbs;
+
+enum AnalysisState:ubyte { Pending = 0, Available = 1, CompletedNoResult = 2, RetryableFailure = 3, DeterministicFailure = 4 }
+enum AnalysisGainSource:ubyte { None = 0, ReplayGain = 1, R128 = 2, Lame = 3, SoundCheck = 4, Measured = 5 }
+
+table AnalysisMediaId {
+  hi:long;
+  lo:long = null;
+}
+
+table AnalysisGenre {
+  genre_id:long;
+  confidence:float;
+}
+
+table AnalysisRecord {
+  media_id:AnalysisMediaId (required);
+  gain_state:AnalysisState = Pending;
+  gain_source:AnalysisGainSource = None;
+  track_gain_q8:short = null;
+  track_peak:float = null;
+  album_gain_q8:short = null;
+  album_peak:float = null;
+  album_source:AnalysisGainSource = None;
+  ai_state:AnalysisState = Pending;
+  pte:float = null;
+  pte_confidence:float = null;
+  arousal:float = null;
+  arousal_confidence:float = null;
+  valence:float = null;
+  valence_confidence:float = null;
+  genres:[AnalysisGenre];
+  model_revision:string;
+  gain_revision:string;
+  decoder_hint:long = null;
+}
+
+table CuetreeAnalysis {
+  database_version:string (required);
+  generation:long;
+  records:[AnalysisRecord];
+}
+
+root_type CuetreeAnalysis;
+file_identifier "MDRG";

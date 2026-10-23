@@ -1,0 +1,336 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import androidx.compose.ui.unit.LayoutDirection
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+@OptIn(ExperimentalCoroutinesApi::class)
+internal class AlphabetRailTest {
+
+    @Test
+    fun bucketsFollowTheListWithFirstRowPerBucket() {
+        val rail = railIndexOf(listOf("Abba", "Alla", "Beta", "Царь"))
+        assertEquals(listOf("A", "B", "Ц"), rail.buckets)
+        assertEquals(listOf(0, 2, 3), rail.startIndexes)
+    }
+
+    @Test
+    fun digitsAndNamelessEntriesHaveDistinctAnchors() {
+        val rail = railIndexOf(listOf("90s", "Alpha", "!!!"))
+        assertEquals(listOf("#", "A", "?"), rail.buckets)
+        assertEquals(listOf(0, 1, 2), rail.startIndexes)
+    }
+
+    @Test
+    fun nullsAtTheEndKeepTheirOwnFinalBucket() {
+        val rail = railIndexOf(listOf("7 rings", "Alpha", null, null))
+        assertEquals(listOf("#", "A", "?"), rail.buckets)
+        assertEquals(listOf(0, 1, 2), rail.startIndexes)
+    }
+
+    @Test
+    fun touchMappingClampsAndUsesEveryBucket() {
+        val anchors = railTouchAnchors(listOf("A", "B", "C", "D"), "A", 412f, 18f, 6f)
+        assertEquals(0, railBucketIndexAt(-10f, anchors))
+        assertEquals(0, railBucketIndexAt(105f, anchors))
+        assertEquals(1, railBucketIndexAt(107f, anchors))
+        assertEquals(3, railBucketIndexAt(412f, anchors))
+        assertEquals(listOf(0, 1, 2, 3), (0 until 412).mapNotNull { railBucketIndexAt(it.toFloat(), anchors) }.distinct())
+    }
+
+    @Test
+    fun visibleItemMapsToLatestSectionStart() {
+        val starts = listOf(0, 8, 15, 27)
+        assertEquals(0, currentRailBucketIndex(0, starts))
+        assertEquals(1, currentRailBucketIndex(12, starts))
+        assertEquals(3, currentRailBucketIndex(200, starts))
+        assertEquals(3, currentRailBucketIndex(18, starts, atEnd = true))
+    }
+
+    @Test
+    fun sectionLookupKeepsExactBoundariesAndLatestDuplicateAnchor() {
+        val starts = listOf(3, 8, 8, 15, 27)
+        assertEquals(null, currentRailBucketIndex(0, emptyList()))
+        assertEquals(0, currentRailBucketIndex(0, starts))
+        assertEquals(0, currentRailBucketIndex(7, starts))
+        assertEquals(2, currentRailBucketIndex(8, starts))
+        assertEquals(2, currentRailBucketIndex(14, starts))
+        assertEquals(3, currentRailBucketIndex(15, starts))
+        assertEquals(4, currentRailBucketIndex(27, starts))
+    }
+
+    @Test
+    fun sectionLookupMatchesLinearSelectionAcrossALargeMixedScriptRail() {
+        val starts = List(4_096) { index -> index * index / 4 }
+        for (itemIndex in 0..starts.last() step 997) {
+            assertEquals(
+                starts.indexOfLast { it <= itemIndex },
+                currentRailBucketIndex(itemIndex, starts),
+            )
+        }
+    }
+
+    @Test
+    fun aListThatFitsItsViewportHasNoScrollableRail() {
+        // Nothing to navigate to: the pill and its gutter would only shorten every row.
+        assertFalse(
+            railHasScrollableContent(
+                totalItemsCount = 8,
+                canScrollForward = false,
+                canScrollBackward = false,
+            ),
+        )
+    }
+
+    @Test
+    fun aListThatCanScrollForwardHasARail() {
+        assertTrue(
+            railHasScrollableContent(
+                totalItemsCount = 8,
+                canScrollForward = true,
+                canScrollBackward = false,
+            ),
+        )
+    }
+
+    @Test
+    fun aListThatCanScrollBackwardHasARail() {
+        // A partially scrolled list cannot move further down but still has letters to return to.
+        assertTrue(
+            railHasScrollableContent(
+                totalItemsCount = 8,
+                canScrollForward = false,
+                canScrollBackward = true,
+            ),
+        )
+    }
+
+    @Test
+    fun anEmptyListHasNoRailEvenWhileItReportsScrollRange() {
+        // The item count is the authority: with nothing in the list there is nothing to
+        // navigate to, whatever the scroll flags of a not-yet-measured list happen to say.
+        assertFalse(
+            railHasScrollableContent(
+                totalItemsCount = 0,
+                canScrollForward = true,
+                canScrollBackward = true,
+            ),
+        )
+    }
+
+    @Test
+    fun firstLetterTicksButHoldingAndReleasingTheSameLetterDoNot() {
+        val feedback = RailHapticState()
+        assertTrue(feedback.select(5, 100L))
+        assertFalse(feedback.select(5, 200L))
+        assertFalse(feedback.select(5, 1_000L))
+    }
+
+    @Test
+    fun changingLettersTicksInBothDirections() {
+        val feedback = RailHapticState()
+        assertTrue(feedback.select(5, 0L))
+        assertTrue(feedback.select(6, 70L))
+        assertTrue(feedback.select(5, 140L))
+    }
+
+    @Test
+    fun rapidLettersAreCoalescedWithoutADelayedTickWhileHoldingStill() {
+        val feedback = RailHapticState()
+        assertTrue(feedback.select(0, 0L))
+        assertFalse(feedback.select(1, 20L))
+        assertFalse(feedback.select(2, 40L))
+        assertFalse(feedback.select(2, 200L))
+        assertTrue(feedback.select(3, 210L))
+        assertFalse(feedback.select(4, 250L))
+        assertTrue(feedback.select(5, 280L))
+    }
+
+    @Test
+    fun aNewTouchGetsFeedbackEvenOnTheSameLetter() {
+        assertTrue(RailHapticState().select(4, 1_000L))
+        assertTrue(RailHapticState().select(4, 1_010L))
+    }
+
+    @Test
+    fun crossingManyCondensedLettersProducesOneTickAtTheNewPosition() {
+        val feedback = RailHapticState()
+        assertTrue(feedback.select(0, 0L))
+        assertTrue(feedback.select(90, 100L))
+        assertFalse(feedback.select(90, 200L))
+    }
+
+    @Test
+    fun rapidDragPreviewsEveryBucketAndKeepsExactFinalBucket() {
+        val coordinator = RailScrubCoordinator()
+        val previews = mutableListOf<Int>()
+
+        coordinator.begin()
+        (0..25).forEach { bucket ->
+            // Preview state is deliberately independent from expensive list navigation.
+            previews += bucket
+            coordinator.preview(bucket)
+        }
+        val finalJump = coordinator.finish()
+
+        assertEquals((0..25).toList(), previews)
+        assertEquals(25, finalJump?.bucketIndex)
+    }
+
+    @Test
+    fun secondGestureMakesAnOlderCompletionStale() {
+        val coordinator = RailScrubCoordinator()
+        coordinator.begin()
+        coordinator.preview(4)
+        val first = checkNotNull(coordinator.finish())
+
+        coordinator.begin()
+        coordinator.preview(19)
+        val second = checkNotNull(coordinator.finish())
+
+        assertEquals(false, coordinator.isCurrent(first.generation))
+        assertEquals(true, coordinator.isCurrent(second.generation))
+        assertEquals(19, second.bucketIndex)
+        assertEquals(null, coordinator.finish())
+    }
+
+    @Test
+    fun cancelInvalidatesCatalogWorkAndIgnoresStalePointerEvents() {
+        val coordinator = RailScrubCoordinator()
+        coordinator.begin()
+        coordinator.preview(5)
+        val oldGeneration = coordinator.generation
+
+        coordinator.cancel()
+        coordinator.preview(17)
+
+        assertEquals(false, coordinator.isCurrent(oldGeneration))
+        assertEquals(null, coordinator.finish())
+    }
+
+    @Test
+    fun artworkGateWaitsForMinimumAndEveryVisibleTerminal() = runTest {
+        val gate = ArtworkLoadGate()
+        val first = ArtworkLoadKey("first", "cover:first")
+        val second = ArtworkLoadKey("second", "cover:second")
+        var revealed = false
+        val cycle = gate.begin()
+
+        launch {
+            gate.awaitFinished(
+                cycle = cycle,
+                expected = setOf(first, second),
+                minimumWaitMillis = 120L,
+                maximumWaitMillis = 220L,
+            )
+            revealed = true
+        }
+        runCurrent()
+        gate.record(first, ArtworkLoadState.TERMINAL)
+        advanceTimeBy(119L)
+        runCurrent()
+        assertFalse(revealed)
+
+        gate.record(second, ArtworkLoadState.TERMINAL)
+        runCurrent()
+        assertFalse(revealed)
+        advanceTimeBy(1L)
+        runCurrent()
+        assertTrue(revealed)
+    }
+
+    @Test
+    fun artworkGateCannotHangOnAnUnreportedRequest() = runTest {
+        val gate = ArtworkLoadGate()
+        val missing = ArtworkLoadKey("missing", "cover:missing")
+        var revealed = false
+        val cycle = gate.begin()
+
+        launch {
+            gate.awaitFinished(
+                cycle = cycle,
+                expected = setOf(missing),
+                minimumWaitMillis = 120L,
+                maximumWaitMillis = 220L,
+            )
+            revealed = true
+        }
+        advanceTimeBy(219L)
+        runCurrent()
+        assertFalse(revealed)
+        advanceTimeBy(1L)
+        runCurrent()
+        assertTrue(revealed)
+    }
+
+    @Test
+    fun aNewLoadingStateInvalidatesAnEarlierTerminalInTheSameCycle() = runTest {
+        val gate = ArtworkLoadGate()
+        val cover = ArtworkLoadKey("track", "cover")
+        val cycle = gate.begin()
+        gate.record(cover, ArtworkLoadState.TERMINAL)
+        gate.record(cover, ArtworkLoadState.LOADING)
+        var revealed = false
+
+        launch {
+            gate.awaitFinished(
+                cycle = cycle,
+                expected = setOf(cover),
+                minimumWaitMillis = 0L,
+                maximumWaitMillis = 20L,
+            )
+            revealed = true
+        }
+        advanceTimeBy(19L)
+        runCurrent()
+        assertFalse(revealed)
+        gate.record(cover, ArtworkLoadState.TERMINAL)
+        runCurrent()
+        assertTrue(revealed)
+    }
+
+    @Test
+    fun eventsOutsideTheActiveCycleAreIgnored() = runTest {
+        val gate = ArtworkLoadGate()
+        val cover = ArtworkLoadKey("track", "cover")
+        gate.record(cover, ArtworkLoadState.TERMINAL)
+        val cycle = gate.begin()
+        var revealed = false
+
+        launch {
+            gate.awaitFinished(
+                cycle = cycle,
+                expected = setOf(cover),
+                minimumWaitMillis = 0L,
+                maximumWaitMillis = 10L,
+            )
+            revealed = true
+        }
+        advanceTimeBy(9L)
+        runCurrent()
+        assertFalse(revealed)
+        advanceTimeBy(1L)
+        runCurrent()
+        assertTrue(revealed)
+    }
+
+    @Test
+    fun leftHandedMeansThePhysicalLeftInEitherReadingDirection() {
+        // Start is the left edge in a left-to-right layout and the right edge in Arabic or Hebrew.
+        assertTrue(handControlsAtStart(leftHanded = true, layoutDirection = LayoutDirection.Ltr))
+        assertFalse(handControlsAtStart(leftHanded = true, layoutDirection = LayoutDirection.Rtl))
+        assertFalse(handControlsAtStart(leftHanded = false, layoutDirection = LayoutDirection.Ltr))
+        assertTrue(handControlsAtStart(leftHanded = false, layoutDirection = LayoutDirection.Rtl))
+    }
+}

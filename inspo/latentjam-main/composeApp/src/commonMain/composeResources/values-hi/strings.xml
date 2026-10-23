@@ -1,0 +1,911 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2026 LatentJam Project
+  SPDX-License-Identifier: Apache-2.0
+
+  Hindi (hi). Keys and ordering follow values/strings.xml.
+  Apostrophes and quotation marks are RAW; only \uXXXX \n \t \\ are unescaped.
+  "LatentJam" and "SMART" are names — never translated.
+-->
+<resources>
+
+    <!-- ============================================================ actions -->
+    <string name="action_play">चलाएं</string>
+    <string name="action_pause">रोकें</string>
+    <string name="action_next">अगला</string>
+    <string name="action_previous">पिछला</string>
+    <string name="action_shuffle">शफ़ल</string>
+    <string name="action_close">बंद करें</string>
+    <string name="action_back">वापस</string>
+    <string name="action_cancel">रद्द करें</string>
+    <string name="action_delete">मिटाएं</string>
+    <string name="action_rename">नाम बदलें</string>
+    <string name="action_clear">साफ़ करें</string>
+    <string name="action_track_options">गाने के विकल्प</string>
+    <string name="action_create">बनाएं</string>
+    <string name="action_play_all">सभी चलाएं</string>
+    <string name="action_shuffle_all">सभी शफ़ल करें</string>
+    <string name="action_share">शेयर करें</string>
+    <string name="action_select_all">सभी चुनें</string>
+    <string name="action_deselect_all">सभी का चयन हटाएँ</string>
+    <string name="selection_count">चुने गए ट्रैक: %1$d</string>
+    <string name="action_add">जोड़ें</string>
+    <string name="cd_more_options">और विकल्प</string>
+    <string name="cd_search_library">लाइब्रेरी में खोजें</string>
+    <string name="cd_alphabet_index">वर्णमाला सूचकांक</string>
+
+    <!-- ======================================================= track labels -->
+    <string name="label_track">गाना</string>
+    <string name="track_untitled">बिना शीर्षक</string>
+    <string name="track_unknown_artist">अज्ञात कलाकार</string>
+    <string name="track_unknown_album">अज्ञात एल्बम</string>
+    <string name="track_unknown_genre">अज्ञात शैली</string>
+    <!-- Hindi distinguishes one and other. -->
+    <plurals name="count_tracks">
+        <item quantity="one">%1$d गाना</item>
+        <item quantity="other">%1$d गाने</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="cd_track_options_for">%1$s के लिए ज़्यादा विकल्प</string>
+    <string name="cd_track_options_generic">इस गाने के लिए ज़्यादा विकल्प</string>
+
+    <plurals name="count_albums">
+        <item quantity="one">%1$d एल्बम</item>
+        <item quantity="other">%1$d एल्बम</item>
+    </plurals>
+    <plurals name="count_artists">
+        <item quantity="one">%1$d कलाकार</item>
+        <item quantity="other">%1$d कलाकार</item>
+    </plurals>
+    <plurals name="count_genres">
+        <item quantity="one">%1$d शैली</item>
+        <item quantity="other">%1$d शैलियां</item>
+    </plurals>
+
+    <!-- ======================================================= browse tabs -->
+    <string name="tab_for_you">आपके लिए</string>
+    <string name="tab_playlists">प्लेलिस्ट</string>
+    <string name="tab_tracks">गाने</string>
+    <string name="tab_albums">एल्बम</string>
+    <string name="tab_artists">कलाकार</string>
+    <string name="tab_genres">शैलियां</string>
+    <string name="tab_map">नक्शा</string>
+
+    <!-- ===================================================== library shell -->
+    <string name="library_empty">इस डिवाइस पर कोई संगीत नहीं मिला.</string>
+    <string name="action_rescan_library">लाइब्रेरी रीफ़्रेश करें</string>
+    <string name="sort_recently_added">हाल ही में जोड़े गए</string>
+    <string name="sort_custom_order">कस्टम क्रम</string>
+    <string name="sort_name">नाम</string>
+    <string name="sort_direction_ascending">आरोही</string>
+    <string name="sort_direction_descending">अवरोही</string>
+    <string name="snack_track_deleted">गाना मिटाया गया</string>
+    <string name="snack_track_delete_denied">इन गानों को हटाने के लिए फ़ाइल एक्सेस चाहिए।</string>
+    <string name="snack_track_delete_failed">फ़ाइल हटाई नहीं जा सकी</string>
+    <string name="snack_track_delete_summary">मिटाए गए: %1$d। एक्सेस अस्वीकृत: %2$d। विफल: %3$d। रद्द: %4$d।</string>
+
+    <!-- =========================================================== for you -->
+    <string name="foryou_empty">कुछ गाने चलाएं और यह पेज उन चीज़ों से भर जाएगा जिन पर लौटना बनता है.</string>
+    <string name="foryou_section_continue">अब तक अधूरे</string>
+    <string name="foryou_section_worth_revisiting">काफ़ी समय से नहीं सुने</string>
+    <string name="foryou_section_worlds">आपके मिक्स</string>
+    <string name="foryou_mix_discovery">डिस्कवरी मिक्स</string>
+    <string name="foryou_section_never_played">कभी नहीं चलाए</string>
+    <!-- एक दुनिया के साथ करने योग्य दो काम — अनुमान लगाने के बजाय पूछे गए। -->
+    <string name="foryou_world_open">ट्रैक दिखाएँ</string>
+    <string name="foryou_world_smart">मिलते-जुलते गाने चलाएँ</string>
+    <string name="foryou_kicker_resume">जहां छोड़ा था वहीं से सुनें</string>
+    <plurals name="foryou_kicker_played_times">
+        <item quantity="one">आपने इसे %1$d बार सुना</item>
+        <item quantity="other">आपने इसे %1$d बार सुना</item>
+    </plurals>
+    <string name="foryou_kicker_never_played">कभी नहीं चलाया</string>
+    <plurals name="foryou_caption_played_before">
+        <item quantity="one">पहले %1$d बार</item>
+        <item quantity="other">पहले %1$d बार</item>
+    </plurals>
+
+    <!-- =============================================================== map -->
+    <string name="map_lens_worlds">दुनिया</string>
+    <string name="map_lens_plays">प्ले</string>
+    <string name="map_lens_never_played">कभी नहीं चलाए</string>
+    <string name="map_lens_skips">स्किप</string>
+
+    <plurals name="count_regions">
+        <item quantity="one">%1$d क्षेत्र</item>
+        <item quantity="other">%1$d क्षेत्र</item>
+    </plurals>
+
+    <string name="map_headline_worlds">आपकी लाइब्रेरी %2$s बनाती है — कुल %1$s. किसी एक पर टैप करके सुनें कि उसमें क्या है.</string>
+    <string name="map_headline_worlds_partial">आपकी लाइब्रेरी %3$s बनाती है — कुल %2$s में से %1$d. किसी एक पर टैप करके सुनें कि उसमें क्या है.</string>
+    <string name="map_headline_plays">मानचित्र के क्षेत्रों में आधे प्ले %1$s से आते हैं — इन क्षेत्रों के %2$d\u0025 ट्रैक.</string>
+    <string name="map_headline_never_played">मानचित्र के क्षेत्रों में %2$s में से %1$d कभी नहीं चलाए गए. "%3$s" का %4$d\u0025 हिस्सा अभी नहीं सुना गया.</string>
+    <string name="map_headline_skips">सबसे ज़्यादा आप "%1$s" में छोड़ देते हैं — शुरू किए गए %2$d\u0025 गानों में.</string>
+
+    <string name="map_headline_unplayed_total">मानचित्र के क्षेत्र: %2$s · चलाने का कोई रिकॉर्ड नहीं: %1$d.</string>
+    <string name="map_select_region">क्षेत्र चुनें</string>
+    <string name="map_fullscreen">नक्शा पूरी स्क्रीन पर खोलें</string>
+    <string name="map_exit_fullscreen">पूरी स्क्रीन वाले नक्शे से बाहर निकलें</string>
+    <string name="map_gesture_hint">नक्शे को खिसकाने या ज़ूम करने के लिए दो उँगलियों का इस्तेमाल करें।</string>
+    <string name="map_reset_view">मानचित्र दृश्य रीसेट करें</string>
+    <string name="map_region_unplayed">यहाँ नहीं बजाए गए: %1$d</string>
+    <string name="map_action_play_unheard">अनसुने ट्रैक चलाएँ</string>
+    <string name="map_action_play_region">इस क्षेत्र को चलाएं</string>
+    <string name="map_action_smart_here">यहाँ से SMART</string>
+    <string name="map_empty_indexing">आपकी लाइब्रेरी अब भी पढ़ी जा रही है. इंडेक्सिंग पूरी होते ही नक्शा दिखेगा.</string>
+    <string name="map_empty_building">आपकी लाइब्रेरी का नक्शा बनाया जा रहा है. बड़ी लाइब्रेरी में इसमें थोड़ा समय लग सकता है.</string>
+    <string name="map_empty_too_large">आपकी लाइब्रेरी में %1$s हैं — जो नक्शा अभी दिखा सकता है उन %2$s से ज़्यादा.</string>
+
+    <string name="map_legend_selected">चुना हुआ क्षेत्र</string>
+    <string name="map_legend_rest">बाकी लाइब्रेरी</string>
+    <string name="map_dot_outside_hint">निकटतम क्षेत्र: %1$s</string>
+    <string name="map_legend_never">कभी नहीं चलाए</string>
+    <string name="map_legend_played">कम से कम एक बार चलाए</string>
+    <string name="map_legend_never_skips">कभी स्किप नहीं किए</string>
+    <string name="map_legend_always_skips">हमेशा स्किप किए</string>
+
+    <!-- ================================================== now playing/queue -->
+    <string name="now_playing_nothing">कुछ भी नहीं चल रहा</string>
+    <string name="now_playing_source">यहाँ से चल रहा है: %1$s</string>
+    <string name="cd_now_playing">अभी चल रहा है</string>
+    <string name="queue_title">क्यू</string>
+    <!-- %1$d is how many tracks are in the queue -->
+    <string name="queue_title_count">क्यू · %1$d</string>
+    <string name="queue_row_continuation">यह सुझाव नहीं है — ताकि संगीत चलता रहे</string>
+    <string name="cd_repeat_off">दोहराना बंद है. पूरे क्यू को दोहराने के लिए टैप करें.</string>
+    <string name="cd_repeat_all">पूरा क्यू दोहराया जा रहा है. सिर्फ़ एक गाना दोहराने के लिए टैप करें.</string>
+    <string name="cd_repeat_one">एक ही गाना दोहराया जा रहा है. दोहराना बंद करने के लिए टैप करें.</string>
+    <string name="cd_shuffle_off">शफ़ल बंद है. बदलने के लिए टैप करें.</string>
+    <string name="cd_shuffle_on">शफ़ल चालू है. बदलने के लिए टैप करें.</string>
+    <string name="cd_shuffle_smart">SMART शफ़ल चालू है. बदलने के लिए टैप करें.</string>
+
+    <!-- ============================================================= search -->
+    <string name="search_placeholder">गीत, कलाकार या बोल</string>
+    <string name="cd_close_search">खोज बंद करें</string>
+    <string name="cd_clear_query">खोज का टेक्स्ट मिटाएं</string>
+    <!-- %1$s is what the user typed -->
+    <string name="search_no_matches">"%1$s" के लिए कोई नतीजा नहीं मिला.</string>
+    <!-- %1$d is the size of the library -->
+    <plurals name="search_hint_count">
+        <item quantity="one">अपने %1$d गाने में खोजें.</item>
+        <item quantity="other">अपने %1$d गानों में खोजें.</item>
+    </plurals>
+    <string name="search_recent_title">हाल की खोजें</string>
+    <!-- %1$s is a past search term being removed from history -->
+    <string name="cd_forget_search">"%1$s" को खोज इतिहास से हटाएं</string>
+
+    <!-- ========================================================== playlists -->
+    <string name="playlists_empty">अभी कोई प्लेलिस्ट नहीं है. नई बनाने के लिए + पर टैप करें.</string>
+    <string name="playlist_name_placeholder">प्लेलिस्ट का नाम</string>
+    <string name="playlist_new">नई प्लेलिस्ट</string>
+    <!-- %1$s is a playlist name -->
+    <string name="cd_playlist_options">%1$s के विकल्प</string>
+    <!-- Sheet header. %1$s is a track title; the generic form is used when the
+         track has no title at all. -->
+    <string name="playlist_add_to_title">"%1$s" को इसमें जोड़ें</string>
+    <string name="playlist_add_to_title_generic">गाने को इसमें जोड़ें</string>
+    <string name="playlist_rename_title">प्लेलिस्ट का नाम बदलें</string>
+    <string name="action_change_playlist_cover">कवर बदलें</string>
+    <string name="action_reset_playlist_cover">अपने आप चुना गया कवर इस्तेमाल करें</string>
+    <string name="playlist_cover_error">प्लेलिस्ट का कवर नहीं बदला जा सका। कोई दूसरी तस्वीर आज़माएँ।</string>
+    <string name="snack_playlist_created">"%1$s" बनाई गई</string>
+    <string name="snack_playlist_deleted">"%1$s" मिटाई गई</string>
+    <string name="snack_added_to_playlist">"%1$s" में जोड़ा गया</string>
+    <string name="auto_playlist_favorites">पसंदीदा</string>
+    <string name="auto_playlist_recently_added">हाल ही में जोड़े गए</string>
+    <string name="auto_playlist_most_played">सबसे ज़्यादा चलाए गए</string>
+    <string name="auto_playlist_recently_played">हाल ही में चलाए गए</string>
+    <string name="auto_playlist_never_played">कभी नहीं सुने गए</string>
+    <string name="auto_playlist_rediscover">फिर से खोजें</string>
+
+    <!-- ============================================== track actions + sheet -->
+    <string name="action_play_next">अगले में चलाएं</string>
+    <string name="action_add_to_queue">क्यू में जोड़ें</string>
+    <string name="action_add_to_playlist">प्लेलिस्ट में जोड़ें</string>
+    <string name="action_add_favorite">पसंदीदा में जोड़ें</string>
+    <string name="action_remove_favorite">पसंदीदा से हटाएँ</string>
+    <string name="action_add_all_favorites">सभी को पसंदीदा में जोड़ें</string>
+    <plurals name="snack_favorites_added">
+        <item quantity="one">%1$d गाना पसंदीदा में जोड़ा गया</item>
+        <item quantity="other">%1$d गाने पसंदीदा में जोड़े गए</item>
+    </plurals>
+    <plurals name="snack_favorites_removed">
+        <item quantity="one">%1$d गाना पसंदीदा से हटाया गया</item>
+        <item quantity="other">%1$d गाने पसंदीदा से हटाए गए</item>
+    </plurals>
+    <plurals name="snack_favorites_already">
+        <item quantity="one">%1$d पहले से पसंदीदा में था</item>
+        <item quantity="other">%1$d पहले से पसंदीदा में थे</item>
+    </plurals>
+    <string name="action_remove_from_playlist">इस प्लेलिस्ट से हटाएँ</string>
+    <string name="snack_playlist_track_removed">"%1$s" से हटाया गया</string>
+    <plurals name="playlist_unavailable_tracks">
+        <item quantity="one">इस प्लेलिस्ट का %1$d गाना इस डिवाइस पर नहीं है।</item>
+        <item quantity="other">इस प्लेलिस्ट के %1$d गाने इस डिवाइस पर नहीं हैं।</item>
+    </plurals>
+    <string name="action_go_to_album">एल्बम पर जाएं</string>
+    <string name="action_go_to_artist">कलाकार पर जाएं</string>
+    <string name="action_show_on_map">मानचित्र पर दिखाएँ</string>
+    <string name="action_export_m3u">M3U के रूप में निर्यात करें</string>
+    <string name="action_smart_keep_together">SMART में साथ रखें</string>
+    <string name="action_import_m3u">M3U आयात करें</string>
+    <plurals name="snack_m3u_imported_all">
+        <item quantity="one">%1$d ट्रैक आयात किया गया</item>
+        <item quantity="other">%1$d ट्रैक आयात किए गए</item>
+    </plurals>
+    <plurals name="snack_m3u_imported_partial">
+        <item quantity="one">आयात किए गए ट्रैक: %2$d में से %1$d</item>
+        <item quantity="other">आयात किए गए ट्रैक: %2$d में से %1$d</item>
+    </plurals>
+    <string name="snack_m3u_import_failed">प्लेलिस्ट आयात नहीं हो सकी</string>
+    <plurals name="m3u_import_found">
+        <item quantity="one">%2$d में से %1$d गाना मिला</item>
+        <item quantity="other">%2$d में से %1$d गाने मिले</item>
+    </plurals>
+    <plurals name="m3u_import_playlists">
+        <item quantity="one">%1$d प्लेलिस्ट</item>
+        <item quantity="other">%1$d प्लेलिस्ट</item>
+    </plurals>
+    <plurals name="m3u_import_skipped_files">
+        <item quantity="one">%1$d फ़ाइल छोड़ी गई</item>
+        <item quantity="other">%1$d फ़ाइलें छोड़ी गईं</item>
+    </plurals>
+    <string name="m3u_import_playlists_partial">बनाई गई प्लेलिस्ट: %2$d में से %1$d। बाकी सहेजी नहीं जा सकीं।</string>
+    <plurals name="playlist_new_count">
+        <item quantity="one">%1$d नई प्लेलिस्ट</item>
+        <item quantity="other">%1$d नई प्लेलिस्ट</item>
+    </plurals>
+    <string name="playlist_imported_name">आयातित प्लेलिस्ट</string>
+    <string name="action_information">जानकारी</string>
+    <string name="action_delete_from_device">डिवाइस से मिटाएं</string>
+    <string name="dialog_delete_tracks_message">चुने गए ट्रैक (%1$d) इस डिवाइस से हटा दिए जाएँगे। इसे पहले जैसा नहीं किया जा सकता।</string>
+    <string name="dialog_delete_track_title">क्या यह गाना मिटाना है?</string>
+    <plurals name="dialog_delete_tracks_title">
+        <item quantity="one">क्या %1$d गाना मिटाना है?</item>
+        <item quantity="other">क्या %1$d गाने मिटाने हैं?</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="dialog_delete_track_message">"%1$s" इस डिवाइस से हटा दिया जाएगा. इसे पहले जैसा नहीं किया जा सकता.</string>
+    <string name="dialog_delete_track_message_generic">यह गाना इस डिवाइस से हटा दिया जाएगा. इसे पहले जैसा नहीं किया जा सकता.</string>
+
+    <!-- ======================================================== track info -->
+    <string name="info_title">शीर्षक</string>
+    <string name="info_artist">कलाकार</string>
+    <string name="info_album">एल्बम</string>
+    <string name="info_genre">शैली</string>
+    <string name="info_year">साल</string>
+    <string name="info_duration">अवधि</string>
+    <string name="info_location">फ़ाइल की जगह</string>
+    <string name="info_not_set">सेट नहीं है</string>
+    <string name="info_edit">टैग संपादित करें</string>
+    <string name="info_save">सहेजें</string>
+    <string name="info_cancel">रद्द करें</string>
+    <string name="editor_discard_title">बदलाव छोड़ दें?</string>
+    <string name="editor_discard">छोड़ें</string>
+    <string name="editor_keep_editing">संपादन जारी रखें</string>
+    <string name="info_saving">सहेजा जा रहा है…</string>
+    <string name="info_edit_note">फ़ाइल में ही सहेजा जाता है, इसलिए सुधार हर ऐप को दिखता है। फ़ाइल बदलने की अनुमति माँगी जा सकती है।</string>
+    <string name="info_edit_refused">इस फ़ाइल के टैग ऐसे रूप में हैं जिन्हें सुरक्षित रूप से दोबारा नहीं लिखा जा सकता, इसलिए कुछ नहीं बदला गया।</string>
+    <string name="info_edit_failed">इस फ़ाइल में नहीं लिखा जा सका। इसे जैसा था वैसा ही छोड़ दिया गया।</string>
+    <string name="info_edit_no_space">इन टैग को सुरक्षित रूप से सहेजने के लिए पर्याप्त खाली जगह नहीं है। कुछ भी नहीं बदला गया।</string>
+    <string name="info_edit_recovery_pending">सहेजना बीच में रुक गया। LatentJam अगली बार फ़ाइल लिखने की अनुमति मिलने पर इसे पूरा करेगा या वापस ले लेगा।</string>
+    <string name="tag_recovery_title">टैग सहेजना पूरा करें</string>
+    <plurals name="tag_recovery_body">
+        <item quantity="one">%1$d फ़ाइल में टैग सहेजते समय LatentJam बीच में रुक गया। यह बदलाव अभी पूरा कर सकता है, या फ़ाइल पूरी न हो सके तो उसे वापस ले सकता है।</item>
+        <item quantity="other">%1$d फ़ाइलों में टैग सहेजते समय LatentJam बीच में रुक गया। यह बदलाव अभी पूरे कर सकता है, या जो फ़ाइल पूरी न हो सके उसमें उन्हें वापस ले सकता है।</item>
+    </plurals>
+    <string name="tag_recovery_finish">पूरा करें</string>
+    <string name="tag_recovery_later">बाद में</string>
+    <string name="tag_problem_unsupported_format">LatentJam इस तरह की फ़ाइल को संपादित नहीं कर सकता।</string>
+    <string name="tag_problem_damaged">यह फ़ाइल खराब लगती है, इसलिए इसे जैसी है वैसी ही छोड़ दिया गया।</string>
+    <string name="tag_problem_protected">यह फ़ाइल कॉपी-सुरक्षित है और इसे बदला नहीं जा सकता।</string>
+    <string name="tag_problem_tags_too_large">टैग इस फ़ाइल के लिए बहुत बड़े हो जाएँगे।</string>
+    <string name="tag_problem_bad_number">ट्रैक और डिस्क नंबर 1 से 999 तक की पूर्ण संख्याएँ होने चाहिए।</string>
+    <string name="tag_problem_number_unreadable">फ़ाइल का अपना ट्रैक या डिस्क नंबर सामान्य संख्या नहीं है, इसलिए उसका कुल अकेले नहीं बदला जा सकता।</string>
+    <string name="tag_problem_bad_image">यह तस्वीर JPEG या PNG नहीं है।</string>
+    <string name="tag_problem_read_only_storage">यह फ़ाइल ऐसे स्टोरेज पर है जिसमें लिखा नहीं जा सकता।</string>
+    <string name="tag_problem_music_library">संगीत लाइब्रेरी के गाने संपादित नहीं किए जा सकते, केवल LatentJam में इंपोर्ट किए गए गाने संपादित किए जा सकते हैं।</string>
+    <string name="tag_problem_unreadable">यह फ़ाइल पढ़ी नहीं जा सकी।</string>
+    <string name="tag_problem_not_allowed">फ़ाइल बदलने की अनुमति नहीं दी गई।</string>
+    <string name="tag_problem_missing">फ़ाइल अब मौजूद नहीं है।</string>
+    <string name="tag_problem_stopped">इस फ़ाइल से पहले रोक दिया गया।</string>
+    <string name="tag_problem_cancelled">अनुमति का अनुरोध बंद कर दिया गया।</string>
+    <string name="tag_problem_undone">बीच में रुका हुआ सहेजना वापस ले लिया गया: फ़ाइल पहले जैसी है।</string>
+    <string name="tag_problem_changed_elsewhere">सहेजना रुकने के बाद किसी दूसरे ऐप ने फ़ाइल बदल दी, इसलिए उसे जैसी है वैसी ही छोड़ दिया गया।</string>
+    <string name="tag_problem_lost">LatentJam यह पता नहीं लगा सका कि यह सहेजना कैसे पूरा हुआ। फ़ाइल के टैग जाँचें।</string>
+
+    <!-- =========================================================== settings -->
+    <string name="settings_title">सेटिंग</string>
+    <string name="settings_section_appearance">दिखावट</string>
+    <string name="settings_theme">थीम</string>
+    <string name="theme_system">सिस्टम के हिसाब से</string>
+    <string name="theme_light">लाइट</string>
+    <string name="theme_dark">डार्क</string>
+    <string name="settings_section_playback">प्लेबैक</string>
+    <string name="settings_equalizer">इक्वलाइज़र</string>
+    <string name="settings_equalizer_subtitle">इस डिवाइस के ऑडियो आउटपुट के लिए टोन कंट्रोल</string>
+    <string name="settings_intelligence">SMART इंजन</string>
+    <string name="settings_smart_engine">SMART इंजन</string>
+    <string name="settings_smart_engine_subtitle">डिवाइस पर मौजूद मॉडल आपकी लाइब्रेरी के बारे में क्या जानता है</string>
+    <string name="settings_about_body">LatentJam — डिवाइस पर ही चलने वाले सुझाव इंजन के साथ एक लोकल म्यूज़िक प्लेयर. आप क्या सुनते हैं, इससे जुड़ी कोई भी जानकारी इस डिवाइस से बाहर नहीं जाती.</string>
+
+    <!-- ========================================================== equalizer -->
+    <string name="state_on">चालू</string>
+    <string name="state_off">बंद</string>
+    <string name="equalizer_presets">प्रीसेट</string>
+    <string name="equalizer_bands">बैंड</string>
+    <string name="equalizer_bass_boost">बेस बूस्ट</string>
+    <string name="equalizer_reset">फ़्लैट पर रीसेट करें</string>
+
+    <!-- ======================================================= intelligence -->
+    <string name="intelligence_section_status">स्थिति</string>
+    <string name="intelligence_engine">इंजन</string>
+    <string name="intelligence_library">लाइब्रेरी</string>
+    <string name="intelligence_fingerprints">साउंड फ़िंगरप्रिंट</string>
+    <!-- %1$d tracks analysed out of %2$d in the library -->
+    <string name="intelligence_indexed_of">%2$d में से %1$d</string>
+    <string name="engine_state_not_started">शुरू नहीं हुआ</string>
+    <string name="engine_state_starting">शुरू हो रहा है…</string>
+    <string name="engine_state_ready">तैयार</string>
+    <!-- %1$s is a technical failure reason reported by the engine -->
+    <string name="engine_state_unavailable">उपलब्ध नहीं — %1$s</string>
+
+    <!-- ========================================================= permission -->
+    <string name="permission_audio_rationale">लाइब्रेरी स्कैन करने के लिए LatentJam को आपके संगीत का ऐक्सेस चाहिए.</string>
+    <string name="permission_grant">ऐक्सेस दें</string>
+    <string name="permission_audio_settings_rationale">संगीत का ऐक्सेस ब्लॉक है। सिस्टम सेटिंग खोलें और LatentJam को संगीत और ऑडियो फ़ाइलों का ऐक्सेस दें।</string>
+    <string name="permission_open_settings">सेटिंग खोलें</string>
+    <string name="permission_notifications_title">विश्लेषण की प्रगति दिखाएँ?</string>
+    <string name="permission_notifications_rationale">SMART इस डिवाइस पर आपकी लाइब्रेरी का विश्लेषण करता है। प्रगति देखने और काम के दौरान LatentJam पर लौटने के लिए सूचनाएँ चालू करें। “अभी नहीं” चुनने पर भी विश्लेषण जारी रहेगा।</string>
+    <string name="permission_not_now">अभी नहीं</string>
+    <string name="permission_continue">जारी रखें</string>
+
+
+    <string name="engine_error_model_unavailable">SMART शामिल किए गए मॉडल लोड नहीं कर सका। सेटअप फिर चलाएँ; समस्या बनी रहे तो ऐप दोबारा इंस्टॉल करें या रिपोर्ट करें।</string>
+    <string name="engine_error_not_indexed">लाइब्रेरी अभी इंडेक्स नहीं हुई.</string>
+    <string name="engine_error_audio_unavailable">यह ट्रैक पढ़ा या डिकोड नहीं किया जा सका। जाँचें कि फ़ाइल अभी उपलब्ध है, फिर कोशिश करें।</string>
+    <string name="engine_error_backend">SMART में आंतरिक त्रुटि हुई। सेटअप फिर चलाएँ; समस्या बनी रहे तो रिपोर्ट करें।</string>
+
+    <string name="indexing_notification_title">आपके संगीत का विश्लेषण हो रहा है</string>
+    <string name="indexing_notification_progress">%1$d में से %2$d</string>
+    <string name="indexing_notification_progress_eta">%1$d में से %2$d · लगभग %3$d मिनट शेष</string>
+    <!-- =================================================== expanded settings -->
+    <string name="settings_appearance">दिखावट</string>
+    <string name="settings_appearance_subtitle">थीम, प्लेयर के रंग और भाषा</string>
+    <string name="settings_library">लाइब्रेरी</string>
+    <string name="settings_library_subtitle">रीफ़्रेश, इंपोर्ट और छिपे गानों का प्रबंधन</string>
+    <string name="settings_playback">प्लेबैक</string>
+    <string name="settings_playback_subtitle">इक्वलाइज़र और ऑडियो नियंत्रण</string>
+    <string name="settings_privacy">निजता और डेटा</string>
+    <string name="settings_privacy_subtitle">सुनने का इतिहास और हाल की खोजें</string>
+    <string name="settings_about">LatentJam के बारे में</string>
+    <string name="settings_about_subtitle">लाइसेंस, सोर्स कोड और सहायता</string>
+    <string name="settings_section_library">लाइब्रेरी</string>
+    <string name="settings_section_navigation">नेविगेशन</string>
+    <string name="settings_section_privacy">डिवाइस पर मौजूद डेटा</string>
+    <string name="settings_track_colors">प्लेयर के रंग</string>
+    <string name="settings_page_header">पेज हेडर</string>
+    <string name="settings_page_header_dots">बिंदु</string>
+    <string name="settings_page_header_neighbours">आस-पास के पेज</string>
+    <string name="settings_page_header_tabs">टैब</string>
+    <string name="settings_page_header_pills">पिल</string>
+    <string name="settings_page_header_menu">मेनू</string>
+    <string name="settings_color_custom">अपना</string>
+    <string name="settings_color_custom_body">आपका अपना रंग प्लेयर, क्लाउड, मिनी प्लेयर, स्विच और प्ले बटन को रंगता है, चाहे कुछ भी चल रहा हो।</string>
+    <string name="settings_accent_swatch">रंग %1$d / %2$d</string>
+    <string name="settings_pure_black">शुद्ध काला</string>
+    <string name="settings_pure_black_body">OLED स्क्रीन के लिए: गहरे स्लेटी की जगह असली काला</string>
+    <string name="settings_cloud">क्लाउड</string>
+    <string name="settings_cloud_off">बंद</string>
+    <string name="settings_cloud_soft">हल्का</string>
+    <string name="settings_cloud_normal">सामान्य</string>
+    <string name="settings_cloud_vivid">गहरा</string>
+    <string name="settings_cloud_motion">प्लेयर में हलचल</string>
+    <string name="settings_cloud_motion_body">संगीत चलते समय क्लाउड धीरे-धीरे तैरता है</string>
+    <string name="settings_player_background">प्लेयर का बैकग्राउंड</string>
+    <string name="settings_player_background_cloud">क्लाउड</string>
+    <string name="settings_player_background_cover">धुंधला कवर</string>
+    <string name="settings_shape">आकार</string>
+    <string name="settings_shape_round">गोल</string>
+    <string name="settings_shape_soft">नरम</string>
+    <string name="settings_shape_sharp">तीखा</string>
+    <string name="settings_shape_body">पूरे ऐप में मेन्यू, शीट, बटन, चिप और कवर के कोने।</string>
+    <string name="settings_mini_player">मिनी प्लेयर</string>
+    <string name="settings_mini_player_card">कार्ड</string>
+    <string name="settings_mini_player_bar">पट्टी</string>
+    <string name="settings_section_handling">इस्तेमाल</string>
+    <string name="settings_left_handed">बाएँ हाथ के लिए</string>
+    <string name="settings_left_handed_body">शफ़ल बटन और वर्णमाला बाईं ओर</string>
+    <string name="settings_color_dynamic">कवर आर्ट</string>
+    <string name="settings_color_dynamic_body">कवर आर्ट से लिए रंग इस्तेमाल करें, जरूरत पर SMART रंग लगेंगे।</string>
+    <string name="settings_color_smart">SMART</string>
+    <string name="settings_color_smart_body">हर गाने की ध्वनि पहचान से निकले रंग इस्तेमाल करें।</string>
+    <string name="settings_color_theme">थीम</string>
+    <string name="settings_color_theme_body">हर गाने के अलग रंगों की जगह ऐप की थीम इस्तेमाल करें।</string>
+    <string name="settings_start_page">शुरुआती पेज</string>
+    <string name="settings_start_page_body">अगली बार LatentJam खोलने पर यह पेज दिखेगा।</string>
+    <string name="settings_library_count">लाइब्रेरी में गाने</string>
+    <string name="settings_library_refresh">लाइब्रेरी रीफ़्रेश करें</string>
+    <string name="settings_library_refresh_body">नया संगीत खोजें और अब उपलब्ध न रही फ़ाइलों की प्रविष्टियाँ हटाएँ।</string>
+    <string name="settings_library_import">संगीत इंपोर्ट करें</string>
+    <string name="settings_library_import_body">LatentJam में कॉपी करने के लिए ऑडियो फ़ाइलें चुनें।</string>
+    <string name="settings_library_restore">छिपे गाने वापस लाएँ</string>
+    <string name="settings_library_restore_body">LatentJam से हटाए गए सभी गाने फिर लाइब्रेरी में दिखाएँ। डिवाइस की फ़ाइलें नहीं बदलेंगी।</string>
+    <string name="settings_playlist_relative_paths">निर्यात की गई प्लेलिस्ट में सापेक्ष पथ</string>
+    <string name="settings_playlist_relative_paths_body">हर ट्रैक का पथ प्लेलिस्ट के फ़ोल्डर के सापेक्ष लिखता है (../Music/…), ताकि प्लेलिस्ट दूसरे डिवाइस पर भी काम करे। बिना फ़ोल्डर पथ वाली जगह पर सहेजने से पूरे पथ बने रहते हैं।</string>
+    <string name="settings_equalizer_unavailable">इस ऑडियो आउटपुट के लिए उपलब्ध नहीं</string>
+    <string name="equalizer_unavailable_body">मौजूदा ऑडियो आउटपुट LatentJam को इक्वलाइज़र उपलब्ध नहीं कराता। कोई दूसरा आउटपुट आज़माएँ। प्लेबैक सामान्य रूप से चलता रहेगा।</string>
+    <string name="equalizer_bass_value">%1$d\u0025</string>
+    <string name="equalizer_preset_flat">फ़्लैट</string>
+    <string name="equalizer_preset_bass">बास</string>
+    <string name="equalizer_preset_treble">ट्रेबल</string>
+    <string name="equalizer_preset_vocal">वोकल</string>
+    <string name="equalizer_preset_electronic">इलेक्ट्रॉनिक</string>
+    <string name="intelligence_syncing">लाइब्रेरी सिंक हो रही है…</string>
+    <string name="intelligence_analysis_progress">%2$d में से %1$d गानों का विश्लेषण हुआ</string>
+    <string name="intelligence_analysis_failed">इनका विश्लेषण नहीं हुआ: %1$d</string>
+    <string name="intelligence_failures_more">और %1$d</string>
+    <string name="intelligence_retry">SMART सेटअप फिर चलाएँ</string>
+    <string name="intelligence_section_recommendations">सुझाव</string>
+    <string name="intelligence_queue_length">SMART कतार की लंबाई</string>
+    <string name="intelligence_queue_length_body">SMART कतार बनाते समय कितने गाने जोड़े, यह चुनें।</string>
+    <string name="intelligence_artist_variety">कलाकार विविधता</string>
+    <string name="intelligence_artist_variety_body">SMART एक ही कलाकार के गानों को कितना अलग-अलग रखता है। जो गाना साफ़ तौर पर बेहतर बैठता है, वह फिर भी बजेगा, चाहे उसी कलाकार के ठीक बाद हो।</string>
+    <string name="intelligence_artist_variety_free">बंद</string>
+    <string name="intelligence_artist_variety_low">कम</string>
+    <string name="intelligence_artist_variety_balanced">संतुलित</string>
+    <string name="intelligence_artist_variety_high">ज़्यादा</string>
+    <string name="intelligence_artist_variety_max">अधिकतम</string>
+    <string name="intelligence_include_novelty_mixes">अनोखे मिक्स शामिल करें</string>
+    <string name="intelligence_include_novelty_mixes_body">आपके लिए में मीम, वायरल ऑडियो और साउंड इफ़ेक्ट के अलग मिक्स दिखाएँ।</string>
+    <string name="foryou_mix_meme_viral">मीम और वायरल ऑडियो</string>
+    <string name="foryou_mix_sound_effects">साउंड इफ़ेक्ट</string>
+    <string name="foryou_mix_spoken_audio">बोला गया ऑडियो</string>
+    <string name="foryou_mix_instrumental">इंस्ट्रुमेंटल</string>
+    <string name="intelligence_how_it_works">SMART इसी डिवाइस पर ध्वनि पहचान की तुलना करता है और संगीत की समानता को आपके सुनने के इतिहास से जोड़ता है। यह बिना खाते या इंटरनेट के काम करता है।</string>
+    <string name="privacy_local_body">आपकी लाइब्रेरी, सुनने का इतिहास और SMART डेटा इसी डिवाइस पर रहते हैं। LatentJam में खाता नहीं है और यह डेटा किसी सर्वर पर नहीं भेजा जाता।</string>
+    <string name="privacy_save_history_body">आपके लिए और SMART सुझावों के लिए चलाए और छोड़े गए ट्रैक इस डिवाइस पर याद रखें।</string>
+    <string name="privacy_remember_searches_body">खोज फ़ील्ड खाली होने पर दिखाने के लिए खोजें इस डिवाइस पर सहेजें।</string>
+    <string name="privacy_disable_history_body">सुनने की नई गतिविधि सहेजना बंद करें। इस डिवाइस पर पहले से मौजूद इतिहास का क्या करना है?</string>
+    <string name="privacy_disable_searches_body">नई खोजें सहेजना बंद करें। इस डिवाइस पर पहले से मौजूद खोजों का क्या करना है?</string>
+    <string name="privacy_keep_existing">मौजूदा डेटा रखें</string>
+    <string name="privacy_delete_existing">मौजूदा डेटा मिटाएँ</string>
+    <string name="privacy_setting_save_failed">यह गोपनीयता सेटिंग सहेजी नहीं जा सकी। फिर से कोशिश करें।</string>
+    <string name="privacy_data_clear_failed">डिवाइस का यह डेटा साफ़ नहीं किया जा सका। फिर से कोशिश करें।</string>
+    <string name="privacy_clear_history">सुनने का इतिहास मिटाएँ</string>
+    <string name="privacy_clear_history_body">सुझावों को निजी बनाने वाले प्ले और स्किप डेटा को हटाएँ।</string>
+    <string name="privacy_clear_history_confirm">सुनने का पूरा इतिहास मिटाएँ? सुझाव आपकी पसंद को फिर से सीखना शुरू करेंगे।</string>
+    <string name="privacy_history_empty">सुनने का कोई इतिहास नहीं</string>
+    <plurals name="privacy_history_listens">
+        <item quantity="one">%1$d बार सुना</item>
+        <item quantity="other">%1$d बार सुना</item>
+    </plurals>
+    <string name="privacy_recent_searches">हाल की खोजें</string>
+    <string name="privacy_clear_searches">हाल की खोजें मिटाएँ</string>
+    <string name="privacy_clear_searches_body">खोज खाली होने पर दिखने वाले सवाल हटाएँ।</string>
+    <string name="privacy_clear_searches_confirm">हाल की सभी खोजें मिटाएँ?</string>
+    <string name="settings_license">लाइसेंस</string>
+    <string name="settings_license_body">LatentJam Apache License 2.0 के तहत लाइसेंस प्राप्त मुक्त सॉफ़्टवेयर है।</string>
+    <string name="settings_open_source">सोर्स कोड</string>
+    <string name="settings_open_source_body">GitHub पर प्रोजेक्ट देखें</string>
+    <string name="settings_report_issue">समस्या की रिपोर्ट करें</string>
+    <string name="settings_section_preferences">प्राथमिकताएँ</string>
+    <string name="settings_section_music">संगीत</string>
+    <string name="settings_section_data_support">डेटा और सहायता</string>
+    <string name="privacy_listening_history">सुनने का इतिहास</string>
+    <string name="settings_version">वर्शन</string>
+    <string name="settings_library_loading">लाइब्रेरी लोड हो रही है…</string>
+    <string name="settings_library_refreshing">रीफ़्रेश हो रही है…</string>
+    <string name="snack_library_refreshed">लाइब्रेरी रीफ़्रेश की गई</string>
+    <string name="action_exclude_track_from_smart">इस ट्रैक का सुझाव न दें</string>
+    <string name="action_exclude_artist_from_smart">इस कलाकार का सुझाव न दें</string>
+    <string name="action_include_track_in_smart">इस ट्रैक का फिर से सुझाव दें</string>
+    <string name="action_include_artist_in_smart">इस कलाकार का फिर से सुझाव दें</string>
+    <string name="snack_track_excluded_from_smart">ट्रैक को SMART सुझावों से हटा दिया गया</string>
+    <string name="snack_artist_excluded_from_smart">कलाकार को SMART सुझावों से हटा दिया गया</string>
+    <string name="snack_track_included_in_smart">ट्रैक को SMART सुझावों में वापस जोड़ा गया</string>
+    <string name="snack_artist_included_in_smart">कलाकार को SMART सुझावों में वापस जोड़ा गया</string>
+    <string name="snack_smart_exclusion_failed">SMART सुझाव अपडेट नहीं किए जा सके। फिर से कोशिश करें।</string>
+    <string name="action_retry">फिर से कोशिश करें</string>
+
+    <string name="settings_language">भाषा</string>
+    <string name="settings_language_body">सिस्टम सेटिंग में भाषा बदलें।</string>
+    <string name="settings_audio_access">संगीत की पहुँच</string>
+    <string name="settings_audio_access_allowed">अनुमति है</string>
+    <string name="settings_audio_access_blocked">अवरुद्ध</string>
+    <string name="settings_audio_access_not_requested">अनुरोध नहीं किया गया</string>
+    <string name="settings_audio_access_not_required">ज़रूरी नहीं</string>
+    <string name="settings_sources">संगीत स्रोत</string>
+    <string name="settings_sources_body">चुनें कि LatentJam में कौन-से फ़ोल्डर या डिवाइस संग्रह दिखें। डिवाइस की फ़ाइलें नहीं बदलेंगी।</string>
+    <string name="settings_sources_empty">प्रबंधित किए जा सकने वाले कोई संगीत स्रोत नहीं मिले।</string>
+    <string name="settings_source_unnamed">डिवाइस का संगीत</string>
+    <string name="settings_source_music_library">संगीत लाइब्रेरी</string>
+    <string name="settings_hidden_tracks">छिपाए गए ट्रैक</string>
+    <string name="settings_hidden_tracks_body">ट्रैक केवल LatentJam में छिपाए गए हैं। फ़ाइल बदले बिना किसी भी ट्रैक को वापस लाएँ।</string>
+    <string name="settings_hidden_tracks_empty">LatentJam में कोई ट्रैक छिपा नहीं है।</string>
+    <string name="settings_interrupted_saves">बीच में रुके सहेजने</string>
+    <plurals name="settings_interrupted_saves_body">
+        <item quantity="one">%1$d फ़ाइल में टैग सहेजना बीच में रुक गया। फ़ाइल लिखने की अनुमति मिलते ही LatentJam इसे पूरा करेगा या वापस ले लेगा।</item>
+        <item quantity="other">%1$d फ़ाइलों में टैग सहेजना बीच में रुक गया। फ़ाइल लिखने की अनुमति मिलते ही LatentJam हर एक को पूरा करेगा या वापस ले लेगा।</item>
+    </plurals>
+    <string name="settings_interrupted_finish">अभी पूरा करें</string>
+    <string name="settings_interrupted_being_repaired">मरम्मत जारी है: पूरा होने तक नहीं चलाया जाएगा</string>
+    <string name="settings_interrupted_forget">भूल जाएँ</string>
+    <string name="settings_interrupted_forget_title">इस सहेजने को भूल जाएँ?</string>
+    <string name="settings_interrupted_forget_body">फ़ाइल ठीक वैसी ही रहेगी जैसी अभी है, और LatentJam सहेजना पूरा करने या वापस लेने की कोशिश बंद कर देगा। इसे पूर्ववत नहीं किया जा सकता।</string>
+    <string name="settings_interrupted_forget_damaged_body">यह सहेजना बीच में ही रुक गया। फ़ाइल खराब हो सकती है और शायद न चले, और इसे भूलने से वे कॉपी मिट जाती हैं जिनसे LatentJam इसे ठीक कर सकता है। इसे पूर्ववत नहीं किया जा सकता।</string>
+    <string name="settings_duplicates">ऑडियो डुप्लिकेट</string>
+    <string name="settings_duplicates_body">टैग चाहे जो कहें, एक ही रिकॉर्डिंग की प्रतियाँ ध्वनि से खोजता है</string>
+    <string name="settings_duplicates_scanning">सभी ट्रैक की तुलना हो रही है…</string>
+    <string name="settings_duplicates_empty">कोई डुप्लिकेट नहीं — हर ट्रैक अलग है</string>
+    <string name="settings_restore">वापस लाएँ</string>
+    <string name="settings_restore_all">सभी वापस लाएँ</string>
+    <string name="settings_library_manage_failed">लाइब्रेरी अपडेट नहीं की जा सकी। फिर से कोशिश करें।</string>
+    <string name="settings_lyrics_folders">.lrc फ़ाइलों वाले फ़ोल्डर</string>
+    <string name="settings_lyrics_folders_body">Android पूछता है कि किस फ़ोल्डर की अनुमति देनी है। फिर गाने के नाम वाली .lrc फ़ाइल उसके बोल के लिए इस्तेमाल होती है।</string>
+    <string name="settings_lyrics_folders_add">फ़ोल्डर जोड़ें</string>
+    <string name="settings_lyrics_folders_remove">हटाएँ</string>
+    <string name="settings_lyrics_folders_failed">यह फ़ोल्डर इस्तेमाल नहीं किया जा सकता। इस डिवाइस के स्टोरेज से कोई फ़ोल्डर चुनें।</string>
+
+    <string name="settings_licenses">ओपन-सोर्स लाइसेंस</string>
+    <string name="settings_licenses_body">LatentJam, साथ दिए गए मॉडल और तीसरे पक्ष के सॉफ़्टवेयर की सूचनाएँ</string>
+    <string name="settings_license_models">ऑडियो और SMART मॉडल</string>
+    <string name="settings_license_models_body">LatentJam के बनाए MobileNetV4 ऑडियो वेट Apache-2.0 के अंतर्गत हैं। स्टूडेंट मॉडल timm (Apache-2.0) का उपयोग करता है और इसे EfficientAT (MIT, कॉपीराइट © 2022 Florian Schmid) से डिस्टिल किया गया है।</string>
+    <string name="settings_license_text_model">टेक्स्ट मॉडल</string>
+    <string name="settings_license_text_model_body">साथ दिया गया टेक्स्ट एन्कोडर और उसकी शब्दावली LatentJam ने sentence-transformers/all-MiniLM-L6-v2 (Apache-2.0) की नकल करने के लिए प्रशिक्षित की हैं और ये Apache-2.0 के अंतर्गत हैं।</string>
+    <string name="settings_license_runtime">ONNX Runtime</string>
+    <string name="settings_license_runtime_body">डिवाइस पर मॉडल चलाने के लिए Microsoft ONNX Runtime का उपयोग MIT लाइसेंस के अंतर्गत किया जाता है। कॉपीराइट © Microsoft Corporation.</string>
+    <string name="settings_license_aliases">MusicBrainz और Wikidata</string>
+    <string name="settings_license_aliases_body">साथ दिया गया कलाकार उपनाम खोज डेटा MusicBrainz और Wikidata से लिया गया है और CC0 के अंतर्गत उपलब्ध है।</string>
+    <string name="settings_license_libraries">तीसरे पक्ष की लाइब्रेरी</string>
+    <string name="settings_license_libraries_body">LatentJam, Kotlin, coroutines, Compose Multiplatform, AndroidX Media3, Koin और Coil का उपयोग उदार Apache-2.0 या MIT लाइसेंस के अंतर्गत करता है। पूरी सूचनाएँ सोर्स वितरण में शामिल हैं।</string>
+
+    <string name="sleep_timer">स्लीप टाइमर</string>
+    <string name="sleep_timer_off">बंद</string>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d मिनट</item>
+        <item quantity="other">%1$d मिनट</item>
+    </plurals>
+    <string name="sleep_timer_end_of_track">मौजूदा ट्रैक के अंत में</string>
+    <string name="sleep_timer_active_minutes">%1$d मिनट बाकी</string>
+    <string name="sleep_timer_active_end_of_track">इस ट्रैक के बाद रुक जाएगा</string>
+
+    <string name="intelligence_problems">विश्लेषण की समस्याएँ</string>
+    <string name="intelligence_problems_body">वे ट्रैक जिनका SMART विश्लेषण नहीं कर सका। आपका संगीत फिर भी चलाया जा सकता है।</string>
+    <string name="intelligence_no_problems">विश्लेषण में कोई समस्या नहीं</string>
+    <string name="intelligence_manage_exclusions">सुझावों से बाहर रखे गए आइटम</string>
+    <string name="intelligence_manage_exclusions_body">वे ट्रैक और कलाकार जिनका SMART कभी सुझाव न दे</string>
+    <string name="intelligence_exclusions_empty">सुझावों से कुछ भी बाहर नहीं है</string>
+    <string name="intelligence_excluded_tracks">बाहर रखे गए ट्रैक</string>
+    <string name="intelligence_excluded_artists">बाहर रखे गए कलाकार</string>
+    <string name="intelligence_rebuild">SMART विश्लेषण फिर से बनाएँ</string>
+    <string name="intelligence_rebuild_body">स्थानीय फ़िंगरप्रिंट मिटाएँ और दिखाई देने वाली लाइब्रेरी का फिर से विश्लेषण करें।</string>
+    <string name="intelligence_rebuild_confirm">पूरा SMART विश्लेषण फिर से बनाएँ? संगीत फ़ाइलें, प्लेलिस्ट और सुनने का इतिहास नहीं बदलेंगे।</string>
+    <string name="intelligence_how_title">SMART कैसे काम करता है</string>
+    <string name="intelligence_notifications">विश्लेषण की सूचनाएँ</string>
+    <string name="intelligence_notifications_body">LatentJam के बाहर इंडेक्सिंग की प्रगति दिखाएँ</string>
+    <string name="intelligence_exclusions_clear">सभी अपवाद साफ़ करें</string>
+
+    <string name="settings_backup">स्थानीय बैकअप</string>
+    <string name="settings_backup_body">प्लेलिस्ट, पसंदीदा, प्राथमिकताएँ, इतिहास, छिपाए गए ट्रैक, SMART अपवाद और डुप्लिकेट खोजक के निर्णय निर्यात या पुनर्स्थापित करें। संगीत फ़ाइलें और मॉडल डेटा शामिल नहीं हैं।</string>
+    <string name="backup_export">बैकअप निर्यात करें</string>
+    <string name="backup_import">बैकअप आयात करें</string>
+    <string name="backup_import_title">स्थानीय बैकअप पुनर्स्थापित करें</string>
+    <string name="backup_import_body">चुनें कि आयात किए गए डेटा को इस डिवाइस के मौजूदा डेटा के साथ कैसे जोड़ा जाए।</string>
+    <string name="backup_section_duplicate_decisions">डुप्लिकेट खोजक के निर्णय</string>
+    <string name="backup_merge">मिलाएँ</string>
+    <string name="backup_replace">बदलें</string>
+    <string name="backup_replace_warning">चुने गए ऐप डेटा को इस बैकअप से बदलें? संगीत फ़ाइलें कभी नहीं बदली जाएँगी।</string>
+    <string name="backup_export_success">बैकअप निर्यात हो गया</string>
+    <string name="backup_import_success">बैकअप पुनर्स्थापित हो गया</string>
+    <string name="backup_import_success_unmatched">बैकअप पुनर्स्थापित हो गया; इस डिवाइस पर %1$d ट्रैक संदर्भों का मिलान नहीं हो सका।</string>
+    <plurals name="backup_import_decisions_not_kept">
+        <item quantity="one">डुप्लिकेट खोजक का %1$d निर्णय इस डिवाइस पर सहेजा नहीं जा सका।</item>
+        <item quantity="other">डुप्लिकेट खोजक के %1$d निर्णय इस डिवाइस पर सहेजे नहीं जा सके।</item>
+    </plurals>
+    <string name="backup_import_partial">त्रुटि आने से पहले कुछ डेटा पुनर्स्थापित हो गया था।</string>
+    <string name="backup_failed">बैकअप प्रक्रिया पूरी नहीं की जा सकी।</string>
+    <string name="backup_invalid">यह मान्य LatentJam बैकअप नहीं है।</string>
+    <string name="backup_destination_warning">बैकअप में ऐप का निजी डेटा होता है। सिस्टम पिकर में चुना गया क्लाउड या तृतीय-पक्ष स्थान इसे सिंक कर सकता है।</string>
+    <string name="settings_stats">आंकड़े</string>
+    <string name="settings_stats_subtitle">आपकी सुनवाई, आँकड़ों में</string>
+    <string name="stats_period_week">7 दिन</string>
+    <string name="stats_period_month">30 दिन</string>
+    <string name="stats_period_all">पूरा समय</string>
+    <string name="stats_time_listened">सुना गया</string>
+    <string name="stats_plays">प्ले</string>
+    <string name="stats_distinct_tracks">ट्रैक</string>
+    <string name="stats_streak_current">सिलसिला</string>
+    <string name="stats_streak_longest">रिकॉर्ड</string>
+    <string name="stats_days_short">दिन</string>
+    <string name="stats_hours_short">घं</string>
+    <string name="stats_minutes_short">मि</string>
+    <string name="stats_finished_share">पूरे सुने</string>
+    <string name="stats_skipped_share">छोड़े गए</string>
+    <string name="stats_empty">इस अवधि में अभी तक कुछ नहीं चलाया गया।</string>
+    <string name="stats_load_failed">सुनने के आँकड़े लोड नहीं किए जा सके।</string>
+    <string name="settings_normalize_volume">वॉल्यूम सामान्यीकरण</string>
+    <string name="settings_normalize_volume_subtitle">तेज़ ट्रैक को एक समान स्तर की ओर कम करता है</string>
+    <string name="settings_crossfade">सहज बदलाव</string>
+    <string name="settings_crossfade_subtitle">ट्रैक की सीमाओं पर आवाज़ धीमी होती है</string>
+    <string name="settings_crossfade_value">%1$d से.</string>
+    <string name="duplicates_keep_this">इसे रखें</string>
+    <string name="snack_duplicates_merged">डुप्लिकेट मिला दिए गए: प्लेलिस्ट अब रखी गई कॉपी की ओर इशारा करती हैं</string>
+    <string name="info_lyrics">गीत के बोल</string>
+    <string name="info_album_artist">एल्बम कलाकार</string>
+    <string name="info_track_number">ट्रैक नंबर</string>
+    <string name="info_track_total">कुल ट्रैक</string>
+    <string name="info_disc_number">डिस्क नंबर</string>
+    <string name="info_disc_total">कुल डिस्क</string>
+    <string name="info_cover">कवर</string>
+    <string name="info_cover_replace">बदलें</string>
+    <string name="info_cover_remove">हटाएँ</string>
+    <string name="info_cover_keep">मौजूदा रखें</string>
+    <string name="info_cover_new">नया कवर</string>
+    <string name="info_cover_removed">कवर हटा दिया जाएगा।</string>
+    <plurals name="info_cover_more">
+        <item quantity="one">फ़ाइल में +%1$d और तस्वीर है, वह बनी रहेगी</item>
+        <item quantity="other">फ़ाइल में +%1$d और तस्वीरें हैं, वे बनी रहेंगी</item>
+    </plurals>
+    <string name="info_reading_file">फ़ाइल पढ़ी जा रही है…</string>
+    <string name="action_edit_album">एल्बम संपादित करें</string>
+    <string name="action_edit_artist">कलाकार संपादित करें</string>
+    <string name="action_favorite_short">पसंदीदा</string>
+    <string name="action_unfavorite_short">पसंदीदा हटाएँ</string>
+    <plurals name="count_files">
+        <item quantity="one">%1$d फ़ाइल</item>
+        <item quantity="other">%1$d फ़ाइलें</item>
+    </plurals>
+    <plurals name="count_fields">
+        <item quantity="one">%1$d फ़ील्ड</item>
+        <item quantity="other">%1$d फ़ील्ड</item>
+    </plurals>
+    <string name="bulk_save">%1$s बदलें (%2$s)</string>
+    <string name="bulk_reading">पढ़ा जा रहा है: %2$d में से %1$d…</string>
+    <plurals name="bulk_not_editable">
+        <item quantity="one">%1$d फ़ाइल संपादित नहीं की जा सकती और जैसी है वैसी ही रहेगी:</item>
+        <item quantity="other">%1$d फ़ाइलें संपादित नहीं की जा सकतीं और जैसी हैं वैसी ही रहेंगी:</item>
+    </plurals>
+    <plurals name="bulk_more_files">
+        <item quantity="one">और %1$d अन्य</item>
+        <item quantity="other">और %1$d अन्य</item>
+    </plurals>
+    <string name="bulk_nothing_editable">इनमें से कोई भी फ़ाइल संपादित नहीं की जा सकती।</string>
+    <string name="bulk_different">अलग-अलग मान</string>
+    <plurals name="bulk_removed">
+        <item quantity="one">%1$d फ़ाइल से हटाया गया</item>
+        <item quantity="other">सभी %1$d से हटाया गया</item>
+    </plurals>
+    <string name="bulk_remove_field">हर फ़ाइल से हटाएँ</string>
+    <string name="bulk_keep_field">जैसा है वैसा रखें</string>
+    <string name="bulk_kept">जैसा है वैसा रहेगा: %1$s</string>
+    <string name="bulk_saving">%2$d में से %1$d सहेजी गईं</string>
+    <string name="bulk_stop">रोकें</string>
+    <string name="bulk_result">%2$d में से %1$d सहेजी गईं।</string>
+    <plurals name="bulk_not_changed">
+        <item quantity="one">%1$d फ़ाइल नहीं बदली गई:</item>
+        <item quantity="other">%1$d फ़ाइलें नहीं बदली गईं:</item>
+    </plurals>
+    <string name="bulk_done">हो गया</string>
+    <string name="bulk_file_reason">%1$s — %2$s</string>
+    <plurals name="tags_saved">
+        <item quantity="one">%1$d फ़ाइल में टैग सहेजे गए</item>
+        <item quantity="other">%1$d फ़ाइलों में टैग सहेजे गए</item>
+    </plurals>
+    <string name="tags_saved_partly">%2$d में से %1$d फ़ाइलों में टैग सहेजे गए</string>
+    <plurals name="tag_recovery_done">
+        <item quantity="one">%1$d फ़ाइल का सहेजना पूरा हुआ</item>
+        <item quantity="other">%1$d फ़ाइलों का सहेजना पूरा हुआ</item>
+    </plurals>
+    <plurals name="tag_recovery_undone">
+        <item quantity="one">बीच में रुका %1$d सहेजना वापस ले लिया गया; फ़ाइल पहले जैसी है</item>
+        <item quantity="other">बीच में रुके %1$d सहेजने वापस ले लिए गए; फ़ाइलें पहले जैसी हैं</item>
+    </plurals>
+    <plurals name="tag_recovery_left">
+        <item quantity="one">%1$d फ़ाइल किसी दूसरे ऐप ने बदल दी थी, इसलिए उसे जैसी है वैसी ही छोड़ दिया गया</item>
+        <item quantity="other">%1$d फ़ाइलें किसी दूसरे ऐप ने बदल दी थीं, इसलिए उन्हें जैसी हैं वैसी ही छोड़ दिया गया</item>
+    </plurals>
+    <plurals name="tag_recovery_waiting">
+        <item quantity="one">%1$d फ़ाइल का सहेजना अभी पूरा नहीं हो सका। सेटिंग → लाइब्रेरी देखें।</item>
+        <item quantity="other">%1$d फ़ाइलों का सहेजना अभी पूरा नहीं हो सका। सेटिंग → लाइब्रेरी देखें।</item>
+    </plurals>
+    <string name="lyrics_not_found">इस ट्रैक के लिए कोई बोल नहीं मिले।</string>
+    <string name="cd_scroll_to_top">ऊपर वापस जाएँ</string>
+    <string name="foryou_section_daypart_morning">आपकी सुबहें</string>
+    <string name="foryou_section_daypart_day">आपकी दोपहरें</string>
+    <string name="foryou_section_daypart_evening">आपकी शामें</string>
+    <string name="foryou_section_daypart_night">आपकी रातें</string>
+    <string name="foryou_section_on_a_roll">इन दिनों बार-बार: %1$s</string>
+    <string name="foryou_caption_left_turn">अगर आपको %1$s पसंद है</string>
+    <string name="settings_pages">पेज</string>
+    <string name="settings_pages_subtitle">दिखने वाले पेज, क्रम और शुरुआती पेज</string>
+    <string name="settings_pages_body">क्रम बदलने के लिए खींचें। जिन पेजों का इस्तेमाल नहीं करते, उन्हें बंद करें।</string>
+    <string name="settings_pages_last_visible">कम से कम एक पेज चालू रखें।</string>
+    <string name="settings_page_position">%2$d में से स्थान %1$d</string>
+    <string name="settings_page_move_up">%1$s को ऊपर ले जाएँ</string>
+    <string name="settings_page_move_down">%1$s को नीचे ले जाएँ</string>
+    <string name="settings_pages_reset">पेज रीसेट करें</string>
+    <string name="settings_pages_reset_body">डिफ़ॉल्ट क्रम, दिखने वाले पेज और शुरुआती पेज बहाल करें।</string>
+    <string name="stats_dashboard_title">आपकी सुनने की गतिविधि</string>
+    <string name="stats_recording_off">सुनने का इतिहास रिकॉर्ड करना रुका हुआ है। आपके सहेजे गए आँकड़े अभी भी उपलब्ध हैं; गोपनीयता सेटिंग में इतिहास चालू करने तक नए प्ले दर्ज नहीं होंगे।</string>
+    <string name="stats_comparison_more">पिछले %2$d दिनों की तुलना में %1$s ज़्यादा</string>
+    <string name="stats_comparison_less">पिछले %2$d दिनों की तुलना में %1$s कम</string>
+    <string name="stats_comparison_same">पिछले %1$d दिनों जितना ही सुनने का समय</string>
+    <string name="stats_comparison_first">पिछले %1$d दिनों में कुछ नहीं सुना</string>
+    <string name="stats_under_minute">&lt; 1 मिनट</string>
+    <string name="stats_activity">आपकी रोज़ की लय</string>
+    <string name="stats_calendar_days">पिछले %1$d कैलेंडर दिन · सुनने का समय</string>
+    <string name="stats_today">आज</string>
+    <string name="stats_yesterday">कल</string>
+    <string name="stats_new_tracks">पहली बार सुने गए</string>
+    <string name="stats_smart_detail">SMART शफ़ल चालू होने पर शुरू हुए प्ले का हिस्सा</string>
+    <string name="stats_listening_style">आप कैसे सुनते हैं</string>
+    <string name="stats_recent_empty">इन कैलेंडर दिनों में अभी तक कुछ नहीं सुना गया है।</string>
+    <string name="stats_history_note">सहेजे गए इतिहास पर आधारित, इस डिवाइस के समय क्षेत्र में; ट्रैक खत्म होने या बदलने पर अपडेट होता है। सूचियों में वही ट्रैक दिखते हैं जो अब भी आपकी लाइब्रेरी में हैं। रीस्टोर किया गया बैकअप सिर्फ़ वही ट्रैक रखता है जो उसे मिल पाते हैं, और सिर्फ़ हटाए गए ट्रैक से जाना गया कलाकार नया दिख सकता है।</string>
+    <string name="stats_chart_day_summary">%1$s: %2$s · %3$s</string>
+    <plurals name="stats_days_ago">
+        <item quantity="one">%1$d दिन पहले</item>
+        <item quantity="other">%1$d दिन पहले</item>
+    </plurals>
+    <string name="stats_section_lately">हाल में आप</string>
+    <string name="stats_section_numbers">आपके आँकड़े</string>
+    <string name="stats_section_over_time">समय के साथ</string>
+    <string name="stats_on_repeat">अभी बार-बार सुने जा रहे</string>
+    <string name="stats_artists_on_repeat">बार-बार सुने जा रहे कलाकार</string>
+    <plurals name="stats_on_days">
+        <item quantity="one">%1$d दिन में</item>
+        <item quantity="other">%1$d दिनों में</item>
+    </plurals>
+    <string name="stats_week_days">पिछले 7 में से %1$d दिन</string>
+    <plurals name="stats_days_of_music">
+        <item quantity="one">≈ %1$d दिन का संगीत</item>
+        <item quantity="other">≈ %1$d दिनों का संगीत</item>
+    </plurals>
+    <plurals name="stats_activity_last_months">
+        <item quantity="one">पिछला %1$d महीना · सुनने का समय</item>
+        <item quantity="other">पिछले %1$d महीने · सुनने का समय</item>
+    </plurals>
+    <string name="stats_activity_years">साल के अनुसार · सुनने का समय</string>
+    <string name="stats_activity_over_time">समय के साथ आपका सुनना</string>
+    <string name="stats_this_month">इस महीने</string>
+    <string name="stats_this_year">इस साल</string>
+    <plurals name="stats_months_ago">
+        <item quantity="one">%1$d महीने पहले</item>
+        <item quantity="other">%1$d महीने पहले</item>
+    </plurals>
+    <plurals name="stats_years_ago">
+        <item quantity="one">%1$d साल पहले</item>
+        <item quantity="other">%1$d साल पहले</item>
+    </plurals>
+    <string name="stats_new_and_familiar">नए और जाने-पहचाने</string>
+    <string name="stats_familiar">जाने-पहचाने</string>
+    <plurals name="stats_new_tracks_count">
+        <item quantity="one">%1$d नया ट्रैक</item>
+        <item quantity="other">%1$d नए ट्रैक</item>
+    </plurals>
+    <plurals name="stats_new_artists_count">
+        <item quantity="one">%1$d नया कलाकार</item>
+        <item quantity="other">%1$d नए कलाकार</item>
+    </plurals>
+    <string name="stats_new_previous">पिछले %1$d दिन: %2$s नए</string>
+    <string name="stats_stuck_artists">नए कलाकार जो पसंद आ गए</string>
+    <string name="stats_stuck_artists_recent">नए कलाकार जो पसंद आ गए · पिछले 3 महीने</string>
+    <plurals name="stats_log_age">
+        <item quantity="one">LatentJam %1$d दिन से आपके साथ सुन रहा है</item>
+        <item quantity="other">LatentJam %1$d दिनों से आपके साथ सुन रहा है</item>
+    </plurals>
+    <string name="stats_new_note">पहली बार सुने गए = LatentJam में पहली बार चलाए गए। आपकी लाइब्रेरी ऐप से पुरानी हो सकती है।</string>
+    <plurals name="stats_locked_plays">
+        <item quantity="one">इस अवधि में %1$d प्ले के बाद दिखेगा</item>
+        <item quantity="other">इस अवधि में %1$d प्ले के बाद दिखेगा</item>
+    </plurals>
+    <string name="stats_when_you_listen">आप कब सुनते हैं</string>
+    <string name="stats_night">रात</string>
+    <string name="stats_morning">सुबह</string>
+    <string name="stats_afternoon">दोपहर</string>
+    <string name="stats_evening">शाम</string>
+    <string name="stats_daypart_peak">सबसे ज़्यादा सुनना: %1$s, %2$s</string>
+    <string name="stats_typical_session">आम सेशन</string>
+    <string name="stats_longest_session">सबसे लंबा सेशन</string>
+    <string name="stats_locked_sessions">इस अवधि में कुछ सेशन सुनने के बाद दिखेगा</string>
+    <string name="stats_your_top">आपके टॉप</string>
+    <string name="stats_show_more">10 दिखाएँ</string>
+    <string name="stats_show_less">5 दिखाएँ</string>
+    <string name="stats_partly_share">आंशिक रूप से सुने</string>
+    <string name="stats_smart_mode_share">SMART मोड में चलाए गए</string>
+    <string name="stats_finish_note">सभी शुरुआतों का हिस्सा। पूरे सुने = 85% तक सुने गए, छोड़े गए = पहले 30 सेकंड में छोड़े गए।</string>
+    <string name="stats_slipping_away">छूटते जा रहे</string>
+    <string name="stats_slipping_note">पसंदीदा ट्रैक जिन्हें आप अक्सर खुद चुनते थे, पर LatentJam में दो महीने या उससे ज़्यादा से नहीं चले।</string>
+    <string name="stats_year_ago">एक साल पहले</string>
+    <string name="stats_patterns">आपके पैटर्न</string>
+    <string name="stats_same_artist_picks">फिर से वही कलाकार चुनना</string>
+    <string name="stats_of_100_picks">100 में से %1$d चुनाव</string>
+    <string name="stats_same_artist_note">जब आप अगला ट्रैक खुद चुनते हैं। किसी कलाकार के पेज से शुरू करना भी शामिल है।</string>
+    <string name="stats_picked_next">अक्सर इसके बाद चुने गए</string>
+    <string name="stats_sequence_description">%1$s के बाद आपने %4$d में से %3$d बार %2$s चुना</string>
+    <string name="stats_library">आपकी लाइब्रेरी</string>
+    <string name="stats_played_once">कम से कम एक बार चले</string>
+    <string name="stats_x_of_y">%2$s में से %1$s</string>
+    <string name="stats_decades">दशक</string>
+    <string name="stats_decade">%1$d का दशक</string>
+    <string name="stats_more_appears">जैसे-जैसे आप सुनेंगे, और जानकारी दिखेगी</string>
+    <string name="stats_unlock_on_repeat">अभी बार-बार सुने जा रहे — एक हफ़्ते सुनने के बाद</string>
+    <string name="stats_unlock_slipping">छूटते जा रहे — तीन महीने सुनने के बाद</string>
+    <string name="stats_part_failed">इनमें से कुछ आँकड़े लोड नहीं हो सके।</string>
+    <string name="stats_playlist_row">प्लेलिस्ट</string>
+    <string name="stats_playlists_note">हर प्लेलिस्ट से हुए प्ले। SMART के जोड़े गए ट्रैक और उससे पहले की सुनवाई जब LatentJam यह दर्ज नहीं करता था कि ट्रैक कहाँ से शुरू हुआ, गिने नहीं जाते।</string>
+
+    <!-- Duplicate finder -->
+    <string name="duplicates_summary">समूह: %1$d · अतिरिक्त प्रतियाँ: %2$d · खाली होने वाली जगह: %3$s</string>
+    <string name="duplicates_keep_recommended">सुझाई गई प्रतियाँ रखें</string>
+    <string name="duplicates_keep_selected">चुनी गई प्रति रखें</string>
+    <string name="duplicates_not_duplicates">डुप्लिकेट नहीं हैं</string>
+    <string name="duplicates_recommended">सुझाई गई</string>
+    <string name="duplicates_hide_copy">यह प्रति छिपाएँ</string>
+    <string name="duplicates_hide_files">बाकी प्रतियाँ छिपाएँ; फ़ाइलें डिवाइस पर रहेंगी</string>
+    <string name="duplicates_delete_files">बाकी फ़ाइलें डिवाइस से हटाएँ</string>
+    <string name="duplicates_merge_all_confirm">सभी %1$d समूहों में सुझाई गई प्रति रखी जाएगी।</string>
+    <string name="duplicates_merge_confirm_body">प्लेलिस्ट और पसंदीदा रखी गई प्रति की ओर इशारा करेंगे। बाकी %1$d प्रतियाँ:</string>
+    <string name="duplicates_reclaimable">%1$s खाली होगी</string>
+    <string name="duplicates_kbps">%1$d kbps</string>
+    <string name="unit_megabytes">%1$s MB</string>
+    <string name="snack_duplicates_dismissed">अलग रिकॉर्डिंग के रूप में चिह्नित</string>
+    <string name="cd_player_artwork">कवर. ट्रैक का विवरण देखने के लिए टैप करें, कार्रवाइयों के लिए दबाकर रखें, ट्रैक बदलने के लिए बगल में स्वाइप करें, बंद करने के लिए नीचे खींचें.</string>
+    <string name="details_title">ट्रैक का विवरण</string>
+    <string name="details_language">भाषा</string>
+    <string name="details_format">फ़ॉर्मैट</string>
+    <string name="details_file">फ़ाइल</string>
+    <string name="details_plays">सुनने की संख्या</string>
+    <string name="details_plays_none">अभी तक नहीं सुना</string>
+    <string name="details_original_year">पहली रिलीज़</string>
+    <string name="cd_details_close">कवर पर वापस जाएँ</string>
+    <string name="player_mode_title">प्लेबैक मोड</string>
+    <string name="player_mode_off">क्रम से</string>
+    <string name="player_mode_shuffle">शफ़ल</string>
+    <string name="player_mode_smart">SMART</string>
+    <string name="cd_mode_button">प्लेबैक मोड: %1$s. बदलने के लिए टैप करें, चुनने के लिए दबाकर रखें.</string>
+    <string name="cd_seek_position">प्लेबैक की स्थिति</string>
+    <string name="cd_time_toggle">बचे हुए समय और कुल अवधि के बीच बदलें</string>
+    <string name="seek_fine_half">½ गति</string>
+    <string name="seek_fine_quarter">¼ गति</string>
+    <string name="cd_skip_next_hold">अगला ट्रैक. तेज़ी से आगे बढ़ाने के लिए दबाकर रखें.</string>
+    <string name="cd_skip_previous_hold">पिछला ट्रैक. पीछे ले जाने के लिए दबाकर रखें.</string>
+    <string name="output_phone_speaker">फ़ोन का स्पीकर</string>
+    <string name="output_headphones">हेडफ़ोन</string>
+    <string name="output_bluetooth">Bluetooth</string>
+    <string name="cd_output_route">%1$s पर चल रहा है. कहाँ चलाना है यह चुनने के लिए टैप करें.</string>
+    <string name="now_playing_next">अगला: %1$s</string>
+    <string name="output_title">ऑडियो आउटपुट</string>
+    <string name="output_current">मौजूदा आउटपुट</string>
+    <string name="output_connect_device">डिवाइस कनेक्ट करें</string>
+    <string name="output_selection_failed">डिवाइस उपलब्ध नहीं है। कनेक्शन जाँचें।</string>
+    <string name="queue_reorder">ट्रैक का क्रम बदलें</string>
+    <string name="playlists_yours">आपकी प्लेलिस्ट</string>
+    <string name="playlists_empty_body">अपने संगीत को एक साथ रखने के लिए प्लेलिस्ट बनाएँ या M3U फ़ाइल आयात करें।</string>
+    <string name="playlists_automatic">अपने आप बनाई गई</string>
+    <string name="settings_pages_order">क्रम</string>
+    <string name="settings_opens_on_launch">शुरू करने पर खुले</string>
+    <string name="settings_reorder_page">%1$s का क्रम बदलें</string>
+    <string name="settings_backup_subtitle">एक्सपोर्ट या रिस्टोर करें</string>
+    <string name="duplicates_groups">समूह</string>
+    <string name="duplicates_summary_title">समूह: %1$d · %2$s</string>
+    <string name="duplicates_summary_extra">अतिरिक्त कॉपियाँ: %1$d</string>
+    <string name="duplicates_copy_count">कॉपियाँ: %1$d</string>
+    <string name="playlist_reorder_track">%1$s का क्रम बदलने के लिए खींचें</string>
+    <string name="equalizer_custom">कस्टम</string>
+    <string name="equalizer_hint">चालू करने के लिए प्रीसेट चुनें या बैंड अपनी पसंद के अनुसार समायोजित करें।</string>
+    <string name="equalizer_reset_short">रीसेट</string>
+    <string name="equalizer_bands_hint">फ़्रीक्वेंसी Hz में · गेन dB में · और बैंड के लिए स्वाइप करें</string>
+    <string name="normalization_waiting">आवाज़ मापने के लिए कोई ट्रैक चलाएँ।</string>
+    <string name="normalization_measuring">इस ट्रैक की आवाज़ मापी जा रही है…</string>
+    <string name="normalization_unavailable">इस ट्रैक की आवाज़ नहीं मापी जा सकी। मूल आवाज़ इस्तेमाल होगी।</string>
+    <string name="normalization_unchanged">इस ट्रैक की आवाज़ कम करने की ज़रूरत नहीं है। धीमे ट्रैक की आवाज़ नहीं बढ़ाई जाती।</string>
+    <string name="normalization_reduced">इस ट्रैक की आवाज़ %1$s dB कम की गई है।</string>
+    <string name="equalizer_response">आवृत्ति प्रतिक्रिया</string>
+    <string name="equalizer_response_preview">%1$s kHz पर पूर्वावलोकन</string>
+    <string name="equalizer_response_headroom">स्तर का अतिरिक्त अंतर: %1$s dB</string>
+    <string name="equalizer_peak_reduction">पीक में कमी: %1$s dB</string>
+    <string name="equalizer_peak_hint">ज़्यादा बढ़ाने से पूरे ट्रैक की आवाज़ कम हो सकती है।</string>
+    <string name="map_memory_limited">मानचित्र की गणना के लिए पर्याप्त खाली मेमोरी नहीं है। अन्य ऐप बंद करके मानचित्र फिर खोलें।</string>
+    <string name="map_unavailable">मानचित्र की गणना नहीं हो सकी। फिर से कोशिश करने के लिए इसे दोबारा खोलें।</string>
+</resources>

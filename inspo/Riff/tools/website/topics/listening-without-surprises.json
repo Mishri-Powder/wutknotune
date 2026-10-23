@@ -1,0 +1,25 @@
+{
+  "slug": "listening-without-surprises",
+  "sources": {
+    "en": "docs/Riff/LATEST/tldr-listening-without-surprises-en.md",
+    "ru": "docs/Riff/LATEST/tldr-listening-without-surprises-ru.md"
+  },
+  "summaries": {
+    "en": "Music keeps playing while new files are checked, unfinished catalogs stay out of the way, your place is saved and the queue stays predictable.",
+    "ru": "Музыка играет, пока проверяются новые файлы; незаконченный каталог не мешает слушать, место сохраняется, а очередь остаётся предсказуемой."
+  },
+  "homepageTranslationKey": "t23",
+  "homepageTerms": {
+    "en": ["Separate indexing", "validated snapshots", "recovery checkpoints", "fixed queues"],
+    "ru": [
+      "Отдельная индексация",
+      "проверка снимков базы",
+      "точки восстановления",
+      "фиксированные очереди"
+    ]
+  },
+  "homepageTopicSummary": {
+    "en": "Everyday listening without surprises, Player and Indexer communication, and probabilistic music selection.",
+    "ru": "Прослушивание без неожиданностей, взаимодействие Player и Indexer и вероятностный подбор музыки."
+  }
+}

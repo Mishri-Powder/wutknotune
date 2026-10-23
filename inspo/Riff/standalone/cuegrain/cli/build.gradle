@@ -1,0 +1,52 @@
+plugins { id 'application' }
+dependencies {
+    implementation project(':core')
+    if (findProject(':ced') != null) runtimeOnly project(':ced')
+}
+application { mainClass = 'link.roadio.cuegrain.cli.MainKt'; applicationName = 'cuegrain' }
+
+def withCed = findProject(':ced') != null
+def hostOs = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+def platform = hostOs.contains('win') ? 'windows' : (hostOs.contains('mac') ? 'macos' : hostOs.replaceAll('[^a-z0-9]+', '-'))
+def hostArch = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
+def architecture = ['amd64': 'x86_64', 'aarch64': 'arm64'].get(hostArch, hostArch)
+def bundledRuntime = configurations.runtimeClasspath
+def executableJar = tasks.register('fatJar', Jar) {
+    group = 'build'
+    description = 'Builds one executable JAR with all CLI runtime dependencies.'
+    archiveBaseName = 'cuegrain'
+    archiveClassifier = withCed ? 'ced-' + platform + '-' + architecture + '-all' : 'all'
+    dependsOn bundledRuntime
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    manifest {
+        attributes(
+            'Main-Class': application.mainClass.get(),
+            'Implementation-Title': 'Cuegrain',
+            'Implementation-Version': project.version.toString(),
+            'Multi-Release': 'true'
+        )
+    }
+    from sourceSets.main.output
+    from({ bundledRuntime.collect { it.isDirectory() ? it : zipTree(it) } }) {
+        exclude 'META-INF/MANIFEST.MF', 'META-INF/INDEX.LIST'
+        exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
+        exclude 'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
+    from(rootProject.files('LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.txt')) {
+        into 'META-INF/cuegrain'
+    }
+    from(rootProject.file('licenses')) { into 'META-INF/cuegrain/licenses' }
+    from(rootProject.file('schema.json')) { into 'META-INF/cuegrain' }
+    if (withCed) {
+        from(rootProject.file('ced/vendor/compact_enc_det/LICENSE')) {
+            into 'META-INF/cuegrain/licenses/compact-encoding-detection'
+        }
+    }
+}
+tasks.named('assemble') { dependsOn executableJar }
+tasks.named('test') {
+    dependsOn executableJar
+    inputs.file executableJar.flatMap { it.archiveFile }
+    systemProperty 'cuegrain.fatJar', executableJar.get().archiveFile.get().asFile.absolutePath
+    systemProperty 'cuegrain.withCed', withCed.toString()
+}

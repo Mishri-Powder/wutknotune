@@ -1,0 +1,872 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2026 LatentJam Project
+  SPDX-License-Identifier: Apache-2.0
+
+  Indonesian translation of values/strings.xml.
+
+  Placeholders are POSITIONAL (%1$s / %1$d) and keep their numbers.
+  Apostrophes and quotation marks are written RAW: Compose Multiplatform only
+  unescapes \uXXXX, \n, \t and \\, so a backslash would reach the UI.
+  "LatentJam" and "SMART" are names and stay untranslated.
+  Indonesian has no grammatical plural, so every plurals block carries the
+  single required "other" category and never reduplicates after a numeral.
+-->
+<resources>
+
+    <!-- ============================================================ actions -->
+    <string name="action_play">Putar</string>
+    <string name="action_pause">Jeda</string>
+    <string name="action_next">Berikutnya</string>
+    <string name="action_previous">Sebelumnya</string>
+    <string name="action_shuffle">Acak</string>
+    <string name="action_close">Tutup</string>
+    <string name="action_back">Kembali</string>
+    <string name="action_cancel">Batal</string>
+    <string name="action_delete">Hapus</string>
+    <string name="action_rename">Ganti nama</string>
+    <string name="action_clear">Bersihkan</string>
+    <string name="action_track_options">Opsi lagu</string>
+    <string name="action_create">Buat</string>
+    <string name="action_play_all">Putar semua</string>
+    <string name="action_shuffle_all">Putar semua secara acak</string>
+    <string name="action_share">Bagikan</string>
+    <string name="action_select_all">Pilih semua</string>
+    <string name="action_deselect_all">Batalkan semua pilihan</string>
+    <string name="selection_count">Lagu dipilih: %1$d</string>
+    <string name="action_add">Tambahkan</string>
+    <string name="cd_more_options">Opsi lainnya</string>
+    <string name="cd_search_library">Cari di pustaka</string>
+    <string name="cd_alphabet_index">Indeks alfabet</string>
+
+    <!-- ======================================================= track labels -->
+    <string name="label_track">Lagu</string>
+    <string name="track_untitled">Tanpa judul</string>
+    <string name="track_unknown_artist">Artis tidak dikenal</string>
+    <string name="track_unknown_album">Album tidak dikenal</string>
+    <string name="track_unknown_genre">Genre tidak dikenal</string>
+    <!-- Indonesian distinguishes no plural categories: "other" only, and the
+         noun is never reduplicated after a numeral (5 lagu, not 5 lagu-lagu). -->
+    <plurals name="count_tracks">
+        <item quantity="other">%1$d lagu</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="cd_track_options_for">Opsi lainnya untuk %1$s</string>
+    <string name="cd_track_options_generic">Opsi lainnya untuk lagu ini</string>
+
+    <plurals name="count_albums">
+        <item quantity="other">%1$d album</item>
+    </plurals>
+    <plurals name="count_artists">
+        <item quantity="other">%1$d artis</item>
+    </plurals>
+    <plurals name="count_genres">
+        <item quantity="other">%1$d genre</item>
+    </plurals>
+
+    <!-- ======================================================= browse tabs -->
+    <string name="tab_for_you">Untuk kamu</string>
+    <string name="tab_playlists">Playlist</string>
+    <string name="tab_tracks">Lagu</string>
+    <string name="tab_albums">Album</string>
+    <string name="tab_artists">Artis</string>
+    <string name="tab_genres">Genre</string>
+    <string name="tab_map">Peta</string>
+
+    <!-- ===================================================== library shell -->
+    <string name="library_empty">Tidak ada musik yang ditemukan di perangkat ini.</string>
+    <string name="action_rescan_library">Perbarui pustaka</string>
+    <string name="sort_recently_added">Baru ditambahkan</string>
+    <string name="sort_custom_order">Urutan kustom</string>
+    <string name="sort_name">Nama</string>
+    <string name="sort_direction_ascending">Menaik</string>
+    <string name="sort_direction_descending">Menurun</string>
+    <string name="snack_track_deleted">Lagu dihapus</string>
+    <string name="snack_track_delete_denied">Akses berkas diperlukan untuk menghapus lagu-lagu ini.</string>
+    <string name="snack_track_delete_failed">Berkas tidak dapat dihapus</string>
+    <string name="snack_track_delete_summary">Dihapus: %1$d. Akses ditolak: %2$d. Gagal: %3$d. Dibatalkan: %4$d.</string>
+
+    <!-- =========================================================== for you -->
+    <string name="foryou_empty">Putar beberapa lagu dan halaman ini akan terisi hal-hal yang layak didengar lagi.</string>
+    <string name="foryou_section_continue">Belum selesai</string>
+    <string name="foryou_section_worth_revisiting">Sudah lama tidak diputar</string>
+    <string name="foryou_section_worlds">Mix Anda</string>
+    <string name="foryou_mix_discovery">Mix penemuan</string>
+    <string name="foryou_section_never_played">Belum pernah diputar</string>
+    <!-- Dua hal yang bisa dilakukan dengan sebuah dunia, ditawarkan alih-alih ditebak. -->
+    <string name="foryou_world_open">Tampilkan lagu</string>
+    <string name="foryou_world_smart">Putar yang serupa</string>
+    <string name="foryou_kicker_resume">Lanjutkan dari tempat kamu berhenti</string>
+    <plurals name="foryou_kicker_played_times">
+        <item quantity="other">Kamu memutarnya %1$d kali</item>
+    </plurals>
+    <string name="foryou_kicker_never_played">Belum pernah diputar</string>
+    <plurals name="foryou_caption_played_before">
+        <item quantity="other">%1$d kali sebelumnya</item>
+    </plurals>
+
+    <!-- =============================================================== map -->
+    <string name="map_lens_worlds">Dunia</string>
+    <string name="map_lens_plays">Pemutaran</string>
+    <string name="map_lens_never_played">Belum diputar</string>
+    <string name="map_lens_skips">Lompatan</string>
+
+    <plurals name="count_regions">
+        <item quantity="other">%1$d wilayah</item>
+    </plurals>
+
+    <string name="map_headline_worlds">%1$s mengelompok menjadi %2$s. Ketuk salah satunya untuk mendengar isinya.</string>
+    <string name="map_headline_worlds_partial">%1$d dari %2$s mengelompok menjadi %3$s. Ketuk salah satunya untuk mendengar isinya.</string>
+    <string name="map_headline_plays">Di wilayah peta, separuh pemutaran berasal dari %1$s — %2$d\u0025 dari lagunya.</string>
+    <string name="map_headline_never_played">Di wilayah peta, %1$d dari %2$s belum pernah diputar. Wilayah "%3$s" masih %4$d\u0025 belum didengar.</string>
+    <string name="map_headline_skips">Di "%1$s" kamu paling sering berhenti — %2$d\u0025 dari pemutaran yang dimulai.</string>
+
+    <string name="map_headline_unplayed_total">Wilayah peta: %2$s · Tanpa riwayat pemutaran: %1$d.</string>
+    <string name="map_select_region">Pilih wilayah</string>
+    <string name="map_fullscreen">Buka peta layar penuh</string>
+    <string name="map_exit_fullscreen">Keluar dari peta layar penuh</string>
+    <string name="map_gesture_hint">Gunakan dua jari untuk menggeser atau memperbesar peta.</string>
+    <string name="map_reset_view">Atur ulang tampilan peta</string>
+    <string name="map_region_unplayed">Belum diputar di sini: %1$d</string>
+    <string name="map_action_play_unheard">Putar yang belum didengar</string>
+    <string name="map_action_play_region">Putar wilayah</string>
+    <string name="map_action_smart_here">SMART dari sini</string>
+    <string name="map_empty_indexing">Pustakamu masih dibaca. Peta muncul setelah pengindeksan selesai.</string>
+    <string name="map_empty_building">Sedang membuat peta pustakamu. Ini bisa memakan waktu jika pustakamu besar.</string>
+    <string name="map_empty_too_large">Pustakamu punya %1$s — lebih banyak dari %2$s yang bisa ditampilkan peta saat ini.</string>
+
+    <string name="map_legend_selected">wilayah terpilih</string>
+    <string name="map_legend_rest">sisa pustaka</string>
+    <string name="map_dot_outside_hint">Wilayah terdekat: %1$s</string>
+    <string name="map_legend_never">belum pernah diputar</string>
+    <string name="map_legend_played">pernah diputar setidaknya sekali</string>
+    <string name="map_legend_never_skips">tidak pernah dilompati</string>
+    <string name="map_legend_always_skips">selalu dilompati</string>
+
+    <!-- ================================================== now playing/queue -->
+    <string name="now_playing_nothing">Tidak ada yang diputar</string>
+    <string name="now_playing_source">Diputar dari: %1$s</string>
+    <string name="cd_now_playing">Sedang diputar</string>
+    <string name="queue_title">Antrean</string>
+    <!-- %1$d is how many tracks are in the queue -->
+    <string name="queue_title_count">Antrean · %1$d</string>
+    <string name="queue_row_continuation">Bukan rekomendasi — agar musik terus berjalan</string>
+    <string name="cd_repeat_off">Pengulangan nonaktif. Ketuk untuk mengulang antrean.</string>
+    <string name="cd_repeat_all">Antrean sedang diulang. Ketuk untuk mengulang satu lagu.</string>
+    <string name="cd_repeat_one">Satu lagu sedang diulang. Ketuk untuk menonaktifkan pengulangan.</string>
+    <string name="cd_shuffle_off">Pemutaran acak nonaktif. Ketuk untuk mengubah.</string>
+    <string name="cd_shuffle_on">Pemutaran acak aktif. Ketuk untuk mengubah.</string>
+    <string name="cd_shuffle_smart">Pemutaran acak SMART aktif. Ketuk untuk mengubah.</string>
+
+    <!-- ============================================================= search -->
+    <string name="search_placeholder">Lagu, artis, atau lirik</string>
+    <string name="cd_close_search">Tutup pencarian</string>
+    <string name="cd_clear_query">Hapus teks pencarian</string>
+    <!-- %1$s is what the user typed -->
+    <string name="search_no_matches">Tidak ada hasil untuk "%1$s".</string>
+    <!-- %1$d is the size of the library -->
+    <plurals name="search_hint_count">
+        <item quantity="other">Cari di pustaka Anda: %1$d lagu.</item>
+    </plurals>
+    <string name="search_recent_title">Pencarian terbaru</string>
+    <!-- %1$s is a past search term being removed from history -->
+    <string name="cd_forget_search">Lupakan "%1$s"</string>
+
+    <!-- ========================================================== playlists -->
+    <string name="playlists_empty">Belum ada playlist — gunakan + untuk membuatnya.</string>
+    <string name="playlist_name_placeholder">Nama playlist</string>
+    <string name="playlist_new">Playlist baru</string>
+    <!-- %1$s is a playlist name -->
+    <string name="cd_playlist_options">Opsi untuk %1$s</string>
+    <!-- Sheet header. %1$s is a track title; the generic form is used when the
+         track has no title at all. -->
+    <string name="playlist_add_to_title">Tambahkan "%1$s" ke playlist</string>
+    <string name="playlist_add_to_title_generic">Tambahkan lagu ke playlist</string>
+    <string name="playlist_rename_title">Ganti nama playlist</string>
+    <string name="action_change_playlist_cover">Ubah sampul</string>
+    <string name="action_reset_playlist_cover">Gunakan sampul otomatis</string>
+    <string name="playlist_cover_error">Tidak dapat mengubah sampul playlist. Coba gambar lain.</string>
+    <string name="snack_playlist_created">Playlist "%1$s" dibuat</string>
+    <string name="snack_playlist_deleted">Playlist "%1$s" dihapus</string>
+    <string name="snack_added_to_playlist">Ditambahkan ke "%1$s"</string>
+    <string name="auto_playlist_favorites">Favorit</string>
+    <string name="auto_playlist_recently_added">Baru ditambahkan</string>
+    <string name="auto_playlist_most_played">Paling sering diputar</string>
+    <string name="auto_playlist_recently_played">Baru diputar</string>
+    <string name="auto_playlist_never_played">Belum pernah diputar</string>
+    <string name="auto_playlist_rediscover">Temukan kembali</string>
+
+    <!-- ============================================== track actions + sheet -->
+    <string name="action_play_next">Putar berikutnya</string>
+    <string name="action_add_to_queue">Tambahkan ke antrean</string>
+    <string name="action_add_to_playlist">Tambahkan ke playlist</string>
+    <string name="action_add_favorite">Tambahkan ke favorit</string>
+    <string name="action_remove_favorite">Hapus dari favorit</string>
+    <string name="action_add_all_favorites">Tambahkan semua ke favorit</string>
+    <plurals name="snack_favorites_added">
+        <item quantity="other">%1$d lagu ditambahkan ke favorit</item>
+    </plurals>
+    <plurals name="snack_favorites_removed">
+        <item quantity="other">%1$d lagu dihapus dari favorit</item>
+    </plurals>
+    <plurals name="snack_favorites_already">
+        <item quantity="other">%1$d sudah ada di favorit</item>
+    </plurals>
+    <string name="action_remove_from_playlist">Hapus dari playlist ini</string>
+    <string name="snack_playlist_track_removed">Dihapus dari "%1$s"</string>
+    <plurals name="playlist_unavailable_tracks">
+        <item quantity="other">%1$d lagu di playlist ini tidak ada di perangkat ini.</item>
+    </plurals>
+    <string name="action_go_to_album">Buka album</string>
+    <string name="action_go_to_artist">Buka artis</string>
+    <string name="action_show_on_map">Tampilkan di peta</string>
+    <string name="action_export_m3u">Ekspor sebagai M3U</string>
+    <string name="action_smart_keep_together">Jaga tetap bersama di SMART</string>
+    <string name="action_import_m3u">Impor M3U</string>
+    <plurals name="snack_m3u_imported_all">
+        <item quantity="other">%1$d trek diimpor</item>
+    </plurals>
+    <plurals name="snack_m3u_imported_partial">
+        <item quantity="other">%1$d dari %2$d trek diimpor</item>
+    </plurals>
+    <string name="snack_m3u_import_failed">Tidak dapat mengimpor playlist</string>
+    <plurals name="m3u_import_found">
+        <item quantity="other">Ditemukan %1$d dari %2$d lagu</item>
+    </plurals>
+    <plurals name="m3u_import_playlists">
+        <item quantity="other">%1$d playlist</item>
+    </plurals>
+    <plurals name="m3u_import_skipped_files">
+        <item quantity="other">%1$d file dilewati</item>
+    </plurals>
+    <string name="m3u_import_playlists_partial">Playlist dibuat: %1$d dari %2$d. Sisanya tidak dapat disimpan.</string>
+    <plurals name="playlist_new_count">
+        <item quantity="other">%1$d playlist baru</item>
+    </plurals>
+    <string name="playlist_imported_name">Playlist impor</string>
+    <string name="action_information">Informasi</string>
+    <string name="action_delete_from_device">Hapus dari perangkat</string>
+    <string name="dialog_delete_tracks_message">Trek yang dipilih (%1$d) akan dihapus dari perangkat ini. Tindakan ini tidak dapat dibatalkan.</string>
+    <string name="dialog_delete_track_title">Hapus lagu ini?</string>
+    <plurals name="dialog_delete_tracks_title">
+        <item quantity="other">Hapus %1$d lagu?</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="dialog_delete_track_message">"%1$s" akan dihapus dari perangkat ini. Tindakan ini tidak dapat dibatalkan.</string>
+    <string name="dialog_delete_track_message_generic">Lagu ini akan dihapus dari perangkat ini. Tindakan ini tidak dapat dibatalkan.</string>
+
+    <!-- ======================================================== track info -->
+    <string name="info_title">Judul</string>
+    <string name="info_artist">Artis</string>
+    <string name="info_album">Album</string>
+    <string name="info_genre">Genre</string>
+    <string name="info_year">Tahun</string>
+    <string name="info_duration">Durasi</string>
+    <string name="info_location">Lokasi</string>
+    <string name="info_not_set">Tidak diatur</string>
+    <string name="info_edit">Edit tag</string>
+    <string name="info_save">Simpan</string>
+    <string name="info_cancel">Batal</string>
+    <string name="editor_discard_title">Buang perubahan?</string>
+    <string name="editor_discard">Buang</string>
+    <string name="editor_keep_editing">Lanjutkan mengedit</string>
+    <string name="info_saving">Menyimpan…</string>
+    <string name="info_edit_note">Disimpan ke dalam file itu sendiri, sehingga semua aplikasi melihat koreksinya. Anda mungkin diminta izin untuk mengubah file.</string>
+    <string name="info_edit_refused">Tag file ini dalam bentuk yang tidak dapat ditulis ulang dengan aman, jadi tidak ada yang diubah.</string>
+    <string name="info_edit_failed">Tidak dapat menulis ke file ini. File dibiarkan apa adanya.</string>
+    <string name="info_edit_no_space">Ruang kosong tidak cukup untuk menyimpan tag ini dengan aman. Tidak ada yang diubah.</string>
+    <string name="info_edit_recovery_pending">Penyimpanan terhenti. LatentJam akan menyelesaikan atau membatalkannya saat berikutnya diizinkan menulis ke file.</string>
+    <string name="tag_recovery_title">Selesaikan penyimpanan tag</string>
+    <plurals name="tag_recovery_body">
+        <item quantity="other">LatentJam terhenti saat menyimpan tag ke %1$d file. LatentJam dapat menyelesaikan perubahan sekarang, atau membatalkannya jika file tidak dapat diselesaikan.</item>
+    </plurals>
+    <string name="tag_recovery_finish">Selesaikan</string>
+    <string name="tag_recovery_later">Nanti</string>
+    <string name="tag_problem_unsupported_format">LatentJam tidak dapat mengedit jenis file ini.</string>
+    <string name="tag_problem_damaged">File ini tampaknya rusak, jadi dibiarkan apa adanya.</string>
+    <string name="tag_problem_protected">File ini dilindungi dari penyalinan dan tidak dapat diubah.</string>
+    <string name="tag_problem_tags_too_large">Tag akan terlalu besar untuk file ini.</string>
+    <string name="tag_problem_bad_number">Nomor lagu dan nomor disk harus berupa bilangan bulat dari 1 sampai 999.</string>
+    <string name="tag_problem_number_unreadable">Nomor lagu atau nomor disk bawaan file ini bukan angka biasa, jadi totalnya tidak dapat diubah sendiri.</string>
+    <string name="tag_problem_bad_image">Gambar ini bukan gambar JPEG atau PNG.</string>
+    <string name="tag_problem_read_only_storage">File ini berada di penyimpanan yang tidak dapat ditulisi.</string>
+    <string name="tag_problem_music_library">Lagu dari Pustaka musik tidak dapat diedit, hanya lagu yang diimpor ke LatentJam.</string>
+    <string name="tag_problem_unreadable">File ini tidak dapat dibaca.</string>
+    <string name="tag_problem_not_allowed">Izin untuk mengubah file tidak diberikan.</string>
+    <string name="tag_problem_missing">File sudah tidak ada.</string>
+    <string name="tag_problem_stopped">Dihentikan sebelum file ini.</string>
+    <string name="tag_problem_cancelled">Permintaan izin ditutup.</string>
+    <string name="tag_problem_undone">Penyimpanan yang terhenti telah dibatalkan: file kembali seperti semula.</string>
+    <string name="tag_problem_changed_elsewhere">Aplikasi lain mengubah file setelah penyimpanan terhenti, jadi file dibiarkan apa adanya.</string>
+    <string name="tag_problem_lost">LatentJam tidak dapat mengetahui bagaimana penyimpanan ini berakhir. Periksa tag file tersebut.</string>
+
+    <!-- =========================================================== settings -->
+    <string name="settings_title">Setelan</string>
+    <string name="settings_section_appearance">Tampilan</string>
+    <string name="settings_theme">Tema</string>
+    <string name="theme_system">Ikuti sistem</string>
+    <string name="theme_light">Terang</string>
+    <string name="theme_dark">Gelap</string>
+    <string name="settings_section_playback">Pemutaran</string>
+    <string name="settings_equalizer">Ekualiser</string>
+    <string name="settings_equalizer_subtitle">Kontrol nada untuk keluaran audio perangkat ini</string>
+    <string name="settings_intelligence">Mesin SMART</string>
+    <string name="settings_smart_engine">Mesin SMART</string>
+    <string name="settings_smart_engine_subtitle">Apa yang diketahui model di perangkat tentang pustaka Anda</string>
+    <string name="settings_about_body">LatentJam — pemutar musik lokal dengan mesin rekomendasi yang berjalan di perangkat. Tidak ada informasi tentang apa yang Anda dengarkan yang meninggalkan perangkat ini.</string>
+
+    <!-- ========================================================== equalizer -->
+    <string name="state_on">Aktif</string>
+    <string name="state_off">Nonaktif</string>
+    <string name="equalizer_presets">Preset</string>
+    <string name="equalizer_bands">Pita frekuensi</string>
+    <string name="equalizer_bass_boost">Penguat bas</string>
+    <string name="equalizer_reset">Setel ulang ke datar</string>
+
+    <!-- ======================================================= intelligence -->
+    <string name="intelligence_section_status">Status</string>
+    <string name="intelligence_engine">Mesin</string>
+    <string name="intelligence_library">Pustaka</string>
+    <string name="intelligence_fingerprints">Sidik jari suara</string>
+    <!-- %1$d tracks analysed out of %2$d in the library -->
+    <string name="intelligence_indexed_of">%1$d dari %2$d</string>
+    <string name="engine_state_not_started">Belum dimulai</string>
+    <string name="engine_state_starting">Memulai…</string>
+    <string name="engine_state_ready">Siap</string>
+    <!-- %1$s is a technical failure reason reported by the engine -->
+    <string name="engine_state_unavailable">Tidak tersedia — %1$s</string>
+
+    <!-- ========================================================= permission -->
+    <string name="permission_audio_rationale">LatentJam memerlukan akses ke musik Anda untuk memindai pustaka.</string>
+    <string name="permission_grant">Berikan akses</string>
+    <string name="permission_audio_settings_rationale">Akses musik diblokir. Buka setelan sistem dan izinkan LatentJam mengakses musik dan file audio.</string>
+    <string name="permission_open_settings">Buka setelan</string>
+    <string name="permission_notifications_title">Tampilkan progres analisis?</string>
+    <string name="permission_notifications_rationale">SMART menganalisis pustaka Anda di perangkat ini. Izinkan notifikasi untuk melihat progres dan kembali ke LatentJam saat proses berlangsung. Analisis tetap berjalan jika Anda memilih “Jangan sekarang”.</string>
+    <string name="permission_not_now">Jangan sekarang</string>
+    <string name="permission_continue">Lanjutkan</string>
+
+
+    <string name="engine_error_model_unavailable">SMART tidak dapat memuat model bawaannya. Coba penyiapan lagi; jika berlanjut, instal ulang aplikasi atau laporkan.</string>
+    <string name="engine_error_not_indexed">Pustaka belum diindeks.</string>
+    <string name="engine_error_audio_unavailable">Trek ini tidak dapat dibaca atau didekode. Pastikan file masih tersedia, lalu coba lagi.</string>
+    <string name="engine_error_backend">SMART mengalami kesalahan internal. Coba penyiapan lagi; jika berlanjut, laporkan masalahnya.</string>
+
+    <string name="indexing_notification_title">Menganalisis musik Anda</string>
+    <string name="indexing_notification_progress">%1$d dari %2$d</string>
+    <string name="indexing_notification_progress_eta">%1$d dari %2$d · sekitar %3$d mnt lagi</string>
+    <!-- =================================================== expanded settings -->
+    <string name="settings_appearance">Tampilan</string>
+    <string name="settings_appearance_subtitle">Tema, warna pemutar, dan bahasa</string>
+    <string name="settings_library">Pustaka</string>
+    <string name="settings_library_subtitle">Perbarui, impor, dan kelola lagu tersembunyi</string>
+    <string name="settings_playback">Pemutaran</string>
+    <string name="settings_playback_subtitle">Ekualiser dan kontrol audio</string>
+    <string name="settings_privacy">Privasi dan data</string>
+    <string name="settings_privacy_subtitle">Riwayat dengar dan pencarian terbaru</string>
+    <string name="settings_about">Tentang LatentJam</string>
+    <string name="settings_about_subtitle">Lisensi, kode sumber, dan dukungan</string>
+    <string name="settings_section_library">Pustaka</string>
+    <string name="settings_section_navigation">Navigasi</string>
+    <string name="settings_section_privacy">Data di perangkat</string>
+    <string name="settings_track_colors">Warna pemutar</string>
+    <string name="settings_page_header">Header halaman</string>
+    <string name="settings_page_header_dots">Titik</string>
+    <string name="settings_page_header_neighbours">Halaman di sebelahnya</string>
+    <string name="settings_page_header_tabs">Tab</string>
+    <string name="settings_page_header_pills">Pil</string>
+    <string name="settings_page_header_menu">Menu</string>
+    <string name="settings_color_custom">Kustom</string>
+    <string name="settings_color_custom_body">Warna pilihan Anda mewarnai pemutar, awan, pemutar mini, sakelar, dan tombol Putar, apa pun yang diputar.</string>
+    <string name="settings_accent_swatch">Warna %1$d dari %2$d</string>
+    <string name="settings_pure_black">Hitam pekat</string>
+    <string name="settings_pure_black_body">Untuk layar OLED: hitam sungguhan, bukan abu-abu gelap</string>
+    <string name="settings_cloud">Awan</string>
+    <string name="settings_cloud_off">Mati</string>
+    <string name="settings_cloud_soft">Lembut</string>
+    <string name="settings_cloud_normal">Biasa</string>
+    <string name="settings_cloud_vivid">Cerah</string>
+    <string name="settings_cloud_motion">Gerakan di pemutar</string>
+    <string name="settings_cloud_motion_body">Awan bergerak pelan selama musik diputar</string>
+    <string name="settings_player_background">Latar pemutar</string>
+    <string name="settings_player_background_cloud">Awan</string>
+    <string name="settings_player_background_cover">Sampul buram</string>
+    <string name="settings_shape">Bentuk</string>
+    <string name="settings_shape_round">Bulat</string>
+    <string name="settings_shape_soft">Lembut</string>
+    <string name="settings_shape_sharp">Tegas</string>
+    <string name="settings_shape_body">Sudut menu, panel, tombol, chip, dan sampul di seluruh aplikasi.</string>
+    <string name="settings_mini_player">Pemutar mini</string>
+    <string name="settings_mini_player_card">Kartu</string>
+    <string name="settings_mini_player_bar">Bilah</string>
+    <string name="settings_section_handling">Penggunaan</string>
+    <string name="settings_left_handed">Kidal</string>
+    <string name="settings_left_handed_body">Tombol acak dan alfabet di kiri</string>
+    <string name="settings_color_dynamic">Sampul</string>
+    <string name="settings_color_dynamic_body">Gunakan warna dari sampul, dengan SMART sebagai cadangan.</string>
+    <string name="settings_color_smart">SMART</string>
+    <string name="settings_color_smart_body">Gunakan warna yang berasal dari sidik suara setiap lagu.</string>
+    <string name="settings_color_theme">Tema</string>
+    <string name="settings_color_theme_body">Gunakan tema aplikasi, bukan warna khusus setiap lagu.</string>
+    <string name="settings_start_page">Halaman awal</string>
+    <string name="settings_start_page_body">Digunakan saat Anda membuka LatentJam berikutnya.</string>
+    <string name="settings_library_count">Lagu di pustaka</string>
+    <string name="settings_library_refresh">Perbarui pustaka</string>
+    <string name="settings_library_refresh_body">Temukan musik yang baru ditambahkan dan hapus entri file yang sudah tidak tersedia.</string>
+    <string name="settings_library_import">Impor musik</string>
+    <string name="settings_library_import_body">Pilih file audio untuk disalin ke LatentJam.</string>
+    <string name="settings_library_restore">Pulihkan lagu tersembunyi</string>
+    <string name="settings_library_restore_body">Kembalikan semua lagu yang dihapus dari LatentJam ke pustaka. File di perangkat tidak berubah.</string>
+    <string name="settings_playlist_relative_paths">Jalur relatif di playlist yang diekspor</string>
+    <string name="settings_playlist_relative_paths_body">Menulis jalur setiap lagu relatif terhadap folder playlist (../Music/…) agar playlist juga bisa dipakai di perangkat lain. Jika disimpan di tempat tanpa jalur folder, jalur lengkap tetap dipakai.</string>
+    <string name="settings_equalizer_unavailable">Tidak tersedia untuk keluaran audio ini</string>
+    <string name="equalizer_unavailable_body">Keluaran audio saat ini tidak memberikan akses ekualiser kepada LatentJam. Coba keluaran lain. Pemutaran tetap berfungsi seperti biasa.</string>
+    <string name="equalizer_bass_value">%1$d\u0025</string>
+    <string name="equalizer_preset_flat">Datar</string>
+    <string name="equalizer_preset_bass">Bas</string>
+    <string name="equalizer_preset_treble">Treble</string>
+    <string name="equalizer_preset_vocal">Vokal</string>
+    <string name="equalizer_preset_electronic">Elektronik</string>
+    <string name="intelligence_syncing">Menyinkronkan pustaka…</string>
+    <string name="intelligence_analysis_progress">%1$d dari %2$d lagu dianalisis</string>
+    <string name="intelligence_analysis_failed">Tidak dapat menganalisis: %1$d</string>
+    <string name="intelligence_failures_more">Dan %1$d lainnya</string>
+    <string name="intelligence_retry">Ulangi penyiapan SMART</string>
+    <string name="intelligence_section_recommendations">Rekomendasi</string>
+    <string name="intelligence_queue_length">Panjang antrean SMART</string>
+    <string name="intelligence_queue_length_body">Pilih jumlah lagu yang ditambahkan SMART saat membuat antrean.</string>
+    <string name="intelligence_artist_variety">Variasi artis</string>
+    <string name="intelligence_artist_variety_body">Seberapa jauh SMART memisahkan lagu dari artis yang sama. Lagu yang jelas lebih cocok tetap diputar, bahkan tepat setelah artis yang sama.</string>
+    <string name="intelligence_artist_variety_free">Mati</string>
+    <string name="intelligence_artist_variety_low">Rendah</string>
+    <string name="intelligence_artist_variety_balanced">Seimbang</string>
+    <string name="intelligence_artist_variety_high">Tinggi</string>
+    <string name="intelligence_artist_variety_max">Maksimal</string>
+    <string name="intelligence_include_novelty_mixes">Sertakan mix unik</string>
+    <string name="intelligence_include_novelty_mixes_body">Tampilkan mix terpisah berisi meme, audio viral, dan efek suara di Untuk kamu.</string>
+    <string name="foryou_mix_meme_viral">Meme &amp; audio viral</string>
+    <string name="foryou_mix_sound_effects">Efek suara</string>
+    <string name="foryou_mix_spoken_audio">Audio lisan</string>
+    <string name="foryou_mix_instrumental">Musik instrumental</string>
+    <string name="intelligence_how_it_works">SMART membandingkan sidik suara di perangkat ini, lalu menggabungkan kemiripan musik dengan riwayat dengar Anda. Fitur ini bekerja tanpa akun atau koneksi internet.</string>
+    <string name="privacy_local_body">Pustaka, riwayat dengar, dan data SMART Anda tetap berada di perangkat ini. LatentJam tidak memakai akun dan tidak mengirim data tersebut ke server.</string>
+    <string name="privacy_save_history_body">Simpan pemutaran dan lompatan di perangkat ini untuk Untuk Anda dan rekomendasi SMART.</string>
+    <string name="privacy_remember_searches_body">Simpan pencarian di perangkat ini agar ditampilkan saat kolom pencarian kosong.</string>
+    <string name="privacy_disable_history_body">Berhenti menyimpan aktivitas mendengarkan baru. Apa yang harus dilakukan dengan riwayat yang sudah ada di perangkat ini?</string>
+    <string name="privacy_disable_searches_body">Berhenti menyimpan pencarian baru. Apa yang harus dilakukan dengan pencarian yang sudah ada di perangkat ini?</string>
+    <string name="privacy_keep_existing">Pertahankan yang ada</string>
+    <string name="privacy_delete_existing">Hapus yang ada</string>
+    <string name="privacy_setting_save_failed">Setelan privasi ini tidak dapat disimpan. Coba lagi.</string>
+    <string name="privacy_data_clear_failed">Data di perangkat ini tidak dapat dihapus. Coba lagi.</string>
+    <string name="privacy_clear_history">Hapus riwayat dengar</string>
+    <string name="privacy_clear_history_body">Hapus data pemutaran dan lewati yang digunakan untuk mempersonalisasi rekomendasi.</string>
+    <string name="privacy_clear_history_confirm">Hapus seluruh riwayat dengar? Rekomendasi akan mulai mempelajari selera Anda lagi.</string>
+    <string name="privacy_history_empty">Belum ada riwayat dengar</string>
+    <plurals name="privacy_history_listens">
+        <item quantity="other">%1$d kali didengarkan</item>
+    </plurals>
+    <string name="privacy_recent_searches">Pencarian terbaru</string>
+    <string name="privacy_clear_searches">Hapus pencarian terbaru</string>
+    <string name="privacy_clear_searches_body">Hapus kueri yang ditampilkan saat pencarian kosong.</string>
+    <string name="privacy_clear_searches_confirm">Hapus semua pencarian terbaru?</string>
+    <string name="settings_license">Lisensi</string>
+    <string name="settings_license_body">LatentJam adalah perangkat lunak bebas dengan lisensi Apache 2.0.</string>
+    <string name="settings_open_source">Kode sumber</string>
+    <string name="settings_open_source_body">Lihat proyek di GitHub</string>
+    <string name="settings_report_issue">Laporkan masalah</string>
+    <string name="settings_section_preferences">Preferensi</string>
+    <string name="settings_section_music">Musik</string>
+    <string name="settings_section_data_support">Data dan dukungan</string>
+    <string name="privacy_listening_history">Riwayat dengar</string>
+    <string name="settings_version">Versi</string>
+    <string name="settings_library_loading">Memuat pustaka…</string>
+    <string name="settings_library_refreshing">Memperbarui…</string>
+    <string name="snack_library_refreshed">Pustaka diperbarui</string>
+    <string name="action_exclude_track_from_smart">Jangan rekomendasikan trek ini</string>
+    <string name="action_exclude_artist_from_smart">Jangan rekomendasikan artis ini</string>
+    <string name="action_include_track_in_smart">Rekomendasikan trek ini lagi</string>
+    <string name="action_include_artist_in_smart">Rekomendasikan artis ini lagi</string>
+    <string name="snack_track_excluded_from_smart">Trek dihapus dari rekomendasi SMART</string>
+    <string name="snack_artist_excluded_from_smart">Artis dihapus dari rekomendasi SMART</string>
+    <string name="snack_track_included_in_smart">Trek dikembalikan ke rekomendasi SMART</string>
+    <string name="snack_artist_included_in_smart">Artis dikembalikan ke rekomendasi SMART</string>
+    <string name="snack_smart_exclusion_failed">Tidak dapat memperbarui rekomendasi SMART. Coba lagi.</string>
+    <string name="action_retry">Coba lagi</string>
+
+    <string name="settings_language">Bahasa</string>
+    <string name="settings_language_body">Ubah bahasa di pengaturan sistem.</string>
+    <string name="settings_audio_access">Akses musik</string>
+    <string name="settings_audio_access_allowed">Diizinkan</string>
+    <string name="settings_audio_access_blocked">Diblokir</string>
+    <string name="settings_audio_access_not_requested">Belum diminta</string>
+    <string name="settings_audio_access_not_required">Tidak diperlukan</string>
+    <string name="settings_sources">Sumber musik</string>
+    <string name="settings_sources_body">Pilih folder atau koleksi perangkat yang muncul di LatentJam. File di perangkat tidak berubah.</string>
+    <string name="settings_sources_empty">Tidak ditemukan sumber musik yang dapat dikelola.</string>
+    <string name="settings_source_unnamed">Musik perangkat</string>
+    <string name="settings_source_music_library">Pustaka musik</string>
+    <string name="settings_hidden_tracks">Trek tersembunyi</string>
+    <string name="settings_hidden_tracks_body">Trek yang disembunyikan hanya di LatentJam. Pulihkan trek tanpa mengubah filenya.</string>
+    <string name="settings_hidden_tracks_empty">Tidak ada trek yang disembunyikan di LatentJam.</string>
+    <string name="settings_interrupted_saves">Penyimpanan yang terhenti</string>
+    <plurals name="settings_interrupted_saves_body">
+        <item quantity="other">Penyimpanan tag ke %1$d file terhenti. LatentJam akan menyelesaikan atau membatalkannya saat diizinkan menulis ke file.</item>
+    </plurals>
+    <string name="settings_interrupted_finish">Selesaikan sekarang</string>
+    <string name="settings_interrupted_being_repaired">Sedang diperbaiki: tidak diputar sampai selesai</string>
+    <string name="settings_interrupted_forget">Lupakan</string>
+    <string name="settings_interrupted_forget_title">Lupakan penyimpanan ini?</string>
+    <string name="settings_interrupted_forget_body">File tetap persis seperti sekarang, dan LatentJam berhenti mencoba menyelesaikan atau membatalkan penyimpanan. Ini tidak dapat dibatalkan.</string>
+    <string name="settings_interrupted_forget_damaged_body">Penyimpanan ini berhenti di tengah jalan. File mungkin rusak dan tidak dapat diputar, dan melupakannya akan menghapus salinan yang dapat digunakan LatentJam untuk memperbaikinya. Ini tidak dapat dibatalkan.</string>
+    <string name="settings_duplicates">Duplikat audio</string>
+    <string name="settings_duplicates_body">Menemukan salinan rekaman yang sama dari suaranya, apa pun tag-nya</string>
+    <string name="settings_duplicates_scanning">Membandingkan semua pasangan trek…</string>
+    <string name="settings_duplicates_empty">Tidak ada duplikat — setiap trek terdengar unik</string>
+    <string name="settings_restore">Pulihkan</string>
+    <string name="settings_restore_all">Pulihkan semua</string>
+    <string name="settings_library_manage_failed">Tidak dapat memperbarui pustaka. Coba lagi.</string>
+    <string name="settings_lyrics_folders">Folder berisi file .lrc</string>
+    <string name="settings_lyrics_folders_body">Android akan menanyakan folder mana yang diizinkan. File .lrc bernama sama dengan lagu lalu dipakai sebagai liriknya.</string>
+    <string name="settings_lyrics_folders_add">Tambah folder</string>
+    <string name="settings_lyrics_folders_remove">Hapus</string>
+    <string name="settings_lyrics_folders_failed">Folder ini tidak dapat digunakan. Pilih folder di penyimpanan perangkat ini.</string>
+
+    <string name="settings_licenses">Lisensi sumber terbuka</string>
+    <string name="settings_licenses_body">Pemberitahuan untuk LatentJam, model bawaan, dan perangkat lunak pihak ketiga</string>
+    <string name="settings_license_models">Model audio dan SMART</string>
+    <string name="settings_license_models_body">Bobot audio MobileNetV4 buatan LatentJam berlisensi Apache-2.0. Model student memakai timm (Apache-2.0) dan didistilasi dari EfficientAT (MIT, hak cipta © 2022 Florian Schmid).</string>
+    <string name="settings_license_text_model">Model teks</string>
+    <string name="settings_license_text_model_body">Enkoder teks bawaan dan kosakatanya dilatih oleh LatentJam untuk meniru sentence-transformers/all-MiniLM-L6-v2 (Apache-2.0) dan berlisensi Apache-2.0.</string>
+    <string name="settings_license_runtime">ONNX Runtime</string>
+    <string name="settings_license_runtime_body">Inferensi model di perangkat memakai Microsoft ONNX Runtime dengan Lisensi MIT. Hak cipta © Microsoft Corporation.</string>
+    <string name="settings_license_aliases">MusicBrainz dan Wikidata</string>
+    <string name="settings_license_aliases_body">Data pencarian alias artis bawaan berasal dari MusicBrainz dan Wikidata dan disediakan dengan CC0.</string>
+    <string name="settings_license_libraries">Pustaka pihak ketiga</string>
+    <string name="settings_license_libraries_body">LatentJam memakai Kotlin, coroutines, Compose Multiplatform, AndroidX Media3, Koin, dan Coil dengan lisensi permisif Apache-2.0 atau MIT. Pemberitahuan lengkap disertakan dalam distribusi sumber.</string>
+
+    <string name="sleep_timer">Timer tidur</string>
+    <string name="sleep_timer_off">Nonaktif</string>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d menit</item>
+        <item quantity="other">%1$d menit</item>
+    </plurals>
+    <string name="sleep_timer_end_of_track">Akhir trek saat ini</string>
+    <string name="sleep_timer_active_minutes">Tersisa %1$d mnt</string>
+    <string name="sleep_timer_active_end_of_track">Berhenti setelah trek ini</string>
+
+    <string name="intelligence_problems">Masalah analisis</string>
+    <string name="intelligence_problems_body">Trek yang tidak dapat dianalisis SMART. Musik Anda tetap dapat diputar.</string>
+    <string name="intelligence_no_problems">Tidak ada masalah analisis</string>
+    <string name="intelligence_manage_exclusions">Pengecualian rekomendasi</string>
+    <string name="intelligence_manage_exclusions_body">Trek dan artis yang tidak boleh direkomendasikan SMART</string>
+    <string name="intelligence_exclusions_empty">Tidak ada pengecualian rekomendasi</string>
+    <string name="intelligence_excluded_tracks">Trek yang dikecualikan</string>
+    <string name="intelligence_excluded_artists">Artis yang dikecualikan</string>
+    <string name="intelligence_rebuild">Bangun ulang analisis SMART</string>
+    <string name="intelligence_rebuild_body">Hapus sidik jari lokal dan analisis kembali pustaka yang terlihat.</string>
+    <string name="intelligence_rebuild_confirm">Bangun ulang semua analisis SMART? File musik, daftar putar, dan riwayat dengar tidak berubah.</string>
+    <string name="intelligence_how_title">Cara kerja SMART</string>
+    <string name="intelligence_notifications">Notifikasi analisis</string>
+    <string name="intelligence_notifications_body">Tampilkan progres pengindeksan di luar LatentJam</string>
+    <string name="intelligence_exclusions_clear">Hapus semua pengecualian</string>
+
+    <string name="settings_backup">Cadangan lokal</string>
+    <string name="settings_backup_body">Ekspor atau pulihkan daftar putar, favorit, preferensi, riwayat, trek tersembunyi, pengecualian SMART, dan keputusan pencari duplikat. File musik dan data model tidak disertakan.</string>
+    <string name="backup_export">Ekspor cadangan</string>
+    <string name="backup_import">Impor cadangan</string>
+    <string name="backup_import_title">Pulihkan cadangan lokal</string>
+    <string name="backup_import_body">Pilih cara menggabungkan data yang diimpor dengan data yang sudah ada di perangkat ini.</string>
+    <string name="backup_section_duplicate_decisions">Keputusan pencari duplikat</string>
+    <string name="backup_merge">Gabungkan</string>
+    <string name="backup_replace">Ganti</string>
+    <string name="backup_replace_warning">Ganti data aplikasi yang dipilih dengan cadangan ini? File musik tidak pernah diubah.</string>
+    <string name="backup_export_success">Cadangan diekspor</string>
+    <string name="backup_import_success">Cadangan dipulihkan</string>
+    <string name="backup_import_success_unmatched">Cadangan dipulihkan; %1$d referensi trek tidak dapat dicocokkan di perangkat ini.</string>
+    <plurals name="backup_import_decisions_not_kept">
+        <item quantity="other">%1$d keputusan pencari duplikat tidak dapat disimpan di perangkat ini.</item>
+    </plurals>
+    <string name="backup_import_partial">Sebagian data dipulihkan sebelum terjadi kesalahan.</string>
+    <string name="backup_failed">Tidak dapat menyelesaikan operasi pencadangan.</string>
+    <string name="backup_invalid">Ini bukan cadangan LatentJam yang valid.</string>
+    <string name="backup_destination_warning">Cadangan berisi data pribadi aplikasi. Tujuan cloud atau pihak ketiga yang dipilih di pemilih sistem dapat menyinkronkannya.</string>
+    <string name="settings_stats">Statistik</string>
+    <string name="settings_stats_subtitle">Pendengaran Anda dalam angka</string>
+    <string name="stats_period_week">7 hari</string>
+    <string name="stats_period_month">30 hari</string>
+    <string name="stats_period_all">Sepanjang waktu</string>
+    <string name="stats_time_listened">Didengarkan</string>
+    <string name="stats_plays">Pemutaran</string>
+    <string name="stats_distinct_tracks">Lagu</string>
+    <string name="stats_streak_current">Rentetan</string>
+    <string name="stats_streak_longest">Rekor</string>
+    <string name="stats_days_short">hr</string>
+    <string name="stats_hours_short">j</string>
+    <string name="stats_minutes_short">mnt</string>
+    <string name="stats_finished_share">Selesai</string>
+    <string name="stats_skipped_share">Dilewati</string>
+    <string name="stats_empty">Belum ada yang diputar dalam periode ini.</string>
+    <string name="stats_load_failed">Statistik mendengarkan tidak dapat dimuat.</string>
+    <string name="settings_normalize_volume">Normalisasi volume</string>
+    <string name="settings_normalize_volume_subtitle">Mengurangi lagu keras menuju tingkat yang konsisten</string>
+    <string name="settings_crossfade">Transisi mulus</string>
+    <string name="settings_crossfade_subtitle">Volume memudar di batas lagu</string>
+    <string name="settings_crossfade_value">%1$d dtk</string>
+    <string name="duplicates_keep_this">Simpan yang ini</string>
+    <string name="snack_duplicates_merged">Duplikat digabung: playlist kini menunjuk ke salinan yang disimpan</string>
+    <string name="info_lyrics">Lirik</string>
+    <string name="info_album_artist">Artis album</string>
+    <string name="info_track_number">Nomor lagu</string>
+    <string name="info_track_total">Total lagu</string>
+    <string name="info_disc_number">Nomor disk</string>
+    <string name="info_disc_total">Total disk</string>
+    <string name="info_cover">Sampul</string>
+    <string name="info_cover_replace">Ganti</string>
+    <string name="info_cover_remove">Hapus</string>
+    <string name="info_cover_keep">Pertahankan yang sekarang</string>
+    <string name="info_cover_new">Sampul baru</string>
+    <string name="info_cover_removed">Sampul akan dihapus.</string>
+    <plurals name="info_cover_more">
+        <item quantity="other">+%1$d gambar lain di file, tetap disimpan</item>
+    </plurals>
+    <string name="info_reading_file">Membaca file…</string>
+    <string name="action_edit_album">Edit album</string>
+    <string name="action_edit_artist">Edit artis</string>
+    <string name="action_favorite_short">Favoritkan</string>
+    <string name="action_unfavorite_short">Batal favorit</string>
+    <plurals name="count_files">
+        <item quantity="other">%1$d file</item>
+    </plurals>
+    <plurals name="count_fields">
+        <item quantity="other">%1$d kolom</item>
+    </plurals>
+    <string name="bulk_save">Ubah %1$s di %2$s</string>
+    <string name="bulk_reading">Membaca %1$d dari %2$d…</string>
+    <plurals name="bulk_not_editable">
+        <item quantity="other">%1$d file tidak dapat diedit dan akan dibiarkan apa adanya:</item>
+    </plurals>
+    <plurals name="bulk_more_files">
+        <item quantity="other">dan %1$d lainnya</item>
+    </plurals>
+    <string name="bulk_nothing_editable">Tak satu pun dari file ini dapat diedit.</string>
+    <string name="bulk_different">Nilai berbeda</string>
+    <plurals name="bulk_removed">
+        <item quantity="other">Dihapus dari %1$d file</item>
+    </plurals>
+    <string name="bulk_remove_field">Hapus dari semua file</string>
+    <string name="bulk_keep_field">Biarkan apa adanya</string>
+    <string name="bulk_kept">Tetap seperti semula: %1$s</string>
+    <string name="bulk_saving">Tersimpan %1$d dari %2$d</string>
+    <string name="bulk_stop">Hentikan</string>
+    <string name="bulk_result">Tersimpan %1$d dari %2$d.</string>
+    <plurals name="bulk_not_changed">
+        <item quantity="other">%1$d file tidak diubah:</item>
+    </plurals>
+    <string name="bulk_done">Selesai</string>
+    <string name="bulk_file_reason">%1$s — %2$s</string>
+    <plurals name="tags_saved">
+        <item quantity="other">Tag disimpan di %1$d file</item>
+    </plurals>
+    <string name="tags_saved_partly">Tag disimpan di %1$d dari %2$d file</string>
+    <plurals name="tag_recovery_done">
+        <item quantity="other">Selesai menyimpan %1$d file</item>
+    </plurals>
+    <plurals name="tag_recovery_undone">
+        <item quantity="other">%1$d penyimpanan yang terhenti dibatalkan; file kembali seperti semula</item>
+    </plurals>
+    <plurals name="tag_recovery_left">
+        <item quantity="other">%1$d file diubah oleh aplikasi lain dan dibiarkan apa adanya</item>
+    </plurals>
+    <plurals name="tag_recovery_waiting">
+        <item quantity="other">%1$d file belum dapat diselesaikan. Lihat Setelan → Pustaka.</item>
+    </plurals>
+    <string name="lyrics_not_found">Tidak ada lirik yang ditemukan untuk lagu ini.</string>
+    <string name="cd_scroll_to_top">Kembali ke atas</string>
+    <string name="foryou_section_daypart_morning">Pagi Anda</string>
+    <string name="foryou_section_daypart_day">Siang Anda</string>
+    <string name="foryou_section_daypart_evening">Malam Anda</string>
+    <string name="foryou_section_daypart_night">Dini hari Anda</string>
+    <string name="foryou_section_on_a_roll">Sering diputar: %1$s</string>
+    <string name="foryou_caption_left_turn">Jika Anda suka %1$s</string>
+    <string name="settings_pages">Halaman</string>
+    <string name="settings_pages_subtitle">Visibilitas, urutan, dan halaman awal</string>
+    <string name="settings_pages_body">Seret untuk mengubah urutan. Nonaktifkan halaman yang tidak digunakan.</string>
+    <string name="settings_pages_last_visible">Tetap aktifkan setidaknya satu halaman.</string>
+    <string name="settings_page_position">Posisi %1$d dari %2$d</string>
+    <string name="settings_page_move_up">Pindahkan %1$s ke atas</string>
+    <string name="settings_page_move_down">Pindahkan %1$s ke bawah</string>
+    <string name="settings_pages_reset">Reset halaman</string>
+    <string name="settings_pages_reset_body">Pulihkan urutan, halaman yang ditampilkan, dan halaman awal ke pengaturan default.</string>
+    <string name="stats_dashboard_title">Aktivitas mendengarkan Anda</string>
+    <string name="stats_recording_off">Pencatatan riwayat mendengarkan dijeda. Statistik yang tersimpan tetap tersedia; pemutaran baru tidak akan ditambahkan hingga riwayat diaktifkan di pengaturan Privasi.</string>
+    <string name="stats_comparison_more">%1$s lebih lama dibandingkan %2$d hari sebelumnya</string>
+    <string name="stats_comparison_less">%1$s lebih singkat dibandingkan %2$d hari sebelumnya</string>
+    <string name="stats_comparison_same">Waktu mendengarkan sama dengan %1$d hari sebelumnya</string>
+    <string name="stats_comparison_first">Tidak ada aktivitas mendengarkan dalam %1$d hari sebelumnya</string>
+    <string name="stats_under_minute">&lt; 1 mnt</string>
+    <string name="stats_activity">Irama harian Anda</string>
+    <string name="stats_calendar_days">%1$d hari kalender terakhir · waktu mendengarkan</string>
+    <string name="stats_today">Hari ini</string>
+    <string name="stats_yesterday">Kemarin</string>
+    <string name="stats_new_tracks">Baru Anda dengar</string>
+    <string name="stats_smart_detail">Persentase pemutaran yang dimulai saat mode acak SMART aktif</string>
+    <string name="stats_listening_style">Cara Anda mendengarkan</string>
+    <string name="stats_recent_empty">Belum ada aktivitas mendengarkan pada hari-hari kalender ini.</string>
+    <string name="stats_history_note">Berdasarkan riwayat tersimpan, dalam zona waktu perangkat ini; diperbarui saat lagu berakhir atau berganti. Daftar menampilkan lagu yang masih ada di koleksi Anda. Cadangan yang dipulihkan hanya menyimpan lagu yang dapat ditemukannya, dan artis yang hanya dikenal dari lagu yang sudah dihapus dapat muncul sebagai baru.</string>
+    <string name="stats_chart_day_summary">%1$s: %2$s · %3$s</string>
+    <plurals name="stats_days_ago">
+        <item quantity="other">%1$d hari lalu</item>
+    </plurals>
+    <string name="stats_section_lately">Anda belakangan ini</string>
+    <string name="stats_section_numbers">Angka Anda</string>
+    <string name="stats_section_over_time">Dari waktu ke waktu</string>
+    <string name="stats_on_repeat">Sering diputar ulang</string>
+    <string name="stats_artists_on_repeat">Artis yang sering diputar ulang</string>
+    <plurals name="stats_on_days">
+        <item quantity="other">pada %1$d hari</item>
+    </plurals>
+    <string name="stats_week_days">Pada %1$d dari 7 hari terakhir</string>
+    <plurals name="stats_days_of_music">
+        <item quantity="other">≈ %1$d hari musik</item>
+    </plurals>
+    <plurals name="stats_activity_last_months">
+        <item quantity="other">%1$d bulan terakhir · waktu mendengarkan</item>
+    </plurals>
+    <string name="stats_activity_years">Per tahun · waktu mendengarkan</string>
+    <string name="stats_activity_over_time">Aktivitas mendengarkan Anda dari waktu ke waktu</string>
+    <string name="stats_this_month">Bulan ini</string>
+    <string name="stats_this_year">Tahun ini</string>
+    <plurals name="stats_months_ago">
+        <item quantity="other">%1$d bulan lalu</item>
+    </plurals>
+    <plurals name="stats_years_ago">
+        <item quantity="other">%1$d tahun lalu</item>
+    </plurals>
+    <string name="stats_new_and_familiar">Baru dan akrab</string>
+    <string name="stats_familiar">Akrab</string>
+    <plurals name="stats_new_tracks_count">
+        <item quantity="other">%1$d lagu baru</item>
+    </plurals>
+    <plurals name="stats_new_artists_count">
+        <item quantity="other">%1$d artis baru</item>
+    </plurals>
+    <string name="stats_new_previous">%1$d hari sebelumnya: %2$s baru</string>
+    <string name="stats_stuck_artists">Artis baru yang bertahan</string>
+    <string name="stats_stuck_artists_recent">Artis baru yang bertahan · 3 bulan terakhir</string>
+    <plurals name="stats_log_age">
+        <item quantity="other">LatentJam sudah ikut mendengarkan selama %1$d hari</item>
+    </plurals>
+    <string name="stats_new_note">Baru Anda dengar = pertama kali diputar di LatentJam. Koleksi Anda mungkin lebih tua daripada aplikasinya.</string>
+    <plurals name="stats_locked_plays">
+        <item quantity="other">Muncul setelah %1$d pemutaran dalam periode ini</item>
+    </plurals>
+    <string name="stats_when_you_listen">Kapan Anda mendengarkan</string>
+    <string name="stats_night">Malam</string>
+    <string name="stats_morning">Pagi</string>
+    <string name="stats_afternoon">Siang</string>
+    <string name="stats_evening">Sore</string>
+    <string name="stats_daypart_peak">Paling banyak: %1$s, %2$s</string>
+    <string name="stats_typical_session">Sesi biasa</string>
+    <string name="stats_longest_session">Sesi terpanjang</string>
+    <string name="stats_locked_sessions">Muncul setelah beberapa sesi mendengarkan dalam periode ini</string>
+    <string name="stats_your_top">Teratas Anda</string>
+    <string name="stats_show_more">Tampilkan 10</string>
+    <string name="stats_show_less">Tampilkan 5</string>
+    <string name="stats_partly_share">Didengar sebagian</string>
+    <string name="stats_smart_mode_share">Diputar dalam mode SMART</string>
+    <string name="stats_finish_note">Persentase dari semua pemutaran yang dimulai. Selesai = didengar hingga 85%, dilewati = ditinggalkan dalam 30 detik pertama.</string>
+    <string name="stats_slipping_away">Mulai terlupakan</string>
+    <string name="stats_slipping_note">Favorit yang sering Anda pilih sendiri, tetapi tidak diputar di LatentJam selama dua bulan atau lebih.</string>
+    <string name="stats_year_ago">Setahun lalu</string>
+    <string name="stats_patterns">Pola Anda</string>
+    <string name="stats_same_artist_picks">Memilih artis yang sama lagi</string>
+    <string name="stats_of_100_picks">%1$d dari 100 pilihan</string>
+    <string name="stats_same_artist_note">Saat Anda sendiri memilih lagu berikutnya. Termasuk memulai dari halaman artis.</string>
+    <string name="stats_picked_next">Sering dipilih berikutnya</string>
+    <string name="stats_sequence_description">Setelah %1$s Anda memilih %2$s %3$d dari %4$d kali</string>
+    <string name="stats_library">Koleksi Anda</string>
+    <string name="stats_played_once">Diputar setidaknya sekali</string>
+    <string name="stats_x_of_y">%1$s dari %2$s</string>
+    <string name="stats_decades">Dekade</string>
+    <string name="stats_decade">%1$d-an</string>
+    <string name="stats_more_appears">Akan muncul lebih banyak seiring Anda mendengarkan</string>
+    <string name="stats_unlock_on_repeat">Sering diputar ulang — setelah seminggu mendengarkan</string>
+    <string name="stats_unlock_slipping">Mulai terlupakan — setelah tiga bulan mendengarkan</string>
+    <string name="stats_part_failed">Sebagian statistik ini tidak dapat dimuat.</string>
+    <string name="stats_playlist_row">Playlist</string>
+    <string name="stats_playlists_note">Putaran dari setiap playlist. Lagu yang ditambahkan SMART dan dengaran sebelum LatentJam mencatat dari mana lagu diputar tidak dihitung.</string>
+
+    <!-- Duplicate finder -->
+    <string name="duplicates_summary">Grup: %1$d · Salinan berlebih: %2$d · Bisa dibebaskan: %3$s</string>
+    <string name="duplicates_keep_recommended">Simpan salinan yang direkomendasikan</string>
+    <string name="duplicates_keep_selected">Simpan salinan yang dipilih</string>
+    <string name="duplicates_not_duplicates">Bukan duplikat</string>
+    <string name="duplicates_recommended">Direkomendasikan</string>
+    <string name="duplicates_hide_copy">Sembunyikan salinan ini</string>
+    <string name="duplicates_hide_files">Sembunyikan salinan lain; berkas tetap di perangkat</string>
+    <string name="duplicates_delete_files">Hapus berkas lain dari perangkat</string>
+    <string name="duplicates_merge_all_confirm">Salinan yang direkomendasikan akan disimpan di semua %1$d grup.</string>
+    <string name="duplicates_merge_confirm_body">Playlist dan favorit akan mengarah ke salinan yang disimpan. %1$d salinan lainnya:</string>
+    <string name="duplicates_reclaimable">%1$s bisa dibebaskan</string>
+    <string name="duplicates_kbps">%1$d kbps</string>
+    <string name="unit_megabytes">%1$s MB</string>
+    <string name="snack_duplicates_dismissed">Ditandai sebagai rekaman berbeda</string>
+    <string name="cd_player_artwork">Sampul. Ketuk untuk detail lagu, tahan untuk tindakan, geser ke samping untuk mengganti lagu, seret ke bawah untuk menutup.</string>
+    <string name="details_title">Detail lagu</string>
+    <string name="details_language">Bahasa</string>
+    <string name="details_format">Format</string>
+    <string name="details_file">File</string>
+    <string name="details_plays">Jumlah putar</string>
+    <string name="details_plays_none">Belum pernah diputar</string>
+    <string name="details_original_year">Rilis pertama</string>
+    <string name="cd_details_close">Kembali ke sampul</string>
+    <string name="player_mode_title">Mode pemutaran</string>
+    <string name="player_mode_off">Berurutan</string>
+    <string name="player_mode_shuffle">Acak</string>
+    <string name="player_mode_smart">SMART</string>
+    <string name="cd_mode_button">Mode pemutaran: %1$s. Ketuk untuk mengubah, tahan untuk memilih.</string>
+    <string name="cd_seek_position">Posisi pemutaran</string>
+    <string name="cd_time_toggle">Beralih antara sisa waktu dan durasi total</string>
+    <string name="seek_fine_half">½ kecepatan</string>
+    <string name="seek_fine_quarter">¼ kecepatan</string>
+    <string name="cd_skip_next_hold">Lagu berikutnya. Tahan untuk maju cepat.</string>
+    <string name="cd_skip_previous_hold">Lagu sebelumnya. Tahan untuk mundur.</string>
+    <string name="output_phone_speaker">Speaker ponsel</string>
+    <string name="output_headphones">Headphone</string>
+    <string name="output_bluetooth">Bluetooth</string>
+    <string name="cd_output_route">Diputar di %1$s. Ketuk untuk memilih tempat memutar.</string>
+    <string name="now_playing_next">Berikutnya: %1$s</string>
+    <string name="output_title">Output audio</string>
+    <string name="output_current">Output saat ini</string>
+    <string name="output_connect_device">Hubungkan perangkat</string>
+    <string name="output_selection_failed">Perangkat tidak tersedia. Periksa koneksi.</string>
+    <string name="queue_reorder">Ubah urutan lagu</string>
+    <string name="playlists_yours">Playlist Anda</string>
+    <string name="playlists_empty_body">Buat playlist atau impor berkas M3U untuk mengumpulkan musik Anda.</string>
+    <string name="playlists_automatic">Otomatis</string>
+    <string name="settings_pages_order">Urutan</string>
+    <string name="settings_opens_on_launch">Dibuka saat memulai</string>
+    <string name="settings_reorder_page">Ubah urutan %1$s</string>
+    <string name="settings_backup_subtitle">Ekspor atau pulihkan</string>
+    <string name="duplicates_groups">Grup</string>
+    <string name="duplicates_summary_title">Grup: %1$d · %2$s</string>
+    <string name="duplicates_summary_extra">Salinan tambahan: %1$d</string>
+    <string name="duplicates_copy_count">Salinan: %1$d</string>
+    <string name="playlist_reorder_track">Seret untuk mengubah urutan %1$s</string>
+    <string name="equalizer_custom">Kustom</string>
+    <string name="equalizer_hint">Pilih preset untuk mengaktifkan atau atur pita sesuai selera.</string>
+    <string name="equalizer_reset_short">Atur ulang</string>
+    <string name="equalizer_bands_hint">Frekuensi dalam Hz · penguatan dalam dB · geser untuk pita lainnya</string>
+    <string name="normalization_waiting">Putar lagu untuk mengukur volumenya.</string>
+    <string name="normalization_measuring">Mengukur lagu ini…</string>
+    <string name="normalization_unavailable">Lagu ini tidak dapat diukur. Volume asli digunakan.</string>
+    <string name="normalization_unchanged">Lagu ini tidak perlu dikecilkan. Lagu yang pelan tidak diperkuat.</string>
+    <string name="normalization_reduced">Volume lagu ini dikurangi %1$s dB.</string>
+    <string name="equalizer_response">Respons frekuensi</string>
+    <string name="equalizer_response_preview">Pratinjau pada %1$s kHz</string>
+    <string name="equalizer_response_headroom">Cadangan level: %1$s dB</string>
+    <string name="equalizer_peak_reduction">Pengurangan puncak: %1$s dB</string>
+    <string name="equalizer_peak_hint">Penguatan besar dapat menurunkan volume seluruh lagu.</string>
+    <string name="map_memory_limited">Memori bebas tidak cukup untuk menghitung peta. Tutup aplikasi lain lalu buka kembali peta.</string>
+    <string name="map_unavailable">Peta tidak dapat dihitung. Buka kembali untuk mencoba lagi.</string>
+</resources>

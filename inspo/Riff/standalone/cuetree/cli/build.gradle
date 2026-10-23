@@ -1,0 +1,53 @@
+plugins { id 'application' }
+dependencies {
+    implementation project(':core')
+    testImplementation 'junit:junit:4.13.2'
+}
+application { applicationName = 'cuetree'; mainClass = 'link.roadio.cuetree.cli.MainKt' }
+
+distributions.main.contents {
+    from(rootProject.file('LICENSE'))
+    from(rootProject.file('NOTICE'))
+}
+
+// Ship the maintained schemas with the CLI so JSON uses the same wire contract as the binary writer.
+tasks.named('processResources') {
+    inputs.property('flatbuffersVersion', rootProject.property('flatbuffersVersion'))
+    filesMatching('cuetree/flatbuffers.properties') { expand(flatbuffersVersion: rootProject.property('flatbuffersVersion')) }
+    from(project(':core').file('src/main/fbs')) { include '*.fbs'; into 'cuetree/fbs' }
+}
+
+// Keep dependency collisions visible; silently picking one class or service file would hide errors.
+def bundledRuntime = configurations.runtimeClasspath
+def executableJar = tasks.register('fatJar', Jar) {
+    group = 'build'
+    description = 'Builds one executable JAR with all CLI runtime dependencies.'
+    archiveBaseName = 'cuetree'
+    archiveClassifier = 'all'
+    dependsOn bundledRuntime
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    manifest {
+        attributes(
+            'Main-Class': application.mainClass.get(),
+            'Implementation-Title': 'Cuetree',
+            'Implementation-Version': project.version.toString(),
+            'Multi-Release': 'true'
+        )
+    }
+    from sourceSets.main.output
+    from({ bundledRuntime.collect { it.isDirectory() ? it : zipTree(it) } }) {
+        exclude 'META-INF/MANIFEST.MF', 'META-INF/INDEX.LIST'
+        exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'META-INF/SIG-*'
+        exclude 'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
+    from(rootProject.files('LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.txt')) {
+        into 'META-INF/cuetree'
+    }
+    from(rootProject.file('licenses')) { into 'META-INF/cuetree/licenses' }
+}
+tasks.named('assemble') { dependsOn executableJar }
+
+// Round-trip tests must use the same compiler selected for binding generation.
+tasks.named('test') { environment 'CUETREE_FLATC', rootProject.ext.flatcExecutable.get() }

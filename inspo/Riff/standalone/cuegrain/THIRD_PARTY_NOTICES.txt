@@ -1,0 +1,16 @@
+Cuegrain executable JAR runtime dependencies
+
+org.jetbrains.kotlin:kotlin-stdlib:2.4.21
+JetBrains and Kotlin Programming Language contributors.
+Apache-2.0, with the stdlib component notices preserved under
+licenses/kotlin (Google/GWT, Guava, ThreeTen and Boost).
+Sources: https://github.com/JetBrains/kotlin/tree/v2.4.21/license
+
+org.jetbrains:annotations:26.1.0
+JetBrains Team. Apache-2.0.
+Sources: https://github.com/JetBrains/java-annotations
+License declaration: https://repo.maven.apache.org/maven2/org/jetbrains/annotations/26.1.0/annotations-26.1.0.pom
+
+Apache-2.0 text is included as LICENSE. Optional CED builds additionally bundle
+Google Compact Encoding Detection with its preserved license. Core builds do
+not contain that optional native backend. See NOTICE for code provenance.

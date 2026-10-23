@@ -1,0 +1,395 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import io.github.nikitasud.latentjam.library.AlbumSort
+import io.github.nikitasud.latentjam.library.Playlist
+import io.github.nikitasud.latentjam.library.SongSort
+import io.github.nikitasud.latentjam.library.SongSortDirection
+import io.github.nikitasud.latentjam.playback.ShuffleMode
+import io.github.nikitasud.latentjam.smart.TrackDescriptor
+import io.github.nikitasud.latentjam.smart.TrackId
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+class AppSettingsTest {
+
+    @Test
+    fun `start page has stable persisted values and a safe fallback`() {
+        assertEquals(StartPage.FOR_YOU, startPageFromPersisted("for_you"))
+        assertEquals(StartPage.MAP, startPageFromPersisted("map"))
+        assertEquals(StartPage.PLAYLISTS, startPageFromPersisted("playlists"))
+        assertEquals(StartPage.TRACKS, startPageFromPersisted("tracks"))
+        assertEquals(StartPage.ALBUMS, startPageFromPersisted("albums"))
+        assertEquals(StartPage.ARTISTS, startPageFromPersisted("artists"))
+        assertEquals(StartPage.GENRES, startPageFromPersisted("genres"))
+        assertEquals(StartPage.FOLDERS, startPageFromPersisted("folders"))
+        assertEquals(StartPage.TRACKS, startPageFromPersisted(null))
+        assertEquals(StartPage.TRACKS, startPageFromPersisted("renamed-or-corrupt"))
+    }
+
+    @Test
+    fun `track colour mode has stable persisted values and a safe fallback`() {
+        assertEquals(TrackColorMode.DYNAMIC, trackColorModeFromPersisted("dynamic"))
+        assertEquals(TrackColorMode.SMART, trackColorModeFromPersisted("smart"))
+        assertEquals(TrackColorMode.THEME, trackColorModeFromPersisted("theme"))
+        assertEquals(TrackColorMode.DYNAMIC, trackColorModeFromPersisted(null))
+        assertEquals(TrackColorMode.DYNAMIC, trackColorModeFromPersisted("renamed-or-corrupt"))
+    }
+
+    @Test
+    fun `page header style has stable persisted values and falls back to dots`() {
+        assertEquals(PageHeaderStyle.DOTS, pageHeaderStyleFromPersisted("dots"))
+        assertEquals(PageHeaderStyle.NEIGHBOURS, pageHeaderStyleFromPersisted("neighbours"))
+        assertEquals(PageHeaderStyle.TABS, pageHeaderStyleFromPersisted("tabs"))
+        assertEquals(PageHeaderStyle.PILLS, pageHeaderStyleFromPersisted("pills"))
+        assertEquals(PageHeaderStyle.MENU, pageHeaderStyleFromPersisted("menu"))
+        assertEquals(PageHeaderStyle.DOTS, pageHeaderStyleFromPersisted(null))
+        assertEquals(PageHeaderStyle.DOTS, pageHeaderStyleFromPersisted("renamed-or-corrupt"))
+    }
+
+    @Test
+    fun everySortChoiceSurvivesTheRoundTrip() {
+        for (sort in SongSort.entries) for (direction in SongSortDirection.entries) {
+            val choice = SortChoice(sort, direction)
+            assertEquals(choice, songSortFromPersisted(encodeSortChoice(choice)))
+        }
+        for (sort in AlbumSort.entries) for (direction in SongSortDirection.entries) {
+            val choice = SortChoice(sort, direction)
+            assertEquals(choice, albumSortFromPersisted(encodeSortChoice(choice)))
+        }
+        for (sort in ARTIST_ALBUM_SORTS) for (direction in SongSortDirection.entries) {
+            val choice = SortChoice(sort, direction)
+            assertEquals(choice, artistAlbumSortFromPersisted(encodeSortChoice(choice)))
+        }
+    }
+
+    @Test
+    fun sortChoicesPersistAsStableLowercaseNames() {
+        assertEquals("year:descending", encodeSortChoice(SortChoice(AlbumSort.YEAR, SongSortDirection.DESCENDING)))
+        assertEquals(
+            SortChoice(SongSort.RECENT, SongSortDirection.ASCENDING),
+            songSortFromPersisted("recent:ascending"),
+        )
+    }
+
+    @Test
+    fun missingSortChoicesUseEachListsDefault() {
+        assertEquals(SortChoice(SongSort.TITLE, SongSortDirection.ASCENDING), songSortFromPersisted(null))
+        assertEquals(SortChoice(AlbumSort.TITLE, SongSortDirection.ASCENDING), albumSortFromPersisted(null))
+        assertEquals(SortChoice(AlbumSort.YEAR, SongSortDirection.DESCENDING), artistAlbumSortFromPersisted(null))
+    }
+
+    @Test
+    fun garbageSortChoicesDecodeToTheDefaults() {
+        for (garbage in listOf("", ":", "TITLE:ASCENDING", "shuffle:ascending", "title:ascending:extra", "\u0000")) {
+            assertEquals(DEFAULT_SONG_SORT, songSortFromPersisted(garbage), garbage)
+            assertEquals(DEFAULT_ALBUM_SORT, albumSortFromPersisted(garbage), garbage)
+            assertEquals(DEFAULT_ARTIST_ALBUM_SORT, artistAlbumSortFromPersisted(garbage), garbage)
+        }
+        // A song-only field is garbage to the album lists, and the artist page offers no artist sort.
+        assertEquals(DEFAULT_ALBUM_SORT, albumSortFromPersisted("unknown:ascending"))
+        assertEquals(DEFAULT_ARTIST_ALBUM_SORT, artistAlbumSortFromPersisted("artist:ascending"))
+        assertEquals(DEFAULT_ARTIST_ALBUM_SORT, artistAlbumSortFromPersisted("recent:descending"))
+    }
+
+    @Test
+    fun aKnownSortWithAnUnreadableDirectionKeepsTheSortAndItsNaturalDirection() {
+        assertEquals(SortChoice(AlbumSort.YEAR, SongSortDirection.DESCENDING), albumSortFromPersisted("year"))
+        assertEquals(SortChoice(AlbumSort.ARTIST, SongSortDirection.ASCENDING), albumSortFromPersisted("artist:sideways"))
+        assertEquals(SortChoice(SongSort.RECENT, SongSortDirection.DESCENDING), songSortFromPersisted("recent:"))
+        assertEquals(SortChoice(AlbumSort.TITLE, SongSortDirection.ASCENDING), artistAlbumSortFromPersisted("title"))
+    }
+
+    @Test
+    fun `queue length keeps supported values unchanged`() {
+        assertEquals(listOf(10, 20, 40), SMART_QUEUE_LENGTH_OPTIONS)
+        SMART_QUEUE_LENGTH_OPTIONS.forEach { option ->
+            assertEquals(option, sanitizeSmartQueueLength(option))
+        }
+    }
+
+    @Test
+    fun `queue length chooses nearest supported size and prefers default on a tie`() {
+        assertEquals(10, sanitizeSmartQueueLength(Int.MIN_VALUE))
+        assertEquals(10, sanitizeSmartQueueLength(14))
+        assertEquals(DEFAULT_SMART_QUEUE_LENGTH, sanitizeSmartQueueLength(15))
+        assertEquals(DEFAULT_SMART_QUEUE_LENGTH, sanitizeSmartQueueLength(30))
+        assertEquals(40, sanitizeSmartQueueLength(31))
+        assertEquals(40, sanitizeSmartQueueLength(Int.MAX_VALUE))
+    }
+
+    @Test
+    fun `missing persisted queue length uses the default`() {
+        assertEquals(DEFAULT_SMART_QUEUE_LENGTH, smartQueueLengthFromPersisted(null))
+    }
+
+    @Test
+    fun `missing privacy preference preserves the historical opt-in default`() {
+        assertEquals(true, recordingPreferenceFromPersisted(null))
+        assertEquals(true, recordingPreferenceFromPersisted(true))
+        assertEquals(false, recordingPreferenceFromPersisted(false))
+    }
+
+    @Test
+    fun `novelty mixes require an explicit persisted opt-in`() {
+        assertEquals(false, noveltyMixPreferenceFromPersisted(null))
+        assertEquals(true, noveltyMixPreferenceFromPersisted(true))
+        assertEquals(false, noveltyMixPreferenceFromPersisted(false))
+    }
+
+    @Test
+    fun `exported playlists keep absolute paths until the listener opts in`() {
+        assertEquals(false, relativePlaylistPathsPreferenceFromPersisted(null))
+        assertEquals(true, relativePlaylistPathsPreferenceFromPersisted(true))
+        assertEquals(false, relativePlaylistPathsPreferenceFromPersisted(false))
+    }
+
+    @Test
+    fun `resume queue codec round trips opaque live and source ids atomically`() {
+        val state = ResumeQueueState(
+            queueTrackIds = listOf("plain", "imported,file|with:delimiters", "音楽/曲"),
+            sourceQueueTrackIds = listOf("playlist,first", "playlist:second|tail"),
+            queueIndex = 1,
+            sourceQueuePersisted = true,
+            smartContinuationIds = setOf("imported,file|with:delimiters", "音楽/曲"),
+        )
+
+        assertEquals(state, decodeResumeQueueState(encodeResumeQueueState(state)))
+    }
+
+    @Test
+    fun `resume queue codec distinguishes a known empty source from legacy absence`() {
+        val knownEmpty = ResumeQueueState(
+            queueTrackIds = listOf("generated-current"),
+            sourceQueueTrackIds = emptyList(),
+            queueIndex = 0,
+            sourceQueuePersisted = true,
+        )
+        val legacyAbsent = knownEmpty.copy(sourceQueuePersisted = false)
+
+        assertEquals(knownEmpty, decodeResumeQueueState(encodeResumeQueueState(knownEmpty)))
+        assertEquals(legacyAbsent, decodeResumeQueueState(encodeResumeQueueState(legacyAbsent)))
+    }
+
+    @Test
+    fun `v2 resume queues migrate with their source and no invented continuation labels`() {
+        val decoded = decodeResumeQueueState("LJQ2|1|2|1:a1:b|1|3|1:a1:b1:c")
+        val expected = ResumeQueueState(listOf("a", "b"), listOf("a", "b", "c"), 1)
+        assertEquals(expected, decoded)
+        assertEquals(expected, decodeResumeQueueState(encodeResumeQueueState(decoded!!)))
+        assertEquals(
+            ResumeQueueState(listOf("a"), emptyList(), 0, sourceQueuePersisted = false),
+            decodeResumeQueueState("LJQ2|0|1|1:a|0|0|"),
+        )
+    }
+
+    @Test
+    fun `resume provenance only refers to the saved live queue`() {
+        val state = ResumeQueueState(
+            queueTrackIds = listOf("current", "next"),
+            sourceQueueTrackIds = listOf("current", "source-only"),
+            queueIndex = 0,
+            smartContinuationIds = setOf("next", "source-only", "deleted"),
+        )
+        assertEquals(
+            state.copy(smartContinuationIds = setOf("next")),
+            decodeResumeQueueState(encodeResumeQueueState(state)),
+        )
+        assertEquals(
+            emptySet(),
+            decodeResumeQueueState("LJQ3|0|1|1:a|1|0||1|1:b")?.smartContinuationIds,
+        )
+    }
+
+    @Test
+    fun `resume queues keep SMART's plan positions for their own rows`() {
+        val state = ResumeQueueState(
+            queueTrackIds = listOf("seed", "imported,file|with:delimiters=1;", "音楽/曲"),
+            sourceQueueTrackIds = listOf("seed"),
+            queueIndex = 0,
+            smartPlanPositions = mapOf("imported,file|with:delimiters=1;" to 1, "音楽/曲" to 12, "gone" to 2),
+        )
+
+        assertEquals(
+            state.copy(smartPlanPositions = mapOf("imported,file|with:delimiters=1;" to 1, "音楽/曲" to 12)),
+            decodeResumeQueueState(encodeResumeQueueState(state)),
+        )
+    }
+
+    @Test
+    fun `v3 resume queues migrate with no invented plan positions`() {
+        val decoded = decodeResumeQueueState("LJQ3|0|2|1:a1:b|1|0||1|1:b")
+        val expected = ResumeQueueState(listOf("a", "b"), emptyList(), 0, smartContinuationIds = setOf("b"))
+        assertEquals(expected, decoded)
+        assertEquals(expected, decodeResumeQueueState(encodeResumeQueueState(decoded!!)))
+        assertEquals(
+            mapOf("b" to 3),
+            decodeResumeQueueState("LJQ4|0|2|1:a1:b|1|0||0||1|1:b=3;")?.smartPlanPositions,
+        )
+    }
+
+    @Test
+    fun `resume queue codec rejects malformed plan positions`() {
+        assertNull(decodeResumeQueueState("LJQ4|0|1|1:a|1|0||0|"))
+        assertNull(decodeResumeQueueState("LJQ4|0|1|1:a|1|0||0||1|1:a=0;"))
+        assertNull(decodeResumeQueueState("LJQ4|0|1|1:a|1|0||0||1|1:a=x;"))
+        assertNull(decodeResumeQueueState("LJQ4|0|1|1:a|1|0||0||1|1:a=2"))
+        assertNull(decodeResumeQueueState("LJQ4|0|1|1:a|1|0||0||2|1:a=2;"))
+    }
+
+    @Test
+    fun `resume queue codec rejects unknown versions and truncated payloads`() {
+        assertNull(decodeResumeQueueState("a,b,c"))
+        assertNull(decodeResumeQueueState("LJQ5|0|0||0|0|"))
+        assertNull(decodeResumeQueueState("LJQ2|0|1|4:abc"))
+        assertNull(decodeResumeQueueState("LJQ2|0|10001||1|0|"))
+        assertNull(decodeResumeQueueState("LJQ2|0|0||0|1|1:a"))
+        assertNull(decodeResumeQueueState("LJQ3|0|1|1:a|1|0|"))
+        assertNull(decodeResumeQueueState("LJQ3|0|1|1:a|1|0||1|4:abc"))
+        assertNull(decodeResumeQueueState("LJQ3|0|1|1:a|1|0||10001|"))
+        assertNull(decodeResumeQueueState("LJQ3|0|1|1:a|1|0||-1|"))
+    }
+
+    @Test
+    fun `resume snapshot detects a position-only update`() {
+        val saved = ResumePlayback(
+            trackId = "current",
+            shuffleMode = "SMART",
+            positionMs = 10_000,
+            sourceKind = QueueSourceKind.COLLECTION.name,
+            sourceName = "Album",
+            sourceReference = "album-id",
+            queueTrackIds = listOf("current", "next"),
+            queueIndex = 0,
+            sourceQueueTrackIds = listOf("current", "next", "later"),
+            sourceQueuePersisted = true,
+        )
+
+        assertEquals(true, saved.sameSessionExceptPosition(saved.copy(positionMs = 20_000)))
+        assertEquals(false, saved.sameSessionExceptPosition(saved.copy(queueIndex = 1)))
+        assertEquals(
+            false,
+            saved.sameSessionExceptPosition(saved.copy(queueTrackIds = listOf("current", "other"))),
+        )
+        val labelled = saved.copy(smartContinuationIds = setOf("next"))
+        assertEquals(false, saved.sameSessionExceptPosition(labelled))
+        assertEquals(false, labelled.sameSessionExceptPosition(saved))
+        assertEquals(true, labelled.sameSessionExceptPosition(labelled.copy(positionMs = 20_000)))
+        val planned = saved.copy(smartPlanPositions = mapOf("next" to 1))
+        assertEquals(false, saved.sameSessionExceptPosition(planned))
+        assertEquals(true, planned.sameSessionExceptPosition(planned.copy(positionMs = 20_000)))
+    }
+
+    @Test
+    fun `omitted oversized source reconstructs tracks or stable user playlist`() {
+        val a = TrackDescriptor(TrackId("a"))
+        val b = TrackDescriptor(TrackId("b"))
+        val library = listOf(a, b)
+
+        assertEquals(
+            library,
+            resolveResumeSourceQueue(
+                saved = ResumePlayback(
+                    trackId = "a",
+                    shuffleMode = "SMART",
+                    positionMs = 0,
+                    sourceKind = QueueSourceKind.TRACKS.name,
+                ),
+                library = library,
+                playlists = emptyList(),
+            ),
+        )
+        assertEquals(
+            listOf(b),
+            resolveResumeSourceQueue(
+                saved = ResumePlayback(
+                    trackId = "a",
+                    shuffleMode = "SMART",
+                    positionMs = 0,
+                    sourceKind = QueueSourceKind.COLLECTION.name,
+                    sourceReference = "playlist-id",
+                ),
+                library = library,
+                playlists = listOf(
+                    Playlist(id = "playlist-id", name = "Huge", trackIds = listOf("b")),
+                ),
+            ),
+        )
+        assertEquals(
+            emptyList(),
+            resolveResumeSourceQueue(
+                saved = ResumePlayback(
+                    trackId = "a",
+                    shuffleMode = "SMART",
+                    positionMs = 0,
+                    sourceKind = QueueSourceKind.COLLECTION.name,
+                    sourceReference = "deleted-playlist",
+                ),
+                library = library,
+                playlists = emptyList(),
+            ),
+        )
+        assertNull(
+            resolveResumeSourceQueue(
+                saved = ResumePlayback(
+                    trackId = "a",
+                    shuffleMode = "SMART",
+                    positionMs = 0,
+                    sourceKind = QueueSourceKind.COLLECTION.name,
+                    sourceReference = "temporarily-unreadable",
+                ),
+                library = library,
+                playlists = emptyList(),
+                playlistsAvailable = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `missing legacy live queue never disguises a source as a smart future`() {
+        val current = TrackDescriptor(TrackId("current"))
+        val a = TrackDescriptor(TrackId("a"))
+        val b = TrackDescriptor(TrackId("b"))
+        val source = listOf(a, current, b)
+
+        assertEquals(
+            ResumeFallbackQueue(listOf(current), 0),
+            fallbackResumeQueue(ShuffleMode.SMART, current, source),
+        )
+        assertEquals(
+            ResumeFallbackQueue(listOf(current, b, a), 0),
+            fallbackResumeQueue(ShuffleMode.ON, current, source) { it.reversed() },
+        )
+        assertEquals(
+            ResumeFallbackQueue(source, 1),
+            fallbackResumeQueue(ShuffleMode.OFF, current, source),
+        )
+    }
+
+    @Test
+    fun `appearance survives the round trip and tolerates junk`() {
+        val chosen = Appearance(
+            customAccent = CUSTOM_ACCENT_PALETTE[6],
+            pureBlack = true,
+            cloud = CloudStrength.VIVID,
+            cloudMotion = false,
+            playerBackground = PlayerBackground.BLURRED_COVER,
+            shape = ShapeStyle.SHARP,
+            miniPlayer = MiniPlayerStyle.BAR,
+            leftHanded = true,
+            albumColumns = 3,
+        )
+        assertEquals(chosen, decodeAppearance(encodeAppearance(chosen)))
+        assertEquals(Appearance(), decodeAppearance(null))
+        assertEquals(Appearance(), decodeAppearance("something else"))
+        // Unknown keys are skipped, unknown values fall back field by field.
+        assertEquals(
+            Appearance(pureBlack = true),
+            decodeAppearance("LJAP1|black=true;cloud=thunder;albums=9;accent=123456;future=1"),
+        )
+    }
+}

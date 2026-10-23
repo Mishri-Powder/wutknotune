@@ -1,0 +1,12 @@
+plugins { id 'java-library'; id 'maven-publish' }
+java { withSourcesJar(); withJavadocJar() }
+publishing { publications { library(MavenPublication) {
+    from components.java
+    artifactId = 'cuegrain-core'
+    pom { name = 'Cuegrain'; description = 'Read-only audio metadata, chapters and cuesheets for Kotlin'
+        licenses { license { name = 'Apache License 2.0'; url = 'https://www.apache.org/licenses/LICENSE-2.0' } }
+    }
+} } }
+
+// Keep the independent published runtime graph on the reviewed annotation release.
+dependencies { constraints { implementation 'org.jetbrains:annotations:26.1.0' } }

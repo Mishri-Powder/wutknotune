@@ -1,0 +1,349 @@
+/*
+ * Copyright (c) 2020 Hemanth Savarla.
+ *
+ * Licensed under the GNU General Public License v3
+ *
+ * This is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ */
+package code.name.monkey.retromusic.adapter.album
+
+import android.app.AlertDialog
+import android.content.Intent
+import android.graphics.drawable.AnimatedVectorDrawable
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewConfiguration
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.os.BundleCompat
+import androidx.core.os.bundleOf
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import code.name.monkey.retromusic.fragments.lyrics.LyricsFragment
+import androidx.lifecycle.lifecycleScope
+import code.name.monkey.retromusic.R
+import code.name.monkey.retromusic.activities.MainActivity
+import code.name.monkey.retromusic.db.PlaylistEntity
+import code.name.monkey.retromusic.db.toSongEntity
+import code.name.monkey.retromusic.extensions.currentFragment
+import code.name.monkey.retromusic.fragments.AlbumCoverStyle
+import code.name.monkey.retromusic.fragments.LibraryViewModel
+import code.name.monkey.retromusic.fragments.NowPlayingScreen
+import code.name.monkey.retromusic.fragments.NowPlayingScreen.*
+import code.name.monkey.retromusic.fragments.ReloadType
+import code.name.monkey.retromusic.fragments.base.goToLyrics
+import code.name.monkey.retromusic.glide.RetroGlideExtension
+import code.name.monkey.retromusic.glide.RetroGlideExtension.asBitmapPalette
+import code.name.monkey.retromusic.glide.RetroGlideExtension.songCoverOptions
+import code.name.monkey.retromusic.glide.RetroMusicColoredTarget
+import code.name.monkey.retromusic.misc.CustomFragmentStatePagerAdapter
+import code.name.monkey.retromusic.model.Song
+import code.name.monkey.retromusic.service.MusicService
+import code.name.monkey.retromusic.util.MusicUtil
+import code.name.monkey.retromusic.util.PreferenceUtil
+import code.name.monkey.retromusic.util.color.MediaNotificationProcessor
+import code.name.monkey.retromusic.helper.MusicPlayerRemote
+import code.name.monkey.retromusic.lyrics.LyricsLoader
+import com.bumptech.glide.Glide
+import com.bumptech.glide.RequestBuilder
+import android.net.Uri
+import com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import code.name.monkey.retromusic.glide.palette.BitmapPaletteWrapper
+import org.koin.androidx.viewmodel.ext.android.activityViewModel
+
+class AlbumCoverPagerAdapter(
+    fragmentManager: FragmentManager,
+    private val dataSet: List<Song>,
+    private val forcedScreen: NowPlayingScreen? = null
+) : CustomFragmentStatePagerAdapter(fragmentManager) {
+
+    private var currentColorReceiver: AlbumCoverFragment.ColorReceiver? = null
+    private var currentColorReceiverPosition = -1
+
+    override fun getItem(position: Int): Fragment {
+        return AlbumCoverFragment.newInstance(dataSet[position], forcedScreen)
+    }
+
+    override fun getCount(): Int {
+        return dataSet.size
+    }
+
+    override fun instantiateItem(container: ViewGroup, position: Int): Any {
+        val o = super.instantiateItem(container, position)
+        if (currentColorReceiver != null && currentColorReceiverPosition == position) {
+            receiveColor(currentColorReceiver!!, currentColorReceiverPosition)
+        }
+        return o
+    }
+
+    /**
+     * Only the latest passed [AlbumCoverFragment.ColorReceiver] is guaranteed to receive a
+     * response
+     */
+    fun receiveColor(colorReceiver: AlbumCoverFragment.ColorReceiver, position: Int) {
+
+        if (getFragment(position) is AlbumCoverFragment) {
+            val fragment = getFragment(position) as AlbumCoverFragment
+            currentColorReceiver = null
+            currentColorReceiverPosition = -1
+            fragment.receiveColor(colorReceiver, position)
+        } else {
+            currentColorReceiver = colorReceiver
+            currentColorReceiverPosition = position
+        }
+    }
+
+    class AlbumCoverFragment : Fragment() {
+
+        private var isColorReady: Boolean = false
+        private lateinit var color: MediaNotificationProcessor
+        private lateinit var song: Song
+        private var colorReceiver: ColorReceiver? = null
+        private var request: Int = 0
+        private val mainActivity get() = activity as MainActivity
+
+        private val libraryViewModel: LibraryViewModel by activityViewModel()
+
+        override fun onCreate(savedInstanceState: Bundle?) {
+            super.onCreate(savedInstanceState)
+            if (arguments != null) {
+                song = BundleCompat.getParcelable(requireArguments(), SONG_ARG, Song::class.java)!!
+            }
+        }
+
+        override fun onCreateView(
+            inflater: LayoutInflater,
+            container: ViewGroup?,
+            savedInstanceState: Bundle?
+        ): View? {
+            val view = inflater.inflate(getLayoutWithPlayerTheme(), container, false)
+            var lastTapTime = 0L
+            val doubleTapTimeout = ViewConfiguration.getDoubleTapTimeout().toLong()
+            var singleTapRunnable: Runnable? = null
+            
+            view.setOnClickListener {
+                val now = System.currentTimeMillis()
+                singleTapRunnable?.let { view.removeCallbacks(it) }
+                if (now - lastTapTime < doubleTapTimeout) {
+                    // double tap detected
+                    if (!PreferenceUtil.isDoubleTapFavorite) return@setOnClickListener
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val song = MusicPlayerRemote.currentSong
+                        val playlist: PlaylistEntity = libraryViewModel.favoritePlaylist()
+                        val songEntity = song.toSongEntity(playlist.playListId)
+                        if (!libraryViewModel.isSongFavorite(song.id)) {
+                            libraryViewModel.insertSongs(listOf(songEntity))
+                            withContext(Dispatchers.Main) {
+                                val heart = view.findViewById<ImageView>(R.id.heartView)
+                                heart.visibility = View.VISIBLE
+                                heart.setImageResource(R.drawable.heart_pop_anim)
+                                val anim = heart.drawable as AnimatedVectorDrawable
+                                anim.start()
+                                lifecycleScope.launch {
+                                    delay(400) 
+                                    heart.visibility = View.GONE
+                                }
+                            }
+                            libraryViewModel.forceReload(ReloadType.Playlists)
+                            LocalBroadcastManager.getInstance(requireContext())
+                                .sendBroadcast(Intent(MusicService.FAVORITE_STATE_CHANGED))
+                        } else {
+                            libraryViewModel.removeSongFromPlaylist(songEntity)
+                            withContext(Dispatchers.Main) {
+                                val heart = view.findViewById<ImageView>(R.id.heartView)
+                                heart.visibility = View.VISIBLE
+                                heart.setImageResource(R.drawable.heart_break_anim)
+                                val anim = heart.drawable as AnimatedVectorDrawable
+                                anim.start()
+                            }
+                            libraryViewModel.forceReload(ReloadType.Playlists)
+                            LocalBroadcastManager.getInstance(requireContext())
+                                .sendBroadcast(Intent(MusicService.FAVORITE_STATE_CHANGED))
+                        }
+                    }
+                } else {
+                    // delay single tap action to see if double tap happens
+                    singleTapRunnable = Runnable {
+                         getForcedScreen()?.let {
+                             togglePlayPause()
+                             return@Runnable
+                         }
+                        when (PreferenceUtil.artworkClickAction) {
+                            0 -> showLyricsDialog()
+                            1 -> { /* Do nothing */ }
+                            2 -> togglePlayPause()
+                        }
+                    }
+                    view.postDelayed(singleTapRunnable!!, doubleTapTimeout)
+
+                }
+                lastTapTime = now
+            }
+            return view
+        }
+
+        private fun togglePlayPause() {
+            if (MusicPlayerRemote.isPlaying) MusicPlayerRemote.pauseSong()
+            else MusicPlayerRemote.resumePlaying()
+        }
+
+        private fun showLyricsDialog(lyrics: String? = null) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val data = lyrics ?: MusicUtil.getLyrics(song)
+                withContext(Dispatchers.Main) {
+                    val dialog = MaterialAlertDialogBuilder(
+                        requireContext(),
+                        com.google.android.material.R.style.ThemeOverlay_MaterialComponents_Dialog_Alert
+                    )
+                        .setTitle(song.title)
+                        .setMessage(if (data.isNullOrEmpty()) "No lyrics found" else data)
+                        .setNeutralButton(R.string.fetch_lyrics_online, null)
+                        .setPositiveButton(R.string.synced_lyrics, null)
+                        .create()
+
+                        dialog.setOnShowListener {
+                            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setOnClickListener {
+                                dialog.dismiss()
+                                goToLyrics(requireActivity())
+                            }
+                        
+                        dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener {
+                            lifecycleScope.launch {
+                                val fetchedLyrics = LyricsLoader.loadLyrics(song, preferSynced = false)
+                                if (!fetchedLyrics.isNullOrBlank()) {
+                                    dialog.dismiss()
+                                    showLyricsDialog(fetchedLyrics)
+                                } else {
+                                    Toast.makeText(requireContext(), R.string.no_lyrics_found, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                    dialog.show()
+                }
+            }
+        }
+
+        private fun getLayoutWithPlayerTheme(): Int {
+            val screen = getForcedScreen() ?: PreferenceUtil.nowPlayingScreen
+            return when (screen) {
+                Card, Fit, Tiny, Classic, Gradient, Full -> R.layout.fragment_album_full_cover
+                Peek -> R.layout.fragment_peek_album_cover
+                else -> {
+                    if (PreferenceUtil.isCarouselEffect) {
+                        R.layout.fragment_album_carousel_cover
+                    } else {
+                        when (PreferenceUtil.albumCoverStyle) {
+                            AlbumCoverStyle.Normal -> R.layout.fragment_album_cover
+                            AlbumCoverStyle.Flat -> R.layout.fragment_album_flat_cover
+                            AlbumCoverStyle.Circle -> R.layout.fragment_album_circle_cover
+                            AlbumCoverStyle.Card -> R.layout.fragment_album_card_cover
+                            AlbumCoverStyle.Full -> R.layout.fragment_album_full_cover
+                            AlbumCoverStyle.FullCard -> R.layout.fragment_album_full_card_cover
+                        }
+                    }
+                }
+            }
+        }
+
+        override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+            super.onViewCreated(view, savedInstanceState)
+            loadAlbumCover(albumCover = view.findViewById(R.id.player_image))
+        }
+
+        override fun onDestroyView() {
+            super.onDestroyView()
+            colorReceiver = null
+        }
+
+        private fun loadAlbumCover(albumCover: ImageView) {
+            val primaryRequest = Glide.with(this)
+                .asBitmapPalette()
+                .songCoverOptions(song)
+                .load(RetroGlideExtension.getSongModel(song))
+                .dontAnimate()
+
+            val customArtworkUri = PreferenceUtil.customFallbackArtworkUri
+            if (!customArtworkUri.isNullOrEmpty()) {
+                val fallbackRequest: RequestBuilder<BitmapPaletteWrapper> = Glide.with(this)
+                    .asBitmapPalette()
+                    .songCoverOptions(song)
+                    .load(Uri.parse(customArtworkUri))
+                    .dontAnimate()
+
+                primaryRequest.error(fallbackRequest)
+            }
+
+            primaryRequest.into(object : RetroMusicColoredTarget(albumCover) {
+                override fun onColorReady(colors: MediaNotificationProcessor) {
+                    setColor(colors)
+                }
+            })
+        }
+
+        private fun setColor(color: MediaNotificationProcessor) {
+            this.color = color
+            isColorReady = true
+            if (colorReceiver != null) {
+                colorReceiver!!.onColorReady(color, request)
+                colorReceiver = null
+            }
+        }
+
+        private fun getForcedScreen(): NowPlayingScreen? {
+            return arguments?.getString(ARG_FORCED_PLAYER_SCREEN)?.let { NowPlayingScreen.valueOf(it) }
+        }
+
+        internal fun receiveColor(colorReceiver: ColorReceiver, request: Int) {
+            if (isColorReady) {
+                colorReceiver.onColorReady(color, request)
+            } else {
+                this.colorReceiver = colorReceiver
+                this.request = request
+            }
+        }
+
+        interface ColorReceiver {
+            fun onColorReady(color: MediaNotificationProcessor, request: Int)
+        }
+
+        companion object {
+
+            private const val SONG_ARG = "song"
+
+            private const val ARG_FORCED_PLAYER_SCREEN = "arg_forced_player_screen"
+
+            fun newInstance(song: Song, forcedScreen: NowPlayingScreen? = null): AlbumCoverFragment {
+                val frag = AlbumCoverFragment()
+                val args = bundleOf(SONG_ARG to song)
+                if (forcedScreen != null) {
+                    args.putString(ARG_FORCED_PLAYER_SCREEN, forcedScreen.name)
+                }
+                frag.arguments = args
+                return frag
+            }
+        }
+    }
+
+    companion object {
+        val TAG: String = AlbumCoverPagerAdapter::class.java.simpleName
+    }
+}

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="380" height="830" viewBox="0 0 380 830" role="img" aria-labelledby="title desc">
+<title id="title">Album classifier</title>
+<desc id="desc">Overview of E, G, H, C, R and outcomes X, A, P, S, Z. The article transition table defines complete guards.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#74452f"/></marker></defs>
+<rect width="380" height="830" rx="18" fill="#fbf7ef"/>
+<style>text{font-family:system-ui,sans-serif;fill:#38281f}.state{fill:#fffdf8;stroke:#a78065;stroke-width:1.5}.out{fill:#f2dfc2;stroke:#a78065;stroke-width:1.5}.edge{fill:none;stroke:#74452f;stroke-width:1.5;marker-end:url(#arrow)}.hint{font-size:12px;fill:#704c38}</style>
+<text x="20" y="30" font-size="18" font-weight="650">Album classifier</text>
+<rect class="state" x="20" y="60" width="202" height="70" rx="10"/>
+<text x="32" y="87" font-size="13" font-weight="600">E · Retained facts</text>
+<text x="32" y="110" font-size="13" font-weight="400">Explicit ownership first</text>
+<rect class="out" x="252" y="60" width="108" height="70" rx="10"/>
+<text x="264" y="87" font-size="13" font-weight="600">X · Explicit</text>
+<text x="264" y="110" font-size="13" font-weight="400">album</text>
+<path class="edge" d="M222 95H250"/>
+<text class="hint" x="23" y="151">Otherwise ↓ · Empty → Z</text>
+<path class="edge" d="M121 159V188"/>
+<rect class="state" x="20" y="190" width="202" height="70" rx="10"/>
+<text x="32" y="217" font-size="13" font-weight="600">G · Ordinary grouping</text>
+<text x="32" y="240" font-size="13" font-weight="400">Ordinals + weights</text>
+<rect class="state" x="252" y="190" width="108" height="70" rx="10"/>
+<text x="264" y="217" font-size="13" font-weight="600">H · Chapters</text>
+<text x="264" y="240" font-size="13" font-weight="400">→ A or X</text>
+<path class="edge" d="M222 225H250"/>
+<text class="hint" x="252" y="282">Has FILF</text>
+<text class="hint" x="23" y="294">Grouped, no chapters ↓</text>
+<path class="edge" d="M121 305V348"/>
+<rect class="state" x="20" y="350" width="202" height="70" rx="10"/>
+<text x="32" y="377" font-size="13" font-weight="600">C · Singles decision</text>
+<text x="32" y="400" font-size="13" font-weight="400">Protection → predicates</text>
+<rect class="out" x="252" y="350" width="108" height="70" rx="10"/>
+<text x="264" y="377" font-size="13" font-weight="600">A · Ordinary</text>
+<text x="264" y="400" font-size="13" font-weight="400">album</text>
+<path class="edge" d="M222 385H250"/>
+<text class="hint" x="252" y="445">Protected / no</text>
+<text class="hint" x="23" y="460">candidate = true ↓</text>
+<path class="edge" d="M121 472V518"/>
+<rect class="state" x="20" y="520" width="202" height="70" rx="10"/>
+<text x="32" y="547" font-size="13" font-weight="600">R · Basket routing</text>
+<text x="32" y="570" font-size="13" font-weight="400">Common credit + eligible</text>
+<rect class="out" x="252" y="520" width="108" height="70" rx="10"/>
+<text x="264" y="547" font-size="13" font-weight="600">P · Artist</text>
+<text x="264" y="570" font-size="13" font-weight="400">singles</text>
+<path class="edge" d="M222 555H250"/>
+<text class="hint" x="252" y="614">eligible = true</text>
+<text class="hint" x="23" y="630">Otherwise ↓</text>
+<path class="edge" d="M121 642V678"/>
+<rect class="out" x="20" y="680" width="202" height="52" rx="10"/>
+<text x="32" y="707" font-size="13" font-weight="600">S · Global Singles</text>
+<text class="hint" x="20" y="769">G → R: an unclaimed position</text>
+<text class="hint" x="20" y="793">New snapshot: every outcome → E</text>
+</svg>

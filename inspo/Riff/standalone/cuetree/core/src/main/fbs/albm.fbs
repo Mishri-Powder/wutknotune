@@ -1,0 +1,11 @@
+include "common.fbs";
+
+namespace link.roadio.cuetree.fbs;
+
+table Albm {
+  header: Header (required);
+  albums: [Album] (required);
+}
+
+root_type Albm;
+file_identifier "ALBM";

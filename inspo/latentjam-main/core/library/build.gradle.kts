@@ -1,0 +1,52 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidKotlinMultiplatformLibrary)
+    id("latentjam.native-identifiers")
+}
+
+kotlin {
+    explicitApi()
+
+    androidLibrary {
+        namespace = "io.github.nikitasud.latentjam.library"
+        compileSdk = 36
+        minSdk = 24
+        withHostTest {}
+        withDeviceTest {
+            applicationId = "io.github.nikitasud.latentjam.library.test"
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
+    }
+
+    iosArm64()
+    iosSimulatorArm64()
+
+    sourceSets {
+        commonMain.dependencies {
+            // TrackDescriptor/TrackId are the shared vocabulary with the engine.
+            api(project(":core:smart"))
+            implementation(libs.kotlinx.coroutines.core)
+            api(libs.koin.core)
+        }
+        getByName("androidDeviceTest").dependencies {
+            implementation(project(":core:history"))
+            implementation(libs.androidx.annotation)
+            implementation(libs.androidx.test.core)
+            implementation(libs.androidx.test.runner)
+            implementation(libs.junit4)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+        }
+        // The iOS suite runs the platform actuals (file stores, scan completeness) on a
+        // simulator; it needs the same assertions the JVM tests use.
+        iosTest.dependencies {
+            implementation(libs.kotlin.test)
+        }
+    }
+}

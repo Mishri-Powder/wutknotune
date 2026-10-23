@@ -1,0 +1,1582 @@
+#!/usr/bin/env python3
+"""Train and export a calibrated hierarchical tag head for frozen FMA embeddings.
+
+This is a deliberately small research experiment.  It does not retrain the
+audio encoder.  Instead, it:
+
+1. joins a frozen embedding parquet to the official FMA metadata splits;
+2. builds broad labels from ``track.genre_top`` and multi-hot child labels from
+   ``track.genres_all``, optionally adding official multi-genre training rows;
+3. selects child labels using training/validation support only;
+4. selects L2 regularization by validation AP or a frozen training-only CV plan;
+5. Platt-calibrates every label on validation logits;
+6. chooses per-label abstention thresholds on validation data only;
+7. evaluates once on the untouched official test split; and
+8. exports a compact ONNX head plus machine-readable metadata.
+
+The ONNX model accepts L2-normalized or unnormalized 960-dimensional
+embeddings.  It normalizes internally, emits calibrated probabilities, and
+caps every child probability at its broad parent's probability.
+
+The FMA audio and metadata have track-level licenses.  This script and its
+outputs are for research evaluation; model distribution requires a separate
+training-data provenance review.
+
+Example:
+
+    /path/to/python tools/research/train_fma_multilabel_head.py \
+      --store /path/to/models/embed/fma_small_mnv4_distilled.parquet \
+      --tracks /path/to/data/raw/fma_metadata/tracks.csv \
+      --genres /path/to/data/raw/fma_metadata/genres.csv \
+      --output-dir /private/tmp/latentjam-fma-tagger-v1
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import hashlib
+import json
+import math
+import platform
+import re
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Iterable, Sequence
+
+import numpy as np
+import pandas as pd
+
+
+SPLIT_NAMES = ("training", "validation", "test")
+BROAD_GENRES = (
+    "Electronic", "Experimental", "Folk", "Hip-Hop", "Instrumental",
+    "International", "Pop", "Rock",
+)
+CLEAN_LICENSE_FAMILIES = ("CC BY", "CC BY-SA", "CC0", "Public Domain")
+PRIVATE_ROOT = Path.home() / "Documents/LJ/semantic-head-clean"
+
+
+@dataclass(frozen=True)
+class LabelSpec:
+    """A stable output-label definition."""
+
+    index: int
+    genre_id: int
+    name: str
+    kind: str
+    parent_index: int
+    parent_genre_id: int
+    parent_name: str
+    train_positives: int
+    validation_positives: int
+
+
+@dataclass
+class FittedLabel:
+    """Parameters and validation decisions for one binary label."""
+
+    weight: np.ndarray
+    bias: float
+    calibration_scale: float
+    calibration_bias: float
+    selected_c: float
+    validation_ap: float
+    threshold: float
+    threshold_target_precision: float
+    threshold_met_target: bool
+    threshold_validation_predictions: int
+    threshold_validation_precision: float
+    threshold_validation_recall: float
+    best_f1_threshold: float
+    best_f1: float
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--store", type=Path, required=True)
+    parser.add_argument("--tracks", type=Path, required=True)
+    parser.add_argument("--genres", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--subset", default="small",
+        help="Comma-separated official FMA subset values, for example small,medium.",
+    )
+    parser.add_argument(
+        "--license-allow", nargs="?", const="clean", choices=("clean",),
+        help="Keep only CC BY, CC BY-SA, CC0 or Public Domain training/validation rows; test rows are never filtered.",
+    )
+    parser.add_argument("--extra-store", type=Path)
+    parser.add_argument("--extra-labels", type=Path)
+    parser.add_argument(
+        "--multigenre-store", type=Path,
+        help="Additional FMA embeddings with multiple official broad genres. Only clean official training rows are used; validation/test rows remain excluded.",
+    )
+    parser.add_argument("--library-weight", type=float, default=1.0)
+    parser.add_argument("--multigenre-weight", type=float, default=1.0)
+    parser.add_argument(
+        "--mixed-root-store", type=Path,
+        help="Additional clean FMA training with required and other official roots; preserve required positives and ignore roots outside the output taxonomy.",
+    )
+    parser.add_argument("--mixed-root-weight", type=float, default=1.0)
+    parser.add_argument(
+        "--additional-positive-only", action="store_true",
+        help="For added multi/mixed-root training rows, mask absent broad and child tags as unknown while preserving every documented positive.",
+    )
+    parser.add_argument(
+        "--artist-weight-power", type=float, default=0.0,
+        help="Downweight repeated training artists by count raised to this power (0 to 1), normalized within each source.",
+    )
+    parser.add_argument(
+        "--calibration-prior-power", type=float, default=0.0,
+        help="Validation genre inverse-frequency weight power for broad Platt fits: 0 preserves observed priors, 1 gives equal genre mass.",
+    )
+    parser.add_argument(
+        "--broad-class-weight", choices=("balanced", "rare"), default="balanced",
+        help="Legacy balances every label; rare balances broad labels with fewer than 300 training positives. Child labels always stay balanced.",
+    )
+    parser.add_argument(
+        "--model-name",
+        default="mnv4_fma_hierarchical_v1",
+        help="Filename stem and metadata model identifier.",
+    )
+    parser.add_argument(
+        "--min-child-train-positives",
+        type=int,
+        default=150,
+        help="Minimum training positives for a child label.",
+    )
+    parser.add_argument(
+        "--min-child-validation-positives",
+        type=int,
+        default=20,
+        help="Minimum validation positives for a child label.",
+    )
+    parser.add_argument(
+        "--target-precision",
+        type=float,
+        default=0.80,
+        help="Validation precision required by an exported naming threshold.",
+    )
+    parser.add_argument(
+        "--min-threshold-predictions",
+        type=int,
+        default=10,
+        help="Minimum validation predictions when selecting a threshold.",
+    )
+    parser.add_argument(
+        "--c-grid",
+        default="0.03,0.1,0.3,1.0,3.0,10.0",
+        help="Comma-separated inverse L2 regularization values.",
+    )
+    parser.add_argument("--max-iter", type=int, default=2_000)
+    parser.add_argument(
+        "--c-plan", type=Path,
+        help="Optional frozen training-artist-CV JSON plan for broad regularization, with exact source hashes; children retain validation AP selection.",
+    )
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--opset", type=int, default=17)
+    return parser.parse_args()
+
+
+def require_file(path: Path, description: str) -> Path:
+    path = path.expanduser().resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"{description} does not exist: {path}")
+    return path
+
+
+def require_private_output(path: Path) -> None:
+    resolved = path.expanduser().resolve()
+    if not resolved.is_relative_to(PRIVATE_ROOT.resolve()) or any(
+        (parent / ".git").exists() for parent in (resolved, *resolved.parents)
+    ):
+        raise ValueError("Library-derived outputs must stay in the private semantic-head-clean directory")
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def load_c_plan(
+    path: Path, broad_names: Iterable[str], sources: dict[str, Path],
+) -> dict[str, float]:
+    """Bind externally selected broad regularization to exact training inputs."""
+    plan = json.loads(path.read_text())
+    if plan.get("kind") != "training_artist_cv":
+        raise ValueError("C plan must identify training_artist_cv selection")
+    expected_hashes = {name: sha256_file(source) for name, source in sources.items()}
+    if plan.get("source_hashes") != expected_hashes:
+        raise ValueError("C plan source hashes must match the current input files exactly")
+    selected = plan.get("selected_c")
+    if not isinstance(selected, dict) or set(selected) != set(broad_names):
+        raise ValueError("C plan must select exactly the broad labels in the training data")
+    if any(
+        isinstance(value, bool) or not isinstance(value, (int, float))
+        or not math.isfinite(value) or value <= 0
+        for value in selected.values()
+    ):
+        raise ValueError("C plan values must be finite positive numbers")
+    return {name: float(value) for name, value in selected.items()}
+
+
+def parse_genre_ids(value: Any) -> tuple[int, ...]:
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return ()
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    if isinstance(value, (list, tuple, set)):
+        return tuple(sorted({int(item) for item in value}))
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return ()
+        parsed = ast.literal_eval(stripped)
+        if isinstance(parsed, (list, tuple, set)):
+            return tuple(sorted({int(item) for item in parsed}))
+        return (int(parsed),)
+    return (int(value),)
+
+
+def license_family(value: Any) -> str:
+    """Recognize allowed FMA licence families without admitting NC or ND variants."""
+    text = str(value).strip().lower()
+    compact = re.sub(r"[^a-z0-9]", "", text)
+    if "noncommercial" in compact or re.search(r"(?:^|[- /])nc(?:$|[- /])", text):
+        return "restricted NC"
+    if "noderiv" in compact or re.search(r"(?:^|[- /])nd(?:$|[- /])", text):
+        return "restricted ND"
+    if "cc0" in compact or "zero" in compact:
+        return "CC0"
+    if "publicdomain" in compact:
+        return "Public Domain"
+    if "attribution" in compact or re.search(r"\bcc[- ]?by\b|creativecommons\.org/licenses/by(?:-sa)?/", text):
+        return "CC BY-SA" if "sharealike" in compact or re.search(r"\bsa\b", text) else "CC BY"
+    return "other or unknown"
+
+
+def clean_license_mask(frame: pd.DataFrame) -> pd.Series:
+    return frame["license_family"].isin(CLEAN_LICENSE_FAMILIES)
+
+
+def load_embedding_store(store_path: Path) -> tuple[pd.DataFrame, int, str]:
+    store = pd.read_parquet(store_path)
+    required_store = {"track_id", "embedding"}
+    missing_store = sorted(required_store.difference(store.columns))
+    if missing_store:
+        raise ValueError(f"embedding store is missing columns: {missing_store}")
+    if store["track_id"].duplicated().any():
+        raise ValueError("embedding store contains duplicate track_id values")
+    if store.empty:
+        raise ValueError("embedding store is empty")
+
+    dimensions = sorted({len(np.asarray(item)) for item in store["embedding"]})
+    if len(dimensions) != 1:
+        raise ValueError(f"embedding dimensions are inconsistent: {dimensions}")
+    embedding_dim = int(dimensions[0])
+    model_versions = sorted(
+        {str(item) for item in store.get("model_version", pd.Series(["unknown"])).dropna()}
+    )
+    if len(model_versions) > 1:
+        raise ValueError("embedding store must contain exactly one model_version")
+    model_version = model_versions[0] if model_versions else "unknown"
+    matrix = np.stack([np.asarray(item, dtype=np.float32) for item in store["embedding"]])
+    if matrix.ndim != 2 or not np.isfinite(matrix).all():
+        raise ValueError("embedding matrix must be finite and two-dimensional")
+    matrix = matrix / np.maximum(np.linalg.norm(matrix, axis=1, keepdims=True), 1e-12)
+    store = store[[column for column in ("track_id", "embedding", "model_version") if column in store]].copy()
+    store["embedding"] = list(matrix)
+    return store, embedding_dim, model_version
+
+
+def load_joined_data(
+    store_path: Path, tracks_path: Path, subsets: Sequence[str] = ("small",),
+    license_allow: bool = False, taxonomy: pd.DataFrame | None = None,
+    include_multigenre: bool = False, allow_mixed_roots: bool = False,
+) -> tuple[pd.DataFrame, int, str]:
+    store, embedding_dim, model_version = load_embedding_store(store_path)
+
+    tracks = pd.read_csv(tracks_path, header=[0, 1], index_col=0)
+    required_tracks = [
+        ("set", "split"),
+        ("set", "subset"),
+        ("track", "genre_top"),
+        ("track", "genres_all"),
+        ("artist", "id"),
+    ]
+    missing_tracks = [column for column in required_tracks if column not in tracks.columns]
+    if missing_tracks:
+        raise ValueError(f"FMA metadata is missing columns: {missing_tracks}")
+    if license_allow and ("track", "license") not in tracks.columns:
+        raise ValueError("FMA metadata is missing track.license for rights filtering")
+
+    metadata = pd.DataFrame(index=tracks.index.astype(int))
+    metadata.index.name = "track_id_int"
+    metadata["split"] = tracks[("set", "split")].astype(str)
+    metadata["subset"] = tracks[("set", "subset")].astype(str)
+    metadata["genre_top"] = tracks[("track", "genre_top")]
+    metadata["genres_all"] = tracks[("track", "genres_all")].map(parse_genre_ids)
+    metadata["broad_genres"] = metadata["genre_top"].map(
+        lambda name: (name,) if name in BROAD_GENRES else ()
+    )
+    if include_multigenre:
+        if taxonomy is None:
+            raise ValueError("multi-genre FMA labels require the official taxonomy")
+        missing_broad = ~metadata["genre_top"].isin(BROAD_GENRES)
+        metadata.loc[missing_broad, "broad_genres"] = metadata.loc[
+            missing_broad, "genres_all"
+        ].map(lambda ids: taxonomy_broad_genres(ids, taxonomy, allow_mixed_roots=allow_mixed_roots))
+    metadata["multigenre"] = metadata["broad_genres"].map(len) > 1
+    metadata["mixed_roots"] = False
+    if include_multigenre and allow_mixed_roots:
+        metadata["mixed_roots"] = metadata["genres_all"].map(
+            lambda ids: bool(taxonomy_broad_genres(ids, taxonomy, allow_mixed_roots=True))
+            and not bool(taxonomy_broad_genres(ids, taxonomy))
+        )
+        metadata["multigenre"] |= metadata["mixed_roots"]
+    metadata["artist_id"] = tracks[("artist", "id")]
+    metadata["artist_group"] = metadata["artist_id"].map(lambda value: f"fma:{value}")
+    metadata["source"] = "FMA"
+    metadata["children_known"] = True
+    metadata["positive_only"] = False
+    metadata["license_family"] = (
+        tracks[("track", "license")].map(license_family)
+        if ("track", "license") in tracks.columns else "other or unknown"
+    )
+    metadata = metadata[
+        metadata["subset"].isin(subsets) & metadata["broad_genres"].map(bool)
+    ].copy()
+
+    aligned = store.copy()
+    aligned["track_id_int"] = pd.to_numeric(aligned["track_id"], errors="raise").astype(int)
+    aligned = aligned.merge(
+        metadata.reset_index(), on="track_id_int", how="inner", validate="one_to_one"
+    )
+    aligned = aligned[aligned["split"].isin(SPLIT_NAMES)].copy()
+    if license_allow:
+        aligned = aligned[(aligned["split"] == "test") | clean_license_mask(aligned)].copy()
+    if aligned.empty:
+        raise ValueError("no FMA embeddings aligned to the selected official split metadata")
+    return aligned, embedding_dim, model_version
+
+
+def taxonomy_broad_genres(
+    ids: Sequence[int], taxonomy: pd.DataFrame, allow_mixed_roots: bool = False,
+) -> tuple[str, ...]:
+    """Keep documented roots, optionally projecting mixed roots onto the output set."""
+    if not ids or any(genre_id not in taxonomy.index for genre_id in ids):
+        return ()
+    root_ids = {int(taxonomy.loc[genre_id, "top_level"]) for genre_id in ids}
+    if any(root not in taxonomy.index for root in root_ids):
+        return ()
+    titles = {str(taxonomy.loc[root, "title"]) for root in root_ids}
+    if not titles.issubset(BROAD_GENRES) and not allow_mixed_roots:
+        return ()
+    return tuple(sorted(titles.intersection(BROAD_GENRES)))
+
+
+def load_multigenre_training_data(
+    store_path: Path, tracks_path: Path, taxonomy: pd.DataFrame,
+    embedding_dim: int, model_version: str, existing_ids: Iterable[Any],
+    mixed_roots_only: bool = False,
+    positive_only: bool = False,
+) -> tuple[pd.DataFrame, dict[str, int]]:
+    """Add clean official multilabel training rows without enlarging calibration."""
+    frame, dimension, version = load_joined_data(
+        store_path, tracks_path, subsets=("small", "medium", "large"),
+        license_allow=True, taxonomy=taxonomy, include_multigenre=True,
+        allow_mixed_roots=mixed_roots_only,
+    )
+    if dimension != embedding_dim or version != model_version:
+        raise ValueError("multi-genre embeddings must match the base dimension and model_version")
+    if frame["track_id"].astype(str).isin({str(value) for value in existing_ids}).any():
+        raise ValueError("multi-genre store overlaps existing FMA track IDs")
+    selected = (frame["split"] == "training") & frame["multigenre"] & clean_license_mask(frame)
+    if mixed_roots_only:
+        selected &= frame["mixed_roots"]
+    counts = {
+        "input_store_rows": int(len(pd.read_parquet(store_path, columns=["track_id"]))),
+        "selected_training": int(selected.sum()),
+        "excluded_validation": int((frame["split"] == "validation").sum()),
+        "excluded_test": int((frame["split"] == "test").sum()),
+        "excluded_single_genre_training": int(((frame["split"] == "training") & ~frame["multigenre"]).sum()),
+        "excluded_required_only_multigenre_training": int(((frame["split"] == "training") & frame["multigenre"] & ~frame["mixed_roots"]).sum()) if mixed_roots_only else 0,
+    }
+    counts["excluded_by_metadata_or_training_validation_rights"] = counts["input_store_rows"] - len(frame)
+    if not selected.any():
+        raise ValueError("multi-genre store contains no eligible clean training rows")
+    result = frame.loc[selected].copy()
+    result["positive_only"] = positive_only
+    return result, counts
+
+
+def load_extra_data(
+    store_path: Path, labels_path: Path, embedding_dim: int, model_version: str,
+) -> pd.DataFrame:
+    """Load broad-only private labels; never include their identifiers in metadata."""
+    store, extra_dim, extra_version = load_embedding_store(store_path)
+    if extra_dim != embedding_dim or extra_version != model_version:
+        raise ValueError("extra embeddings must have the same dimension and model_version as FMA")
+    labels = pd.read_parquet(labels_path)
+    required = {"track_id", "broad_genre", "split", "artist_group", "child_labels_known", "eligible"}
+    if missing := sorted(required.difference(labels.columns)):
+        raise ValueError(f"extra labels are missing columns: {missing}")
+    if labels["track_id"].duplicated().any():
+        raise ValueError("extra labels contain duplicate track_id values")
+    if labels["child_labels_known"].isna().any() or not labels["child_labels_known"].eq(False).all():
+        raise ValueError("extra labels must explicitly mark child labels unknown")
+    if labels["eligible"].isna().any() or not labels["eligible"].isin([True, False]).all():
+        raise ValueError("extra label eligibility must be boolean")
+    labels = labels[labels["eligible"] & labels["broad_genre"].notna()].copy()
+    if not labels["broad_genre"].isin(BROAD_GENRES).all():
+        raise ValueError("extra labels contain an unknown broad genre")
+    if not labels["split"].isin(SPLIT_NAMES).all() or labels["artist_group"].isna().any():
+        raise ValueError("extra labels need an official split name and a non-null artist group")
+    if labels.groupby("artist_group")["split"].nunique().gt(1).any():
+        raise ValueError("extra labels are not artist-disjoint across splits")
+    if not labels["track_id"].isin(store["track_id"]).all():
+        raise ValueError("eligible extra labels are missing embeddings")
+    aligned = store.merge(
+        labels[["track_id", "broad_genre", "split", "artist_group"]],
+        on="track_id", how="inner", validate="one_to_one",
+    )
+    aligned = aligned.rename(columns={"broad_genre": "genre_top"})
+    aligned["broad_genres"] = aligned["genre_top"].map(lambda name: (name,))
+    aligned["multigenre"] = False
+    aligned["mixed_roots"] = False
+    aligned["artist_group"] = "library:" + aligned["artist_group"].astype(str)
+    aligned["genres_all"] = [()] * len(aligned)
+    aligned["children_known"] = False
+    aligned["positive_only"] = False
+    aligned["source"] = "maintainer library"
+    aligned["license_family"] = "maintainer-owned"
+    return aligned
+
+
+def source_summary(frame: pd.DataFrame) -> list[dict[str, Any]]:
+    """Return only aggregate provenance, never private rows or identifiers."""
+    return [
+        {
+            "source": source,
+            "total": int(len(rows)),
+            "splits": {
+                split: {
+                    "count": int((rows["split"] == split).sum()),
+                    "license_families": {
+                        str(family): int(count)
+                        for family, count in rows.loc[rows["split"] == split, "license_family"].value_counts().sort_index().items()
+                    },
+                }
+                for split in SPLIT_NAMES
+            },
+        }
+        for source, rows in frame.groupby("source", sort=True)
+    ]
+
+
+def load_taxonomy(genres_path: Path) -> pd.DataFrame:
+    taxonomy = pd.read_csv(genres_path, index_col=0)
+    required = {"title", "parent", "top_level"}
+    missing = sorted(required.difference(taxonomy.columns))
+    if missing:
+        raise ValueError(f"genre taxonomy is missing columns: {missing}")
+    taxonomy.index = taxonomy.index.astype(int)
+    taxonomy["parent"] = taxonomy["parent"].astype(int)
+    taxonomy["top_level"] = taxonomy["top_level"].astype(int)
+    return taxonomy
+
+
+def count_ids(values: Iterable[tuple[int, ...]]) -> dict[int, int]:
+    counts: dict[int, int] = {}
+    for ids in values:
+        for genre_id in ids:
+            counts[genre_id] = counts.get(genre_id, 0) + 1
+    return counts
+
+
+def resolve_broad_ids(frame: pd.DataFrame, taxonomy: pd.DataFrame) -> dict[str, int]:
+    title_to_ids: dict[str, list[int]] = {}
+    for genre_id, row in taxonomy.iterrows():
+        title_to_ids.setdefault(str(row["title"]), []).append(int(genre_id))
+
+    result: dict[str, int] = {}
+    titles = {name for names in row_broad_genres(frame) for name in names}
+    for title in sorted(titles):
+        candidates = title_to_ids.get(title, [])
+        top_level_candidates = [
+            genre_id
+            for genre_id in candidates
+            if int(taxonomy.loc[genre_id, "top_level"]) == genre_id
+        ]
+        if len(top_level_candidates) != 1:
+            raise ValueError(
+                f"cannot uniquely map broad FMA genre {title!r} to taxonomy: "
+                f"{top_level_candidates}"
+            )
+        result[title] = top_level_candidates[0]
+    return result
+
+
+def row_broad_genres(frame: pd.DataFrame) -> pd.Series:
+    if "broad_genres" in frame:
+        return frame["broad_genres"]
+    return frame["genre_top"].map(lambda name: (str(name),))
+
+
+def build_label_specs(
+    frame: pd.DataFrame,
+    taxonomy: pd.DataFrame,
+    min_child_train_positives: int,
+    min_child_validation_positives: int,
+) -> list[LabelSpec]:
+    train = frame[frame["split"] == "training"]
+    validation = frame[frame["split"] == "validation"]
+    broad_ids = resolve_broad_ids(frame[frame["split"] != "test"], taxonomy)
+    broad_id_set = set(broad_ids.values())
+
+    specs: list[LabelSpec] = []
+    for title, genre_id in sorted(broad_ids.items(), key=lambda item: item[1]):
+        specs.append(
+            LabelSpec(
+                index=len(specs),
+                genre_id=genre_id,
+                name=title,
+                kind="broad",
+                parent_index=len(specs),
+                parent_genre_id=genre_id,
+                parent_name=title,
+                train_positives=int(row_broad_genres(train).map(lambda names: title in names).sum()),
+                validation_positives=int(
+                    row_broad_genres(validation).map(lambda names: title in names).sum()
+                ),
+            )
+        )
+
+    train_counts = count_ids(train.loc[train.get("children_known", pd.Series(True, index=train.index)), "genres_all"])
+    validation_counts = count_ids(validation.loc[validation.get("children_known", pd.Series(True, index=validation.index)), "genres_all"])
+    candidate_ids = sorted(
+        genre_id
+        for genre_id, count in train_counts.items()
+        if genre_id not in broad_id_set
+        and genre_id in taxonomy.index
+        and count >= min_child_train_positives
+        and validation_counts.get(genre_id, 0) >= min_child_validation_positives
+        and int(taxonomy.loc[genre_id, "top_level"]) in broad_id_set
+    )
+    broad_index_by_id = {spec.genre_id: spec.index for spec in specs}
+    broad_name_by_id = {spec.genre_id: spec.name for spec in specs}
+    for genre_id in candidate_ids:
+        parent_id = int(taxonomy.loc[genre_id, "top_level"])
+        specs.append(
+            LabelSpec(
+                index=len(specs),
+                genre_id=genre_id,
+                name=str(taxonomy.loc[genre_id, "title"]),
+                kind="child",
+                parent_index=broad_index_by_id[parent_id],
+                parent_genre_id=parent_id,
+                parent_name=broad_name_by_id[parent_id],
+                train_positives=int(train_counts[genre_id]),
+                validation_positives=int(validation_counts[genre_id]),
+            )
+        )
+    return specs
+
+
+def make_targets(frame: pd.DataFrame, specs: Sequence[LabelSpec]) -> np.ndarray:
+    target = np.zeros((len(frame), len(specs)), dtype=np.int64)
+    broad_specs = [spec for spec in specs if spec.kind == "broad"]
+    child_specs = [spec for spec in specs if spec.kind == "child"]
+    broad_index_by_name = {spec.name: spec.index for spec in broad_specs}
+
+    for row_index, row in enumerate(frame.itertuples(index=False)):
+        broad_names = getattr(row, "broad_genres", (str(row.genre_top),))
+        if not broad_names or any(name not in broad_index_by_name for name in broad_names):
+            raise ValueError("unknown or missing broad genre in aligned data")
+        for broad_name in broad_names:
+            target[row_index, broad_index_by_name[broad_name]] = 1
+        genre_ids = set(row.genres_all)
+        for spec in child_specs:
+            if spec.genre_id in genre_ids:
+                target[row_index, spec.index] = 1
+    return target
+
+
+def make_label_mask(frame: pd.DataFrame, specs: Sequence[LabelSpec]) -> np.ndarray:
+    """Unknown child labels are neither negatives nor evaluation examples."""
+    known = np.ones((len(frame), len(specs)), dtype=bool)
+    child_indices = [spec.index for spec in specs if spec.kind == "child"]
+    if child_indices:
+        children_known = frame.get("children_known", pd.Series(True, index=frame.index))
+        if children_known.isna().any() or not children_known.isin([True, False]).all():
+            raise ValueError("children_known must be boolean for every row")
+        known[:, child_indices] = children_known.to_numpy(dtype=bool)[:, None]
+    positive_only = frame.get("positive_only", pd.Series(False, index=frame.index))
+    if positive_only.isna().any() or not positive_only.isin([True, False]).all():
+        raise ValueError("positive_only must be boolean for every row")
+    if positive_only.any():
+        rows = positive_only.to_numpy(dtype=bool)
+        known[rows] &= make_targets(frame, specs)[rows].astype(bool)
+    return known
+
+
+def label_training_rows(
+    matrix: np.ndarray, targets: np.ndarray, mask: np.ndarray, label_index: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    selected = mask[:, label_index]
+    return matrix[selected], targets[selected, label_index]
+
+
+def classifier_class_weight(spec: LabelSpec, broad_policy: str) -> str | None:
+    if broad_policy == "balanced" or spec.kind == "child" or spec.train_positives < 300:
+        return "balanced"
+    return None
+
+
+def sample_training_weights(
+    frame: pd.DataFrame, library_weight: float = 1.0,
+    multigenre_weight: float = 1.0, artist_power: float = 0.0,
+    mixed_root_weight: float = 1.0,
+) -> np.ndarray:
+    if min(library_weight, multigenre_weight, mixed_root_weight) <= 0 or not 0 <= artist_power <= 1:
+        raise ValueError("source weights must be positive and artist power must be in [0, 1]")
+    weights = pd.Series(1.0, index=frame.index)
+    for _, rows in frame.groupby("source"):
+        counts = rows["artist_group"].map(rows["artist_group"].value_counts()).to_numpy(dtype=float)
+        if not np.isfinite(counts).all():
+            raise ValueError("training weights require a known artist group")
+        artist_weights = counts ** -artist_power
+        weights.loc[rows.index] *= artist_weights / artist_weights.mean()
+    weights.loc[frame["source"] == "maintainer library"] *= library_weight
+    mixed = frame.get("mixed_roots", pd.Series(False, index=frame.index))
+    if "multigenre" in frame:
+        weights.loc[frame["multigenre"] & ~mixed] *= multigenre_weight
+    weights.loc[mixed] *= mixed_root_weight
+    return weights.to_numpy(dtype=np.float64)
+
+
+def calibration_weights(frame: pd.DataFrame, power: float = 0.0) -> np.ndarray:
+    """Set broad calibration priors using only exclusive validation labels."""
+    if not 0 <= power <= 1:
+        raise ValueError("calibration prior power must be in [0, 1]")
+    names = row_broad_genres(frame)
+    if names.map(len).ne(1).any():
+        raise ValueError("calibration requires single-genre validation rows")
+    single = names.map(lambda values: values[0])
+    weights = single.map(single.value_counts()).to_numpy(dtype=float) ** -power
+    return weights / weights.mean()
+
+
+def sigmoid(values: np.ndarray) -> np.ndarray:
+    clipped = np.clip(values, -40.0, 40.0)
+    return 1.0 / (1.0 + np.exp(-clipped))
+
+
+def fit_platt_scaling(
+    logits: np.ndarray, target: np.ndarray, seed: int,
+    sample_weight: np.ndarray | None = None,
+) -> tuple[float, float]:
+    """Fit monotonic Platt scaling, falling back to prevalence correction."""
+
+    from sklearn.linear_model import LogisticRegression
+
+    calibrator = LogisticRegression(
+        C=1_000_000.0,
+        solver="lbfgs",
+        max_iter=2_000,
+        random_state=seed,
+    )
+    calibrator.fit(logits.reshape(-1, 1), target, sample_weight=sample_weight)
+    scale = float(calibrator.coef_[0, 0])
+    bias = float(calibrator.intercept_[0])
+    if np.isfinite(scale) and np.isfinite(bias) and scale > 1e-6:
+        return scale, bias
+
+    prevalence = float(np.clip(np.average(target, weights=sample_weight), 1e-6, 1.0 - 1e-6))
+    mean_logit = float(np.average(logits, weights=sample_weight))
+    return 1.0, math.log(prevalence / (1.0 - prevalence)) - mean_logit
+
+
+def binary_threshold_metrics(
+    target: np.ndarray, probability: np.ndarray, threshold: float
+) -> dict[str, float | int]:
+    prediction = probability >= threshold
+    true_positive = int(np.logical_and(prediction, target == 1).sum())
+    false_positive = int(np.logical_and(prediction, target == 0).sum())
+    false_negative = int(np.logical_and(~prediction, target == 1).sum())
+    predicted = true_positive + false_positive
+    precision = true_positive / predicted if predicted else 0.0
+    recall = true_positive / (true_positive + false_negative) if true_positive + false_negative else 0.0
+    f1 = 2.0 * precision * recall / (precision + recall) if precision + recall else 0.0
+    return {
+        "predictions": predicted,
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+    }
+
+
+def select_threshold(
+    target: np.ndarray,
+    probability: np.ndarray,
+    target_precision: float,
+    min_predictions: int,
+) -> dict[str, float | int | bool]:
+    """Choose a validation-only abstention threshold.
+
+    The exported threshold maximizes recall among thresholds meeting the target
+    precision and minimum prediction count.  If no threshold qualifies, 1.0
+    disables the label for threshold-based naming.  A separate best-F1
+    threshold is reported for analysis but is not exported.
+    """
+
+    candidates = np.unique(np.concatenate(([0.0], probability, [1.0])))
+    best_qualified: tuple[tuple[float, float, float], float, dict[str, Any]] | None = None
+    best_f1: tuple[tuple[float, float, float], float, dict[str, Any]] | None = None
+    for threshold in candidates:
+        metrics = binary_threshold_metrics(target, probability, float(threshold))
+        f1_key = (
+            float(metrics["f1"]),
+            float(metrics["precision"]),
+            float(threshold),
+        )
+        if best_f1 is None or f1_key > best_f1[0]:
+            best_f1 = (f1_key, float(threshold), metrics)
+        if (
+            int(metrics["predictions"]) >= min_predictions
+            and float(metrics["precision"]) >= target_precision
+        ):
+            qualified_key = (
+                float(metrics["recall"]),
+                float(metrics["precision"]),
+                float(threshold),
+            )
+            if best_qualified is None or qualified_key > best_qualified[0]:
+                best_qualified = (qualified_key, float(threshold), metrics)
+
+    assert best_f1 is not None
+    if best_qualified is None:
+        selected_threshold = 1.0
+        selected_metrics = binary_threshold_metrics(target, probability, 1.0)
+        met_target = False
+    else:
+        _, selected_threshold, selected_metrics = best_qualified
+        met_target = True
+    return {
+        "threshold": selected_threshold,
+        "met_target": met_target,
+        "predictions": int(selected_metrics["predictions"]),
+        "precision": float(selected_metrics["precision"]),
+        "recall": float(selected_metrics["recall"]),
+        "best_f1_threshold": float(best_f1[1]),
+        "best_f1": float(best_f1[2]["f1"]),
+    }
+
+
+def fit_label(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_validation: np.ndarray,
+    y_validation: np.ndarray,
+    c_grid: Sequence[float],
+    max_iter: int,
+    seed: int,
+    target_precision: float,
+    min_threshold_predictions: int,
+    class_weight: str | None = "balanced",
+    train_sample_weight: np.ndarray | None = None,
+    calibration_sample_weight: np.ndarray | None = None,
+) -> FittedLabel:
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import average_precision_score
+
+    if np.unique(y_train).size != 2 or np.unique(y_validation).size != 2:
+        raise ValueError("each label needs positive and negative known labels in training and validation")
+    candidates: list[tuple[float, float, LogisticRegression]] = []
+    for c_value in c_grid:
+        classifier = LogisticRegression(
+            C=float(c_value),
+            class_weight=class_weight,
+            solver="liblinear",
+            max_iter=max_iter,
+            random_state=seed,
+        )
+        classifier.fit(x_train, y_train, sample_weight=train_sample_weight)
+        validation_logits = classifier.decision_function(x_validation)
+        validation_ap = float(average_precision_score(y_validation, validation_logits))
+        candidates.append((validation_ap, -float(c_value), classifier))
+
+    validation_ap, negative_c, classifier = max(candidates, key=lambda item: item[:2])
+    selected_c = -negative_c
+    validation_logits = np.asarray(
+        classifier.decision_function(x_validation), dtype=np.float64
+    )
+    calibration_scale, calibration_bias = fit_platt_scaling(
+        validation_logits, y_validation, seed, sample_weight=calibration_sample_weight
+    )
+    calibrated = sigmoid(calibration_scale * validation_logits + calibration_bias)
+    threshold = select_threshold(
+        y_validation,
+        calibrated,
+        target_precision=target_precision,
+        min_predictions=min_threshold_predictions,
+    )
+    return FittedLabel(
+        weight=np.asarray(classifier.coef_[0], dtype=np.float32),
+        bias=float(classifier.intercept_[0]),
+        calibration_scale=calibration_scale,
+        calibration_bias=calibration_bias,
+        selected_c=selected_c,
+        validation_ap=validation_ap,
+        threshold=float(threshold["threshold"]),
+        threshold_target_precision=target_precision,
+        threshold_met_target=bool(threshold["met_target"]),
+        threshold_validation_predictions=int(threshold["predictions"]),
+        threshold_validation_precision=float(threshold["precision"]),
+        threshold_validation_recall=float(threshold["recall"]),
+        best_f1_threshold=float(threshold["best_f1_threshold"]),
+        best_f1=float(threshold["best_f1"]),
+    )
+
+
+def apply_hierarchy(probabilities: np.ndarray, specs: Sequence[LabelSpec]) -> np.ndarray:
+    result = probabilities.copy()
+    for spec in specs:
+        if spec.kind == "child":
+            result[:, spec.index] = np.minimum(
+                result[:, spec.index], result[:, spec.parent_index]
+            )
+    return result
+
+
+def expected_calibration_error(
+    target: np.ndarray, probability: np.ndarray, bins: int = 10
+) -> float:
+    edges = np.linspace(0.0, 1.0, bins + 1)
+    total = len(target)
+    value = 0.0
+    for bin_index in range(bins):
+        lower = edges[bin_index]
+        upper = edges[bin_index + 1]
+        if bin_index == bins - 1:
+            mask = np.logical_and(probability >= lower, probability <= upper)
+        else:
+            mask = np.logical_and(probability >= lower, probability < upper)
+        count = int(mask.sum())
+        if count:
+            value += (count / total) * abs(
+                float(target[mask].mean()) - float(probability[mask].mean())
+            )
+    return float(value)
+
+
+def safe_auc(target: np.ndarray, probability: np.ndarray) -> float | None:
+    from sklearn.metrics import roc_auc_score
+
+    if np.unique(target).size < 2:
+        return None
+    return float(roc_auc_score(target, probability))
+
+
+def safe_ap(target: np.ndarray, probability: np.ndarray) -> float | None:
+    from sklearn.metrics import average_precision_score
+
+    if int(target.sum()) == 0:
+        return None
+    return float(average_precision_score(target, probability))
+
+
+def finite_mean(values: Iterable[float | None]) -> float | None:
+    filtered = [float(value) for value in values if value is not None and np.isfinite(value)]
+    return float(np.mean(filtered)) if filtered else None
+
+
+def evaluate(
+    target: np.ndarray,
+    calibrated_probability: np.ndarray,
+    uncalibrated_probability: np.ndarray,
+    specs: Sequence[LabelSpec],
+    fitted: Sequence[FittedLabel],
+    label_mask: np.ndarray | None = None,
+) -> dict[str, Any]:
+    if label_mask is None:
+        label_mask = np.ones_like(target, dtype=bool)
+    if label_mask.shape != target.shape:
+        raise ValueError("label mask must match the target matrix")
+    label_metrics: list[dict[str, Any]] = []
+    for spec, fit in zip(specs, fitted):
+        known = label_mask[:, spec.index]
+        y_column = target[known, spec.index]
+        p_column = calibrated_probability[known, spec.index]
+        threshold_metrics = binary_threshold_metrics(y_column, p_column, fit.threshold)
+        label_metrics.append(
+            {
+                "index": spec.index,
+                "genre_id": spec.genre_id,
+                "name": spec.name,
+                "kind": spec.kind,
+                "parent_name": spec.parent_name,
+                "known_examples": int(known.sum()),
+                "unknown_examples": int((~known).sum()),
+                "positives": int(y_column.sum()),
+                "negatives": int(len(y_column) - y_column.sum()),
+                "average_precision": safe_ap(y_column, p_column),
+                "roc_auc": safe_auc(y_column, p_column),
+                "brier": float(np.mean(np.square(p_column - y_column))) if len(y_column) else None,
+                "brier_uncalibrated": float(
+                    np.mean(
+                        np.square(
+                            uncalibrated_probability[known, spec.index] - y_column
+                        )
+                    )
+                ) if len(y_column) else None,
+                "ece_10_bin": expected_calibration_error(y_column, p_column) if len(y_column) else None,
+                "threshold": fit.threshold,
+                "threshold_enabled": fit.threshold_met_target,
+                **threshold_metrics,
+            }
+        )
+
+    broad_indices = [spec.index for spec in specs if spec.kind == "broad"]
+    child_indices = [spec.index for spec in specs if spec.kind == "child"]
+    broad_known = label_mask[:, broad_indices].all(axis=1)
+    true_broad = np.argmax(target[broad_known][:, broad_indices], axis=1)
+    predicted_broad = np.argmax(calibrated_probability[broad_known][:, broad_indices], axis=1)
+    broad_confidence = np.max(calibrated_probability[broad_known][:, broad_indices], axis=1)
+    broad_correct = predicted_broad == true_broad
+    selective_curve = []
+    for threshold in (0.50, 0.60, 0.70, 0.80, 0.90):
+        accepted = broad_confidence >= threshold
+        count = int(accepted.sum())
+        selective_curve.append(
+            {
+                "confidence_threshold": threshold,
+                "coverage": float(accepted.mean()),
+                "accepted": count,
+                "accuracy": float(broad_correct[accepted].mean()) if count else None,
+            }
+        )
+
+    thresholds = np.asarray([fit.threshold for fit in fitted], dtype=np.float64)
+    enabled = np.asarray(
+        [fit.threshold_met_target for fit in fitted], dtype=bool
+    )
+    prediction = calibrated_probability >= thresholds[None, :]
+    prediction[:, ~enabled] = False
+    prediction &= label_mask
+    true_positive = int(np.logical_and(prediction, target == 1).sum())
+    false_positive = int(np.logical_and(prediction, target == 0).sum())
+    false_negative = int((~prediction & (target == 1) & label_mask).sum())
+    micro_precision = (
+        true_positive / (true_positive + false_positive)
+        if true_positive + false_positive
+        else 0.0
+    )
+    micro_recall = (
+        true_positive / (true_positive + false_negative)
+        if true_positive + false_negative
+        else 0.0
+    )
+    micro_f1 = (
+        2.0 * micro_precision * micro_recall / (micro_precision + micro_recall)
+        if micro_precision + micro_recall
+        else 0.0
+    )
+
+    def group_summary(indices: Sequence[int]) -> dict[str, Any]:
+        selected = [label_metrics[index] for index in indices]
+        return {
+            "label_count": len(indices),
+            "macro_average_precision": finite_mean(
+                item["average_precision"] for item in selected
+            ),
+            "macro_roc_auc": finite_mean(item["roc_auc"] for item in selected),
+            "macro_brier": finite_mean(item["brier"] for item in selected),
+            "macro_brier_uncalibrated": finite_mean(
+                item["brier_uncalibrated"] for item in selected
+            ),
+            "macro_ece_10_bin": finite_mean(
+                item["ece_10_bin"] for item in selected
+            ),
+            "threshold_enabled_labels": int(
+                sum(bool(item["threshold_enabled"]) for item in selected)
+            ),
+            "threshold_macro_precision": finite_mean(
+                item["precision"]
+                for item in selected
+                if bool(item["threshold_enabled"])
+            ),
+            "threshold_macro_recall": finite_mean(
+                item["recall"]
+                for item in selected
+                if bool(item["threshold_enabled"])
+            ),
+        }
+
+    return {
+        "n_examples": int(len(target)),
+        "broad_top1_accuracy": float(broad_correct.mean()),
+        "broad_selective_accuracy": selective_curve,
+        "broad": group_summary(broad_indices),
+        "children": group_summary(child_indices),
+        "all_labels": group_summary(list(range(len(specs)))),
+        "exported_thresholds": {
+            "enabled_labels": int(enabled.sum()),
+            "micro_precision": float(micro_precision),
+            "micro_recall": float(micro_recall),
+            "micro_f1": float(micro_f1),
+            "track_coverage": float(prediction.any(axis=1).mean()),
+            "mean_predictions_per_track": float(prediction.sum(axis=1).mean()),
+        },
+        "per_label": label_metrics,
+    }
+
+
+def predict_probabilities(
+    matrix: np.ndarray,
+    fitted: Sequence[FittedLabel],
+    specs: Sequence[LabelSpec],
+) -> tuple[np.ndarray, np.ndarray]:
+    weights = np.stack([fit.weight for fit in fitted], axis=0)
+    biases = np.asarray([fit.bias for fit in fitted], dtype=np.float64)
+    scales = np.asarray(
+        [fit.calibration_scale for fit in fitted], dtype=np.float64
+    )
+    calibration_biases = np.asarray(
+        [fit.calibration_bias for fit in fitted], dtype=np.float64
+    )
+    logits = matrix.astype(np.float64) @ weights.astype(np.float64).T + biases
+    uncalibrated = apply_hierarchy(sigmoid(logits), specs)
+    calibrated = apply_hierarchy(
+        sigmoid(logits * scales[None, :] + calibration_biases[None, :]), specs
+    )
+    return calibrated, uncalibrated
+
+
+def export_onnx(
+    output_path: Path,
+    embedding_dim: int,
+    specs: Sequence[LabelSpec],
+    fitted: Sequence[FittedLabel],
+    opset: int,
+) -> float:
+    import onnx
+    import onnxruntime as ort
+    import torch
+    import torch.nn.functional as torch_functional
+
+    class CalibratedHierarchicalHead(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.register_buffer(
+                "weights",
+                torch.from_numpy(np.stack([fit.weight for fit in fitted], axis=0)),
+            )
+            self.register_buffer(
+                "biases",
+                torch.tensor([fit.bias for fit in fitted], dtype=torch.float32),
+            )
+            self.register_buffer(
+                "calibration_scales",
+                torch.tensor(
+                    [fit.calibration_scale for fit in fitted], dtype=torch.float32
+                ),
+            )
+            self.register_buffer(
+                "calibration_biases",
+                torch.tensor(
+                    [fit.calibration_bias for fit in fitted], dtype=torch.float32
+                ),
+            )
+            self.register_buffer(
+                "parent_indices",
+                torch.tensor(
+                    [spec.parent_index for spec in specs], dtype=torch.int64
+                ),
+            )
+            self.register_buffer(
+                "child_mask",
+                torch.tensor(
+                    [spec.kind == "child" for spec in specs], dtype=torch.bool
+                ),
+            )
+
+        def forward(self, embedding: Any) -> Any:
+            normalized = torch_functional.normalize(
+                embedding, p=2.0, dim=1, eps=1e-12
+            )
+            logits = torch_functional.linear(normalized, self.weights, self.biases)
+            probabilities = torch.sigmoid(
+                logits * self.calibration_scales + self.calibration_biases
+            )
+            parent_probabilities = torch.index_select(
+                probabilities, 1, self.parent_indices
+            )
+            return torch.where(
+                self.child_mask.unsqueeze(0),
+                torch.minimum(probabilities, parent_probabilities),
+                probabilities,
+            )
+
+    model = CalibratedHierarchicalHead().eval()
+    example = torch.zeros((2, embedding_dim), dtype=torch.float32)
+    example[0, 0] = 1.0
+    example[1, 1] = 1.0
+    torch.onnx.export(
+        model,
+        example,
+        output_path,
+        input_names=["embedding"],
+        output_names=["probabilities"],
+        dynamic_axes={
+            "embedding": {0: "batch"},
+            "probabilities": {0: "batch"},
+        },
+        opset_version=opset,
+        do_constant_folding=True,
+        dynamo=False,
+    )
+    onnx_model = onnx.load(output_path)
+    onnx.checker.check_model(onnx_model)
+
+    rng = np.random.default_rng(12345)
+    test_input = rng.normal(size=(17, embedding_dim)).astype(np.float32)
+    with torch.no_grad():
+        torch_output = model(torch.from_numpy(test_input)).numpy()
+    session = ort.InferenceSession(
+        str(output_path), providers=["CPUExecutionProvider"]
+    )
+    onnx_output = session.run(
+        ["probabilities"], {"embedding": test_input}
+    )[0]
+    maximum_error = float(np.max(np.abs(torch_output - onnx_output)))
+    if maximum_error > 1e-5:
+        raise RuntimeError(
+            f"ONNX parity check failed: maximum absolute error {maximum_error}"
+        )
+    return maximum_error
+
+
+def json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating,)):
+        return float(value)
+    if isinstance(value, Path):
+        return str(value)
+    return value
+
+
+def main() -> None:
+    started = time.perf_counter()
+    args = parse_args()
+    if not 0.0 < args.target_precision <= 1.0:
+        raise ValueError("--target-precision must be in (0, 1]")
+    if args.min_child_train_positives <= 0:
+        raise ValueError("--min-child-train-positives must be positive")
+    if args.min_child_validation_positives <= 0:
+        raise ValueError("--min-child-validation-positives must be positive")
+    c_grid = tuple(
+        float(item.strip()) for item in args.c_grid.split(",") if item.strip()
+    )
+    if not c_grid or any(item <= 0.0 for item in c_grid):
+        raise ValueError("--c-grid must contain positive values")
+    subsets = tuple(dict.fromkeys(item.strip() for item in args.subset.split(",") if item.strip()))
+    if not subsets or not set(subsets).issubset({"small", "medium", "large"}):
+        raise ValueError("--subset must contain official subset values: small,medium,large")
+    if bool(args.extra_store) != bool(args.extra_labels):
+        raise ValueError("--extra-store and --extra-labels must be supplied together")
+    if min(args.library_weight, args.multigenre_weight, args.mixed_root_weight) <= 0:
+        raise ValueError("source weights must be positive")
+    if not 0 <= args.artist_weight_power <= 1 or not 0 <= args.calibration_prior_power <= 1:
+        raise ValueError("artist and calibration powers must be in [0, 1]")
+
+    store_path = require_file(args.store, "embedding store")
+    tracks_path = require_file(args.tracks, "FMA tracks metadata")
+    genres_path = require_file(args.genres, "FMA genre taxonomy")
+    output_dir = args.output_dir.expanduser().resolve()
+    if args.extra_store is not None or args.extra_labels is not None:
+        require_private_output(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    onnx_path = output_dir / f"{args.model_name}.onnx"
+    metadata_path = output_dir / f"{args.model_name}.metadata.json"
+
+    print("Loading and aligning frozen embeddings to official FMA splits...")
+    frame, embedding_dim, encoder_model_version = load_joined_data(
+        store_path, tracks_path, subsets=subsets, license_allow=bool(args.license_allow)
+    )
+    taxonomy = load_taxonomy(genres_path)
+    multigenre_counts = None
+    multigenre_path = None
+    if args.multigenre_store:
+        multigenre_path = require_file(args.multigenre_store, "multi-genre embedding store")
+        multigenre_frame, multigenre_counts = load_multigenre_training_data(
+            multigenre_path, tracks_path, taxonomy, embedding_dim,
+            encoder_model_version, frame["track_id"],
+            positive_only=args.additional_positive_only,
+        )
+        frame = pd.concat([frame, multigenre_frame], ignore_index=True)
+    mixed_root_counts = None
+    mixed_root_path = None
+    if args.mixed_root_store:
+        mixed_root_path = require_file(args.mixed_root_store, "mixed-root embedding store")
+        mixed_root_frame, mixed_root_counts = load_multigenre_training_data(
+            mixed_root_path, tracks_path, taxonomy, embedding_dim,
+            encoder_model_version, frame["track_id"], mixed_roots_only=True,
+            positive_only=args.additional_positive_only,
+        )
+        frame = pd.concat([frame, mixed_root_frame], ignore_index=True)
+    if args.extra_store:
+        extra_frame = load_extra_data(
+            require_file(args.extra_store, "extra embedding store"),
+            require_file(args.extra_labels, "extra labels"),
+            embedding_dim, encoder_model_version,
+        )
+        frame = pd.concat([frame, extra_frame], ignore_index=True)
+    specs = build_label_specs(
+        frame,
+        taxonomy,
+        min_child_train_positives=args.min_child_train_positives,
+        min_child_validation_positives=args.min_child_validation_positives,
+    )
+    c_plan_path = require_file(args.c_plan, "broad regularization plan") if args.c_plan else None
+    planned_c: dict[str, float] = {}
+    if c_plan_path:
+        plan_sources = {"store": store_path, "tracks": tracks_path, "genres": genres_path}
+        for key in ("extra_store", "extra_labels", "multigenre_store", "mixed_root_store"):
+            if source := getattr(args, key):
+                plan_sources[key] = source.expanduser().resolve()
+        planned_c = load_c_plan(
+            c_plan_path, (spec.name for spec in specs if spec.kind == "broad"), plan_sources,
+        )
+    targets = make_targets(frame, specs)
+    label_mask = make_label_mask(frame, specs)
+
+    matrices: dict[str, np.ndarray] = {}
+    split_targets: dict[str, np.ndarray] = {}
+    split_label_masks: dict[str, np.ndarray] = {}
+    for split_name in SPLIT_NAMES:
+        mask = frame["split"].to_numpy() == split_name
+        if not mask.any():
+            raise ValueError(f"no usable rows in the {split_name} split")
+        matrices[split_name] = np.stack(frame.loc[mask, "embedding"].to_list()).astype(
+            np.float32
+        )
+        split_targets[split_name] = targets[mask]
+        split_label_masks[split_name] = label_mask[mask]
+        print(
+            f"  {split_name:10s}: {mask.sum():4d} tracks, "
+            f"{len(specs)} labels, {embedding_dim}-d"
+        )
+
+    train_weights = sample_training_weights(
+        frame.loc[frame["split"] == "training"],
+        library_weight=args.library_weight, multigenre_weight=args.multigenre_weight,
+        artist_power=args.artist_weight_power,
+        mixed_root_weight=args.mixed_root_weight,
+    )
+    broad_calibration_weights = calibration_weights(
+        frame.loc[frame["split"] == "validation"], power=args.calibration_prior_power,
+    )
+
+    print(
+        f"Training {sum(spec.kind == 'broad' for spec in specs)} broad and "
+        f"{sum(spec.kind == 'child' for spec in specs)} child classifiers..."
+    )
+    fitted: list[FittedLabel] = []
+    for spec in specs:
+        x_train, y_train = label_training_rows(
+            matrices["training"], split_targets["training"], split_label_masks["training"], spec.index,
+        )
+        x_validation, y_validation = label_training_rows(
+            matrices["validation"], split_targets["validation"], split_label_masks["validation"], spec.index,
+        )
+        fit = fit_label(
+            x_train, y_train, x_validation, y_validation,
+            c_grid=(planned_c[spec.name],) if spec.name in planned_c else c_grid,
+            max_iter=args.max_iter,
+            seed=args.seed,
+            target_precision=args.target_precision,
+            min_threshold_predictions=args.min_threshold_predictions,
+            class_weight=classifier_class_weight(spec, args.broad_class_weight),
+            train_sample_weight=train_weights[split_label_masks["training"][:, spec.index]],
+            calibration_sample_weight=(
+                broad_calibration_weights[split_label_masks["validation"][:, spec.index]]
+                if spec.kind == "broad" else None
+            ),
+        )
+        fitted.append(fit)
+        print(
+            f"  [{spec.kind:5s}] {spec.name:22s} "
+            f"train+={spec.train_positives:4d} val+={spec.validation_positives:3d} "
+            f"AP={fit.validation_ap:.3f} C={fit.selected_c:g} "
+            f"threshold={fit.threshold:.3f} enabled={fit.threshold_met_target}"
+        )
+
+    split_metrics: dict[str, Any] = {}
+    for split_name in ("validation", "test"):
+        calibrated, uncalibrated = predict_probabilities(
+            matrices[split_name], fitted, specs
+        )
+        split_metrics[split_name] = evaluate(
+            split_targets[split_name],
+            calibrated,
+            uncalibrated,
+            specs,
+            fitted,
+            label_mask=split_label_masks[split_name],
+        )
+
+    split_artist_ids = {
+        split_name: set(frame.loc[frame["split"] == split_name, "artist_group"].dropna().astype(str))
+        for split_name in SPLIT_NAMES
+    }
+    artist_overlap_counts = {
+        f"{left}__{right}": len(split_artist_ids[left].intersection(split_artist_ids[right]))
+        for left, right in (
+            ("training", "validation"),
+            ("training", "test"),
+            ("validation", "test"),
+        )
+    }
+    if any(artist_overlap_counts.values()):
+        raise ValueError(
+            "split validation failed; artist groups overlap: "
+            f"{artist_overlap_counts}"
+        )
+
+    print(f"Exporting {onnx_path}...")
+    onnx_maximum_error = export_onnx(
+        onnx_path,
+        embedding_dim=embedding_dim,
+        specs=specs,
+        fitted=fitted,
+        opset=args.opset,
+    )
+
+    import onnx
+    import onnxruntime
+    import sklearn
+    import torch
+
+    label_metadata = []
+    test_by_index = {
+        item["index"]: item for item in split_metrics["test"]["per_label"]
+    }
+    for spec, fit in zip(specs, fitted):
+        item = asdict(spec)
+        item.update(
+            {
+                "selected_c": fit.selected_c,
+                "c_selection": "training_artist_cv" if spec.name in planned_c else "validation_average_precision",
+                "class_weight": classifier_class_weight(spec, args.broad_class_weight),
+                "training_supervision": {
+                    "known_positives": int(((split_targets["training"][:, spec.index] == 1) & split_label_masks["training"][:, spec.index]).sum()),
+                    "known_negatives": int(((split_targets["training"][:, spec.index] == 0) & split_label_masks["training"][:, spec.index]).sum()),
+                    "unknown": int((~split_label_masks["training"][:, spec.index]).sum()),
+                    "known_sample_weight_sum_before_class_balancing": float(train_weights[split_label_masks["training"][:, spec.index]].sum()),
+                },
+                "validation_average_precision": fit.validation_ap,
+                "calibration": {
+                    "type": "platt",
+                    "scale": fit.calibration_scale,
+                    "bias": fit.calibration_bias,
+                    "fit_split": "validation",
+                    "genre_inverse_frequency_power": args.calibration_prior_power if spec.kind == "broad" else 0.0,
+                },
+                "abstention": {
+                    "threshold": fit.threshold,
+                    "target_precision": fit.threshold_target_precision,
+                    "met_target_on_validation": fit.threshold_met_target,
+                    "validation_predictions": fit.threshold_validation_predictions,
+                    "validation_precision": fit.threshold_validation_precision,
+                    "validation_recall": fit.threshold_validation_recall,
+                    "analysis_only_best_f1_threshold": fit.best_f1_threshold,
+                    "analysis_only_best_f1": fit.best_f1,
+                },
+                "test": test_by_index[spec.index],
+            }
+        )
+        label_metadata.append(item)
+
+    elapsed = time.perf_counter() - started
+    metadata = {
+        "schema_version": 2,
+        "model_name": args.model_name,
+        "intended_use": "research_only",
+        "provenance_warning": (
+            "FMA audio has track-level licenses. Review every training-data and "
+            "derived-model distribution right before shipping."
+        ),
+        "created_utc_unix_seconds": int(time.time()),
+        "elapsed_seconds": elapsed,
+        "model": {
+            "format": "onnx",
+            "path": onnx_path.name,
+            "sha256": sha256_file(onnx_path),
+            "size_bytes": onnx_path.stat().st_size,
+            "opset": args.opset,
+            "input": {
+                "name": "embedding",
+                "dtype": "float32",
+                "shape": ["batch", embedding_dim],
+            },
+            "output": {
+                "name": "probabilities",
+                "dtype": "float32",
+                "shape": ["batch", len(specs)],
+                "semantics": (
+                    "Platt-calibrated probabilities; child values are capped at "
+                    "their broad-parent probability."
+                ),
+            },
+            "internal_preprocessing": "row-wise L2 normalization, epsilon=1e-12",
+            "onnx_parity_maximum_absolute_error": onnx_maximum_error,
+        },
+        "encoder": {
+            "model_version_from_store": encoder_model_version,
+            "embedding_dim": embedding_dim,
+        },
+        "data": {
+            "store": {
+                "sha256": sha256_file(store_path),
+            },
+            "multigenre_store": {
+                "sha256": sha256_file(multigenre_path),
+                "selection_counts": multigenre_counts,
+            } if multigenre_path else None,
+            "mixed_root_store": {
+                "sha256": sha256_file(mixed_root_path),
+                "selection_counts": mixed_root_counts,
+            } if mixed_root_path else None,
+            "extra_store": {"sha256": sha256_file(args.extra_store.expanduser().resolve())} if args.extra_store else None,
+            "extra_labels": {"sha256": sha256_file(args.extra_labels.expanduser().resolve())} if args.extra_labels else None,
+            "tracks": {
+                "sha256": sha256_file(tracks_path),
+            },
+            "genres": {
+                "sha256": sha256_file(genres_path),
+            },
+            "aligned_tracks": int(len(frame)),
+            "split_counts": {
+                split_name: int(len(matrices[split_name]))
+                for split_name in SPLIT_NAMES
+            },
+            "split_artist_counts": {
+                split_name: len(split_artist_ids[split_name])
+                for split_name in SPLIT_NAMES
+            },
+            "artist_overlap_counts": artist_overlap_counts,
+            "artist_disjoint": not any(artist_overlap_counts.values()),
+        },
+        "data_sources": source_summary(frame),
+        "rights_filter": {
+            "enabled": bool(args.license_allow),
+            "allowed_fma_license_families": list(CLEAN_LICENSE_FAMILIES) if args.license_allow else None,
+            "applied_splits": ["training", "validation"] if args.license_allow else [],
+            "test_license_filter_applied": False,
+            "test_audio_is_evaluation_only": True,
+        },
+        "selection_policy": {
+            "broad_labels": "FMA broad genres present in training/validation",
+            "multigenre_training": (
+                "All official taxonomy roots as positive broad labels; reject any root outside selected eight; clean training split only"
+                if args.multigenre_store else None
+            ),
+            "mixed_root_training": (
+                "Keep every documented required broad root as positive; ignore other roots; clean official training only"
+                if args.mixed_root_store else None
+            ),
+            "additional_absent_labels": "unknown and masked" if args.additional_positive_only else "annotation negatives",
+            "calibration_rows": "original exclusive-genre validation plus eligible library validation; added multi-genre validation excluded",
+            "subsets": list(subsets),
+            "child_source": "track.genres_all",
+            "child_parent_rule": "top_level must be one of the selected broad labels",
+            "minimum_child_training_positives": args.min_child_train_positives,
+            "minimum_child_validation_positives": (
+                args.min_child_validation_positives
+            ),
+            "selection_uses_test_labels": False,
+            "extra_rows": "broad labels only; child labels unknown and excluded from fitting and scoring",
+        },
+        "training": {
+            "classifier": "one L2 logistic regression per label",
+            "broad_class_weight": args.broad_class_weight,
+            "library_sample_weight": args.library_weight,
+            "multigenre_sample_weight": args.multigenre_weight,
+            "mixed_root_sample_weight": args.mixed_root_weight,
+            "artist_inverse_frequency_power": args.artist_weight_power,
+            "sample_weight_normalization": "artist factors mean one within source, followed by explicit source multipliers; no final renormalization",
+            "broad_calibration_genre_inverse_frequency_power": args.calibration_prior_power,
+            "rare_broad_positive_cutoff": 300,
+            "child_class_weight": "balanced",
+            "solver": "liblinear",
+            "c_grid": list(c_grid),
+            "c_selection_metric": (
+                "frozen training artist-CV plan for broad labels; validation AP for child labels"
+                if c_plan_path else "validation average precision"
+            ),
+            "broad_c_plan": {"sha256": sha256_file(c_plan_path), "kind": "training_artist_cv", "selected_c": planned_c} if c_plan_path else None,
+            "calibration": "per-label Platt scaling on validation logits",
+            "threshold_policy": (
+                "maximize unweighted validation recall subject to target precision and "
+                "minimum prediction count; otherwise abstain"
+            ),
+            "target_precision": args.target_precision,
+            "minimum_threshold_predictions": args.min_threshold_predictions,
+            "seed": args.seed,
+            "test_used_for_training_selection_or_calibration": False,
+        },
+        "labels": label_metadata,
+        "metrics": split_metrics,
+        "runtime": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "numpy": np.__version__,
+            "pandas": pd.__version__,
+            "scikit_learn": sklearn.__version__,
+            "torch": torch.__version__,
+            "onnx": onnx.__version__,
+            "onnxruntime": onnxruntime.__version__,
+        },
+    }
+    metadata_path.write_text(
+        json.dumps(json_safe(metadata), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    test = split_metrics["test"]
+    print("")
+    print("Held-out test results (FMA and eligible extra rows)")
+    print(f"  broad top-1 accuracy: {test['broad_top1_accuracy']:.4f}")
+    print(
+        "  broad macro AP / ROC-AUC: "
+        f"{test['broad']['macro_average_precision']:.4f} / "
+        f"{test['broad']['macro_roc_auc']:.4f}"
+    )
+    print(f"  child macro AP / ROC-AUC: {test['children']['macro_average_precision']} / {test['children']['macro_roc_auc']}")
+    print(
+        "  threshold micro precision / recall / coverage: "
+        f"{test['exported_thresholds']['micro_precision']:.4f} / "
+        f"{test['exported_thresholds']['micro_recall']:.4f} / "
+        f"{test['exported_thresholds']['track_coverage']:.4f}"
+    )
+    print(f"  ONNX size: {onnx_path.stat().st_size / 1024.0:.1f} KiB")
+    print(f"  ONNX parity max abs error: {onnx_maximum_error:.3g}")
+    print(f"  metadata: {metadata_path}")
+    print(f"  elapsed: {elapsed:.1f}s")
+
+
+if __name__ == "__main__":
+    main()

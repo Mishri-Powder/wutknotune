@@ -1,0 +1,28 @@
+.gradle/
+build/
+.cxx/
+**/build/
+.kotlin/
+.idea/
+*.iml
+local.properties
+.DS_Store
+xcuserdata/
+third_party/
+tools/research/output/
+iosApp/Pods/
+
+# Python
+__pycache__/
+*.pyc
+
+# Research outputs (regenerable)
+tools/research/results/
+
+# Signing keys never enter the repository; keystore.properties points at them.
+keystore.properties
+*.jks
+*.keystore
+
+# research output is never committed: it carries the maintainer's own library
+output/

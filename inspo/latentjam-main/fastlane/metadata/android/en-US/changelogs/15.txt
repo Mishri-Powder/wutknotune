@@ -1,0 +1,8 @@
+M3U imports read non-UTF-8 files and keep the filename when no title is set.
+Embedded artwork backs up missing system covers.
+Open local audio from a file manager.
+Optional Favorite action in Android media controls.
+More consistent EQ and bass boost.
+Fixed a Map crash with screen readers.
+Tracks skipped within 30 s no longer count as plays.
+Moved files keep playlists, favorites and history if a unique MusicBrainz release-track ID was read before the move. Ambiguous files are not merged.

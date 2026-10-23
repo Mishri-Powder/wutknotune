@@ -1,0 +1,50 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+pluginManagement {
+    // The repository's own Gradle plugin (checkNativeIdentifiers).
+    includeBuild("build-logic")
+    repositories {
+        // Content filters keep non-Google artifacts (kotlinx, koin, …) from ever
+        // being requested from dl.google.com — resolution stays correct even when
+        // that host is briefly unreachable.
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
+    repositories {
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+    }
+}
+
+rootProject.name = "latentjam-monorepo"
+
+include(":core:smart")
+include(":core:ort-ops")
+include(":core:map-native")
+include(":core:audio-dsp")
+include(":core:library")
+include(":core:playback")
+include(":core:history")
+include(":composeApp")
+include(":androidApp")
+// Device tooling is opt-in; normal/F-Droid builds do not configure a benchmark APK.
+if (providers.gradleProperty("latentjam.benchmarks").orNull == "true") include(":benchmark")

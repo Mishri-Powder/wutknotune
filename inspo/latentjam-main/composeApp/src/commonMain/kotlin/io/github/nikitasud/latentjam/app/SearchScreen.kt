@@ -1,0 +1,1151 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import io.github.nikitasud.latentjam.app.generated.resources.Res
+import io.github.nikitasud.latentjam.app.generated.resources.action_clear
+import io.github.nikitasud.latentjam.app.generated.resources.cd_clear_query
+import io.github.nikitasud.latentjam.app.generated.resources.cd_forget_search
+import io.github.nikitasud.latentjam.app.generated.resources.count_tracks
+import io.github.nikitasud.latentjam.app.generated.resources.search_hint_count
+import io.github.nikitasud.latentjam.app.generated.resources.search_no_matches
+import io.github.nikitasud.latentjam.app.generated.resources.search_placeholder
+import io.github.nikitasud.latentjam.app.generated.resources.search_recent_title
+import io.github.nikitasud.latentjam.history.TrackStats
+import io.github.nikitasud.latentjam.history.epochMillis
+import io.github.nikitasud.latentjam.smart.ScoredTrack
+import io.github.nikitasud.latentjam.smart.TrackDescriptor
+import io.github.nikitasud.latentjam.smart.TrackId
+import io.github.nikitasud.latentjam.smart.text.SearchFold
+import kotlin.math.pow
+import kotlin.time.TimeSource
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * Full-screen library search: auto-focused field, live filtering over
+ * title / artist / album, results playable in place (the result list becomes
+ * the queue).
+ *
+ * With an empty field it shows what you searched for before, so returning to
+ * search offers a way back into a previous thread instead of a blank page.
+ * Each entry can be dismissed individually — a history you can't prune stops
+ * being useful.
+ */
+@Composable
+internal fun SearchScreen(
+    songs: List<TrackDescriptor>,
+    currentTrackId: TrackId?,
+    accent: TrackAccent? = null,
+    active: Boolean = true,
+    readyForInput: Boolean = true,
+    /** Take focus (and the keyboard) once ready; false when returning to a search left without it. */
+    focusOnReady: Boolean = true,
+    openProgress: () -> Float = { 1f },
+    buttonBounds: Rect? = null,
+    /** Whether the player is audibly running; animates the current row's badge. */
+    currentTrackPlaying: Boolean = false,
+    selectedTrackIds: Set<TrackId> = emptySet(),
+    /** What the selection's contextual bar offers; the same object drives the bottom action bar. */
+    selectionCommands: SelectionCommands,
+    onToggleSelection: (TrackDescriptor) -> Unit = {},
+    onStartSelection: (TrackDescriptor) -> Unit = {},
+    onClearSelection: () -> Unit = {},
+    onPlay: (queue: List<TrackDescriptor>, index: Int) -> Unit,
+    onTrackMenu: (TrackDescriptor) -> Unit,
+    onClose: () -> Unit,
+    /** Room at the foot of the results for the mini-player floating over this screen. */
+    bottomInset: Dp = 0.dp,
+) {
+    // The same long-press promise as every other track list: back leaves selection first.
+    val selectionMode = selectedTrackIds.isNotEmpty()
+
+    val scope = rememberCoroutineScope()
+    // Search lives inside the browse stack, which leaves composition during the player morph.
+    // Save the text alongside its result-list scroll position so returning never becomes a new
+    // search session merely because the listener checked Now Playing.
+    // Keep the caret too: the contextual selection bar temporarily removes the editor.
+    var queryField by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(""))
+    }
+    val query = queryField.text
+    val resultsListState = rememberLazyListState()
+    var resultScrollQuery by rememberSaveable { mutableStateOf<String?>(null) }
+    var recent by remember { mutableStateOf<List<String>>(emptyList()) }
+    var semantic by remember(songs) { mutableStateOf<List<ScoredTrack>>(emptyList()) }
+    var semanticQuery by remember(songs) { mutableStateOf("") }
+    var searchIndex by remember(songs) { mutableStateOf<SearchIndex?>(null) }
+    var results by remember(songs) { mutableStateOf<List<TrackDescriptor>>(emptyList()) }
+    var lyricDocuments by remember(songs) { mutableStateOf<Map<TrackId, LyricSearchDocument>>(emptyMap()) }
+    var lyricSnippets by remember(songs) { mutableStateOf<Map<TrackId, String>>(emptyMap()) }
+    var indexingLyrics by remember(songs) { mutableStateOf(true) }
+    val lyricsReader = rememberLyricsReader(reportReadFailures = true)
+    val lyricsStorage = rememberLyricsSearchStorage()
+    val lyricsSources = rememberLyricsSourcesRevision()
+    val sidecarFingerprints = rememberSidecarFingerprints()
+    LaunchedEffect(songs, readyForInput, active, lyricsSources) {
+        if (!active || !readyForInput) return@LaunchedEffect
+        indexingLyrics = true
+        withContext(Dispatchers.Default) {
+            AppGraph.lyricsSearchCache.load(
+                songs,
+                lyricsStorage,
+                lyricsReader,
+                lyricsSources,
+                sidecarFingerprints,
+                // Pending only while songs are read: the cached index answers at once, and the
+                // sidecar check behind it must not hold a query at "Loading".
+                reading = { indexingLyrics = it },
+            ) { snapshot ->
+                lyricDocuments = snapshot
+            }
+        }
+        indexingLyrics = false
+    }
+    var resultQuery by remember(songs) { mutableStateOf("") }
+    var isSearching by remember(songs) { mutableStateOf(false) }
+    var trackStats by remember { mutableStateOf<Map<TrackId, TrackStats>>(emptyMap()) }
+    // A slower read from an older action must not replace the result of a newer record/remove/clear.
+    var recentOperationRevision by remember { mutableLongStateOf(0L) }
+    val entityResolver = AppGraph.musicEntities
+    val rememberSearches by AppGraph.settings.rememberSearches.collectAsState()
+    val historyRevision by AppGraph.historyRevision.collectAsState()
+
+    // Normalize/tokenize the library once, off the UI thread. The old path rebuilt all fields,
+    // tokens and edit-distance inputs synchronously in composition for every typed character.
+    LaunchedEffect(songs) {
+        searchIndex = withContext(Dispatchers.Default) { SearchIndex.build(songs) }
+    }
+    // Per-track play aggregates for affinity ordering; reloaded whenever the log gains an event.
+    LaunchedEffect(historyRevision) {
+        val loaded = try {
+            withContext(Dispatchers.Default) { AppGraph.history.stats() }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            // Affinity is an enhancement. Keep the last good ordering if its local file is
+            // temporarily unreadable instead of letting a persistence exception kill Search.
+            println("Search: could not load listening affinity: $failure")
+            null
+        }
+        if (loaded != null) trackStats = loaded
+    }
+    LaunchedEffect(searchIndex, query, semantic, semanticQuery, entityResolver, trackStats, lyricDocuments) {
+        val needle = query.trim()
+        val index = searchIndex
+        if (needle.isBlank()) {
+            isSearching = false
+            results = emptyList()
+            lyricSnippets = emptyMap()
+            resultQuery = needle
+        } else if (index == null) {
+            isSearching = true
+            results = emptyList()
+            resultQuery = ""
+        } else {
+            isSearching = true
+            val matchingSemantic = semantic.takeIf { semanticQuery == needle }.orEmpty()
+            val nowMs = epochMillis()
+            val calculated = withContext(Dispatchers.Default) {
+                val context = currentCoroutineContext()
+                // A year or decade in the query is a filter, not lyric text: "серебро 1985" must
+                // find the line "серебро" and keep it to 1985, so the texts are searched for the
+                // cleaned phrase the year branch recurses on. hybridSearch asks the tier for
+                // whatever phrase its level searches, so the map below answers both it and the
+                // snippet shown beside a result.
+                val snippetsByPhrase = mutableMapOf<String, Map<TrackId, String>>()
+                fun snippetsFor(phrase: String): Map<TrackId, String> = snippetsByPhrase.getOrPut(phrase) {
+                    searchLyrics(lyricDocuments, phrase) { context.ensureActive() }
+                }
+                val snippets = snippetsFor(lyricSearchPhrase(needle))
+                val tracks = hybridSearch(
+                    index = index,
+                    query = needle,
+                    semantic = matchingSemantic,
+                    aliasMatches = entityResolver::matches,
+                    stats = trackStats,
+                    nowMs = nowMs,
+                    lyrics = LyricHits { phrase -> snippetsFor(phrase).keys },
+                ) {
+                    context.ensureActive()
+                }
+                tracks to snippets
+            }
+            results = calculated.first
+            lyricSnippets = calculated.second
+            resultQuery = needle
+            isSearching = false
+        }
+    }
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val reduceMotion = rememberReduceMotion()
+
+    fun closeSearch() {
+        focusManager.clearFocus(force = true)
+        keyboard?.hide()
+        onClose()
+    }
+    PlatformBackHandler(enabled = active) {
+        if (selectionMode) onClearSelection() else closeSearch()
+    }
+    // History IO must not decide when Android brings the editor into view. Wait for the
+    // fixed-position surface to settle, including a cancelled exit/re-entry, then focus once.
+    LaunchedEffect(active, readyForInput, selectionMode) {
+        if (!active) {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+        } else if (readyForInput && focusOnReady && !selectionMode) {
+            // The contextual bar removes the field during selection. Refocus the new field
+            // after selection ends, once it is attached again.
+            withFrameNanos { }
+            focusRequester.requestFocus()
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose { focusManager.clearFocus(force = true) }
+    }
+
+    suspend fun refreshRecent(expectedRevision: Long = recentOperationRevision) {
+        val loaded = try {
+            AppGraph.recentSearches.recent()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            // The last successfully rendered shortcuts remain usable. Search itself does not own a
+            // snackbar surface, so report diagnostically without replacing them with a false empty.
+            println("Search: could not load recent searches: $failure")
+            null
+        }
+        if (loaded != null && recentOperationRevision == expectedRevision) recent = loaded
+    }
+
+    LaunchedEffect(Unit) {
+        refreshRecent(recentOperationRevision)
+    }
+
+    // Encoder inference is local and fast, but still unnecessary on every keypress. Exact metadata
+    // matches update immediately above; semantic expansion follows after the user pauses typing.
+    LaunchedEffect(songs, query) {
+        semantic = emptyList()
+        semanticQuery = ""
+        val needle = query.trim()
+        if (needle.length < MIN_SEMANTIC_QUERY_CHARS) return@LaunchedEffect
+        delay(SEMANTIC_DEBOUNCE_MS)
+        val started = TimeSource.Monotonic.markNow()
+        semantic = AppGraph.engine.semanticSearch(needle, SEMANTIC_CANDIDATE_LIMIT)
+        semanticQuery = needle
+        println(
+            "SMART search: ${semantic.size} local candidates in " +
+                "${started.elapsedNow().inWholeMilliseconds} ms",
+        )
+    }
+
+    fun remember(queryToKeep: String) {
+        if (!rememberSearches) return
+        val operationRevision = ++recentOperationRevision
+        scope.launch {
+            try {
+                AppGraph.recentSearches.record(queryToKeep)
+                refreshRecent(operationRevision)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                // A failed write publishes no in-memory store change; leave the visible list alone.
+                println("Search: could not record recent search: $failure")
+            }
+        }
+    }
+
+    val accentInk = accent?.let { browseAccentInk(it) } ?: MaterialTheme.colorScheme.primary
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding(),
+        ) {
+            // A selection swaps the field for the contextual bar the other track lists show; the
+            // query stays, and returns with the field once the selection ends.
+            AnimatedContent(
+                targetState = SelectionBarPresentation(
+                    selecting = selectionMode,
+                    count = selectedTrackIds.size,
+                    allSelected = false,
+                    commands = selectionCommands,
+                ),
+                contentKey = { it.selecting },
+                transitionSpec = { motionFadeThrough(reduceMotion) },
+                label = "search-contextual-app-bar",
+            ) { bar ->
+            Box(
+                modifier = Modifier.fillMaxWidth().inactiveForMotion(bar.selecting != selectionMode),
+            ) {
+            if (bar.selecting) {
+                SelectionTopAppBar(
+                    count = bar.count,
+                    allSelected = bar.allSelected,
+                    commands = bar.commands,
+                    onClose = onClearSelection,
+                    // Search has no "all" of its own to offer: results change with every keystroke.
+                    onToggleAll = null,
+                    // The field's 48 dp and its padding: the results stay put as the bars swap.
+                    modifier = Modifier.heightIn(min = 64.dp),
+                )
+            } else {
+            SearchNavigationBar(
+                progress = openProgress,
+                origin = buttonBounds,
+                onClose = ::closeSearch,
+            ) {
+                    BasicTextField(
+                        value = queryField,
+                        onValueChange = { queryField = it },
+                        enabled = active && readyForInput,
+                        modifier = Modifier.weight(1f).padding(start = 14.dp)
+                            .heightIn(min = 48.dp).focusRequester(focusRequester),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                        ).metadata(),
+                        cursorBrush = SolidColor(accentInk),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = {
+                            focusManager.clearFocus()
+                            remember(query)
+                        }),
+                        decorationBox = { editor ->
+                            Box(contentAlignment = Alignment.CenterStart) {
+                                if (query.isEmpty()) {
+                                    Text(
+                                        text = stringResource(Res.string.search_placeholder),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                    )
+                                }
+                                editor()
+                            }
+                        },
+                    )
+                    AnimatedContent(
+                        targetState = query.isNotEmpty(),
+                        transitionSpec = { motionIconTransform(reduceMotion) },
+                        label = "clear-query",
+                    ) { showClear ->
+                        // Reserve the same slot in both states so the query never shifts.
+                        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                            if (showClear) {
+                                IconButton(onClick = { queryField = TextFieldValue("") }, modifier = Modifier.size(48.dp)) {
+                                    Icon(
+                                        Icons.Rounded.Close,
+                                        contentDescription = stringResource(Res.string.cd_clear_query),
+                                    )
+                                }
+                            }
+                        }
+                    }
+            }
+            }
+            }
+            }
+
+            val trimmedQuery = query.trim()
+            val searchPending = query.isNotBlank() &&
+                (isSearching || resultQuery != trimmedQuery)
+            var showSearchProgress by remember { mutableStateOf(false) }
+            val lyricsPending = indexingLyrics && trimmedQuery.length >= 3
+            LaunchedEffect(searchPending, lyricsPending, trimmedQuery) {
+                showSearchProgress = false
+                if (searchPending || lyricsPending) {
+                    // Most local metadata searches finish within a frame. Only disclose work that
+                    // lasts long enough to be perceived, otherwise the spinner itself is flicker.
+                    delay(SEARCH_PROGRESS_DELAY_MS)
+                    showSearchProgress = true
+                }
+            }
+            val contentMode = when {
+                // Preserve the last settled answer while a replacement is calculated. Its actions
+                // are freshness-gated below, and a thin progress line communicates the refresh.
+                searchPending && resultQuery.isNotBlank() -> if (results.isEmpty()) {
+                    SearchContentMode.NoMatches
+                } else {
+                    SearchContentMode.Results
+                }
+                searchPending && showSearchProgress -> SearchContentMode.Loading
+                searchPending && recent.isNotEmpty() -> SearchContentMode.Recent
+                searchPending -> SearchContentMode.Blank
+                lyricsPending && results.isEmpty() -> SearchContentMode.Loading
+                query.isNotBlank() && results.isEmpty() -> SearchContentMode.NoMatches
+                query.isNotBlank() -> SearchContentMode.Results
+                recent.isNotEmpty() -> SearchContentMode.Recent
+                else -> SearchContentMode.Blank
+            }
+            // The mode is deliberately the animation key. Results can be recomputed or reordered
+            // many times while somebody types; those updates stay immediate instead of repeatedly
+            // fading the whole list. Only a meaningful content-state boundary gets motion.
+            val presentation = SearchPresentation(
+                mode = contentMode,
+                query = if (searchPending && resultQuery.isNotBlank()) {
+                    resultQuery
+                } else {
+                    trimmedQuery
+                },
+                results = results,
+                lyricSnippets = lyricSnippets,
+                recent = recent,
+            )
+            // Keep the query marker beside the saveable list state, outside transient content
+            // modes. Returning from the player must not turn a restored query into a new search.
+            // A changed/cleared query still starts from the best match; late semantic results
+            // for the same query preserve the reader's position.
+            LaunchedEffect(presentation.query) {
+                if (resultScrollQuery != presentation.query) {
+                    resultsListState.scrollToItem(0)
+                    resultScrollQuery = presentation.query
+                }
+            }
+            Box(modifier = Modifier.fillMaxWidth().weight(1f).graphicsLayer {
+                val p = if (reduceMotion) 1f else navigationPhase(openProgress(), 0.45f, 1f)
+                alpha = p
+                translationY = 12.dp.toPx() * (1f - p)
+            }) {
+                AnimatedContent(
+                    targetState = presentation,
+                    contentKey = { it.mode },
+                    transitionSpec = { motionFadeThrough(reduceMotion) },
+                    modifier = Modifier.fillMaxSize(),
+                    label = "search-content-mode",
+                ) { shown ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .inactiveForMotion(shown.mode != presentation.mode),
+                ) {
+                when (shown.mode) {
+                    SearchContentMode.Loading -> SearchLoading()
+
+                    SearchContentMode.NoMatches ->
+                        CenteredHint(stringResource(Res.string.search_no_matches, bidiWrap(shown.query)))
+
+                    SearchContentMode.Results -> LazyColumn(
+                        state = resultsListState,
+                        modifier = Modifier.fillMaxSize().fadingListTop { resultsListState.canScrollBackward },
+                        contentPadding = PaddingValues(bottom = bottomInset),
+                    ) {
+                        item(key = "result-count", contentType = "result-count") {
+                            Text(
+                                text = pluralStringResource(
+                                    Res.plurals.count_tracks, shown.results.size, shown.results.size,
+                                ).uppercaseForDisplay(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    letterSpacing = 0.4.sp,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 8.dp),
+                            )
+                        }
+                        // Do not use animateItem here: search rank is allowed to change while the
+                        // query and semantic expansion settle, and rows chasing their old position
+                        // would make typing feel unstable.
+                        itemsIndexed(
+                            shown.results,
+                            key = { _, track -> track.id.value },
+                            contentType = { _, _ -> "search-track" },
+                        ) { index, track ->
+                            TrackRow(
+                                track = track,
+                                currentAccent = accentInk,
+                                showDuration = false,
+                                isCurrent = track.id == currentTrackId,
+                                isPlaying = currentTrackPlaying,
+                                highlightQuery = shown.query,
+                                lyricSnippet = shown.lyricSnippets[track.id],
+                                onClick = {
+                                    // A pending query deliberately keeps the settled snapshot
+                                    // usable. The visible row therefore plays the visible queue,
+                                    // rather than accepting a tap that silently does nothing.
+                                    if (selectionMode) {
+                                        onToggleSelection(track)
+                                    } else {
+                                        remember(shown.query)
+                                        AppGraph.queueSource.value = QueueSource(
+                                            QueueSourceKind.SEARCH,
+                                            shown.query.takeIf { it.isNotEmpty() },
+                                        )
+                                        onPlay(shown.results, index)
+                                    }
+                                },
+                                onLongClick = {
+                                    if (selectionMode) {
+                                        onToggleSelection(track)
+                                    } else {
+                                        onStartSelection(track)
+                                    }
+                                },
+                                selectionState =
+                                    if (selectionMode) track.id in selectedTrackIds else null,
+                                onMenu = if (selectionMode) {
+                                    null
+                                } else {
+                                    { onTrackMenu(track) }
+                                },
+                            )
+                        }
+                    }
+
+                    SearchContentMode.Recent -> RecentSearchList(
+                        recent = shown.recent,
+                        bottomInset = bottomInset,
+                        onPick = { picked ->
+                            queryField = TextFieldValue(picked, selection = TextRange(picked.length))
+                            focusManager.clearFocus()
+                            remember(picked)
+                        },
+                        onRemove = { removed ->
+                            val operationRevision = ++recentOperationRevision
+                            scope.launch {
+                                try {
+                                    AppGraph.recentSearches.remove(removed)
+                                    refreshRecent(operationRevision)
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (failure: Throwable) {
+                                    println("Search: could not remove recent search: $failure")
+                                }
+                            }
+                        },
+                        onClearAll = {
+                            val operationRevision = ++recentOperationRevision
+                            scope.launch {
+                                try {
+                                    AppGraph.recentSearches.clear()
+                                    refreshRecent(operationRevision)
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (failure: Throwable) {
+                                    println("Search: could not clear recent searches: $failure")
+                                }
+                            }
+                        },
+                    )
+
+                    SearchContentMode.Blank -> CenteredHint(
+                        pluralStringResource(
+                            Res.plurals.search_hint_count,
+                            songs.size,
+                            songs.size,
+                        ),
+                    )
+                }
+                }
+                }
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = (searchPending || lyricsPending) && showSearchProgress && results.isNotEmpty(),
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    enter = androidx.compose.animation.fadeIn(tween(
+                        if (reduceMotion) Motion.REDUCED_MS else Motion.QUICK_MS,
+                    )),
+                    exit = androidx.compose.animation.fadeOut(tween(
+                        if (reduceMotion) Motion.REDUCED_MS else Motion.QUICK_MS,
+                    )),
+                ) {
+                    AppLinearProgress(
+                        modifier = Modifier.fillMaxWidth().height(2.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private enum class SearchContentMode {
+    Blank,
+    Recent,
+    Loading,
+    NoMatches,
+    Results,
+}
+
+/** Payload retained with an outgoing mode so its exit never recomposes into empty content. */
+private data class SearchPresentation(
+    val mode: SearchContentMode,
+    val query: String,
+    val results: List<TrackDescriptor>,
+    val lyricSnippets: Map<TrackId, String>,
+    val recent: List<String>,
+)
+
+@Composable
+private fun RecentSearchList(
+    recent: List<String>,
+    bottomInset: Dp,
+    onPick: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    onClearAll: () -> Unit,
+) {
+    val reduceMotion = rememberReduceMotion()
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.search_recent_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onClearAll) { Text(stringResource(Res.string.action_clear)) }
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(16.dp.corner()),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
+            FadingLazyColumn(contentPadding = PaddingValues(bottom = bottomInset)) {
+                items(recent, key = { it }) { entry ->
+                    Row(
+                        modifier = Modifier
+                            .animateItem(
+                                fadeInSpec = tween(
+                                    if (reduceMotion) Motion.REDUCED_MS else Motion.APPEAR_MS,
+                                ),
+                                placementSpec = if (reduceMotion) {
+                                    null
+                                } else {
+                                    tween(Motion.APPEAR_MS)
+                                },
+                                fadeOutSpec = tween(
+                                    if (reduceMotion) Motion.REDUCED_MS else Motion.QUICK_MS,
+                                ),
+                            )
+                            .fillMaxWidth()
+                            .clickable { onPick(entry) }
+                            .padding(start = 20.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.History,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = entry,
+                            style = MaterialTheme.typography.bodyLarge.metadata(),
+                            modifier = Modifier.weight(1f).padding(vertical = 12.dp),
+                        )
+                        IconButton(onClick = { onRemove(entry) }, modifier = Modifier.size(48.dp)) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = stringResource(Res.string.cd_forget_search, entry),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CenteredHint(text: String) {
+    Box(modifier = Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun SearchLoading() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        AppSpinner()
+    }
+}
+
+/**
+ * The lyric tier of one search level: the tracks whose lyrics contain the phrase that level is
+ * looking for. A lookup rather than a set, because a year or decade in a query is a filter and not
+ * lyric text: the year branch recurses on the cleaned subject, and the texts must be searched for
+ * that subject, with its hits passing the same year filter as every other candidate.
+ */
+internal fun interface LyricHits {
+    fun matching(phrase: String): Set<TrackId>
+}
+
+/**
+ * The phrase whose lyrics answer [query]: a year or decade in the query is a filter, not lyric
+ * text, so "серебро 1985" searches the texts for "серебро" — the subject [hybridSearch]'s year
+ * branch itself recurses on — and then keeps those hits to 1985. A time-only query ("80s") keeps
+ * the query as written: it has no words to look for, and the year branch is what answers it.
+ */
+internal fun lyricSearchPhrase(query: String): String =
+    SearchYears.parse(query)?.subject?.takeIf { it.isNotBlank() } ?: query
+
+/**
+ * Exact search stays authoritative; cosine hits only expand it when the model is confident.
+ *
+ * [lyricMatches] answers for the query as written, which is all a caller holding one pre-matched
+ * phrase can say; pass [lyrics] instead when the texts can be looked up again, so a query naming a
+ * year or decade has its cleaned subject searched.
+ */
+internal fun hybridSearch(
+    songs: List<TrackDescriptor>,
+    query: String,
+    semantic: List<ScoredTrack>,
+    aliasMatches: (query: String, artist: String?) -> Boolean = { _, _ -> false },
+    stats: Map<TrackId, TrackStats> = emptyMap(),
+    nowMs: Long = 0L,
+    lyricMatches: Set<TrackId> = emptySet(),
+    lyrics: LyricHits? = null,
+): List<TrackDescriptor> = hybridSearch(
+    index = SearchIndex.build(songs),
+    query = query,
+    semantic = semantic,
+    aliasMatches = aliasMatches,
+    stats = stats,
+    nowMs = nowMs,
+    lyrics = lyrics ?: LyricHits { lyricMatches },
+)
+
+private fun hybridSearch(
+    index: SearchIndex,
+    query: String,
+    semantic: List<ScoredTrack>,
+    aliasMatches: (String, String?) -> Boolean,
+    stats: Map<TrackId, TrackStats> = emptyMap(),
+    nowMs: Long = 0L,
+    lyrics: LyricHits = LyricHits { emptySet() },
+    readYears: Boolean = true,
+    yearFilter: SearchYears? = null,
+    checkCancelled: () -> Unit = {},
+): List<TrackDescriptor> {
+    val needle = query.trim()
+    val normalizedNeedle = normalizeSearchText(needle)
+    if (normalizedNeedle.isEmpty()) return emptyList()
+    val lexical = lexicalRanking(index, normalizedNeedle, stats, nowMs, checkCancelled)
+    val (strong, weak) = lexical.partition { it.rank % QUALITY_SPAN <= 2 }
+
+    val years = if (readYears) SearchYears.parse(needle) else null
+    if (years != null) {
+        // "rock 80s", "песни 80-х", "1985": the rest of the query, kept to those years by the tags.
+        // A title or album that literally is the query ("1985", "Summer of '69") still leads.
+        val within = if (years.subject.isBlank()) {
+            index.songs.asSequence()
+                .onEach { checkCancelled() }
+                .filter(years::admits)
+                .sortedWith(
+                    compareByDescending<TrackDescriptor> { track ->
+                        val stat = stats[track.id]
+                        SearchAffinity.affinity(stat?.plays ?: 0, stat?.lastPlayedAtMs ?: 0L, nowMs)
+                    }.thenBy { it.title.orEmpty().lowercase() },
+                )
+                .toList()
+        } else {
+            // The recursion searches the cleaned subject and asks the lyric tier for that same
+            // subject, so "серебро 1985" looks for "серебро" instead of the whole phrase.
+            hybridSearch(
+                index, years.subject, semantic, aliasMatches, stats, nowMs, lyrics, readYears = false,
+                yearFilter = years,
+                checkCancelled = checkCancelled,
+            )
+        }
+        // Nothing from those years: the number was a name after all ("Taylor Swift 1989").
+        if (within.isNotEmpty()) {
+            return (strong.map { it.track } + within).distinctBy { it.id }.take(SEARCH_RESULT_LIMIT)
+        }
+    }
+
+    // A complete multi-word title names a recording, so typo-family and alias guesses are noise.
+    // With the artist or album named too ("eminem mockingbird") nothing else is meant. A bare
+    // title can also read as a description ("summer vibes"): a confident semantic cluster still
+    // follows its literal matches. Single-word queries such as "rock" keep every tier.
+    val queryTokens = searchTokens(normalizedNeedle)
+    val titleHits = if (queryTokens.size > 1) {
+        strong.filter { it.rank == 0 && yearFilter?.admits(it.track) != false }
+    } else {
+        emptyList()
+    }
+    val namesRecording = titleHits.isNotEmpty()
+    if (titleHits.any { !searchTokens(normalizeSearchText(it.track.title.orEmpty())).containsAll(queryTokens) }) {
+        return strong.asSequence().map { it.track }
+            .filter { yearFilter?.admits(it) != false }
+            .take(SEARCH_RESULT_LIMIT)
+            .toList()
+    }
+
+    val entities = index.songs.asSequence()
+        .onEach { checkCancelled() }
+        .filter { aliasMatches(needle, it.artist) }
+    val expanded = SemanticGate.gate(semantic) { candidate ->
+        checkCancelled()
+        yearFilter == null || index.byId[candidate.trackId]?.let(yearFilter::admits) == true
+    }.asSequence()
+        .onEach { checkCancelled() }
+        .mapNotNull { index.byId[it.trackId] }
+        .take(SEMANTIC_RESULT_LIMIT)
+
+    // The lyric tier answers for this level's own phrase: under a year query that is the cleaned
+    // subject, and its hits pass the year filter below like any other candidate.
+    val lyricHits = lyrics.matching(needle)
+
+    // An alias hit is knowledge, not chance: "tsoi" resolving to Кино through the MusicBrainz
+    // member index is an exact identification and belongs above typo-family and bare-substring
+    // guesses — the reported failure had every Кино track buried under "Can\u2019t Stop"-grade
+    // fuzz. Confident lexical tiers (exact, prefix, token-prefix) still lead.
+    return (
+        strong.asSequence().map { it.track } +
+            (if (namesRecording) emptySequence() else entities) +
+            index.songs.asSequence().filter { it.id in lyricHits } +
+            (if (namesRecording) emptySequence() else weak.asSequence().map { it.track }) +
+            expanded
+        )
+        // Constrain candidates before the cap: newer matches must not crowd out older songs
+        // when the subject is common (e.g. "rock 80s" in a large library).
+        .filter { yearFilter?.admits(it) != false }
+        .distinctBy { it.id }
+        .take(SEARCH_RESULT_LIMIT)
+        .toList()
+}
+
+/**
+ * Within a lexical-rank tier, order by play affinity (plays × recency decay) then name — a
+ * frequently/recently played match floats to the top of its group. The rank itself keeps the
+ * exact/prefix tiers pinned above deeper substring/fuzzy matches, so an exact title is never
+ * buried under a more-played substring hit.
+ */
+private fun lexicalRanking(
+    index: SearchIndex,
+    normalizedNeedle: String,
+    stats: Map<TrackId, TrackStats>,
+    nowMs: Long,
+    checkCancelled: () -> Unit,
+): List<RankedTrack> {
+    val queryTokens = searchTokens(normalizedNeedle)
+    return index.documents.mapIndexedNotNull { documentIndex, document ->
+        if (documentIndex % CANCELLATION_CHECK_INTERVAL == 0) checkCancelled()
+        document.lexicalRank(normalizedNeedle, queryTokens)?.let { rank ->
+            val stat = stats[document.track.id]
+            RankedTrack(
+                track = document.track,
+                rank = rank,
+                affinity = SearchAffinity.affinity(stat?.plays ?: 0, stat?.lastPlayedAtMs ?: 0L, nowMs),
+                nameKey = document.fields.firstOrNull { it != null } ?: "",
+                libraryOrder = document.libraryOrder,
+            )
+        }
+    }.sortedWith(
+        compareBy<RankedTrack> { it.rank }
+            .thenByDescending { it.affinity }
+            .thenBy { it.nameKey }
+            .thenBy { it.libraryOrder },
+    )
+}
+
+/**
+ * Confidence gate for the semantic ("Sounds like") tier, ported from the validated absolute rule:
+ * show the section only when `cos_top1 >= MIN_TOP1` AND `cos_top1 − mean(cos[BG_LO:BG_HI]) >=
+ * MIN_MARGIN`. The margin against the deep background band — not the near neighbours — is what kills
+ * diffuse "blob" false positives (a diffuse match has a high background mean; a real cluster sits
+ * far above its tail). With fewer than [BG_HI] scored candidates the band can't be measured, so the
+ * section declines rather than guess. [ranked] must be sorted by score descending (as the engine
+ * returns it); when the gate fires the top [TOP_K] eligible rows are shown. A year restriction
+ * filters before that cap, and its own best match must clear the confidence gate against the
+ * original background. Strong matches from other years cannot lend it false confidence. Eligible
+ * rows come only from above the background band: below it they are the noise the gate measures.
+ */
+internal object SemanticGate {
+    const val MIN_TOP1 = 0.45f
+    const val MIN_MARGIN = 0.22f
+    const val BG_LO = 50
+    const val BG_HI = 150
+    const val TOP_K = 10
+
+    fun gate(
+        ranked: List<ScoredTrack>,
+        eligible: (ScoredTrack) -> Boolean = { true },
+    ): List<ScoredTrack> {
+        if (ranked.size < BG_HI) return emptyList()
+        val candidates = ranked.asSequence().take(BG_LO).filter(eligible).take(TOP_K).toList()
+        val top1 = candidates.firstOrNull()?.score ?: return emptyList()
+        var bgSum = 0.0
+        for (i in BG_LO until BG_HI) bgSum += ranked[i].score
+        val bgMean = (bgSum / (BG_HI - BG_LO)).toFloat()
+        if (top1 < MIN_TOP1 || top1 - bgMean < MIN_MARGIN) return emptyList()
+        return candidates
+    }
+}
+
+/**
+ * Affinity for a lexical result group: `plays × 2^(−ageDays / HALF_LIFE_DAYS)`. Recent plays count
+ * for more, and a never-played track scores exactly 0 so unheard matches keep their alphabetical
+ * order among themselves.
+ */
+internal object SearchAffinity {
+    const val HALF_LIFE_DAYS = 30.0
+    private const val DAY_MS = 24L * 60L * 60L * 1000L
+
+    fun affinity(plays: Int, lastPlayedAtMs: Long, nowMs: Long): Double {
+        if (plays <= 0) return 0.0
+        val ageDays = ((nowMs - lastPlayedAtMs).coerceAtLeast(0L)).toDouble() / DAY_MS
+        return plays * 2.0.pow(-ageDays / HALF_LIFE_DAYS)
+    }
+}
+
+/**
+ * Field-major rank: WHERE the query matched outranks HOW well it matched. A query in the TITLE
+ * beats any artist/album match, which beats a genre match — someone typing "young" wants
+ * "Forever Young" before the discography of an artist named Young. Within a field tier the
+ * match quality orders as before: 0 exact, 1 prefix, 2 token-prefix, 3 word-family/typo,
+ * 4 substring. Smaller is better; null is no match anywhere.
+ */
+private fun SearchDocument.lexicalRank(
+    normalizedNeedle: String,
+    queryTokens: List<String>,
+): Int? {
+    var best: Int? = null
+    for (fieldIndex in fields.indices) {
+        val field = fields[fieldIndex] ?: continue
+        val quality = fieldQuality(field, fieldTokens[fieldIndex], normalizedNeedle, queryTokens)
+            ?: continue
+        val rank = FIELD_TIERS[fieldIndex] * QUALITY_SPAN + quality
+        if (best == null || rank < best) best = rank
+    }
+    // A recording query can span metadata fields: "eminem mockingbird" must match
+    // artist + title. Genre is excluded so an unrelated genre tag cannot identify a song.
+    if (queryTokens.size > 1) {
+        val identityTokens = fieldTokens.take(3).flatten()
+        if (queryTokens.all { query -> identityTokens.any { it.startsWith(query) } }) {
+            val titleTokens = fieldTokens[0]
+            val completeTitle = titleTokens.isNotEmpty() && titleTokens.all { it in queryTokens }
+            val touchesTitle = queryTokens.any { query -> titleTokens.any { it.startsWith(query) } }
+            val rank = when {
+                completeTitle -> 0
+                touchesTitle -> 2
+                else -> QUALITY_SPAN + 2
+            }
+            if (best == null || rank < best) best = rank
+        }
+    }
+    return best
+}
+
+/** Title first; artist and album share a tier ("or" in the spec is deliberate); genre last. */
+private val FIELD_TIERS = intArrayOf(0, 1, 1, 2)
+private const val QUALITY_SPAN = 5
+
+private fun fieldQuality(
+    field: String,
+    tokens: List<String>,
+    normalizedNeedle: String,
+    queryTokens: List<String>,
+): Int? {
+    if (field == normalizedNeedle) return 0
+    if (field.startsWith(normalizedNeedle)) return 1
+    if (tokens.any { it.startsWith(normalizedNeedle) }) return 2
+    if (queryTokens.isNotEmpty() &&
+        queryTokens.all { queryToken ->
+            tokens.any { fieldToken -> relatedSearchTokens(queryToken, fieldToken) }
+        }
+    ) {
+        return 3
+    }
+    if (field.contains(normalizedNeedle)) return 4
+    return null
+}
+
+// Fold first (NFD diacritic strip + Cyrillic→Latin transliteration, applied symmetrically to the
+// index and the query), then collapse the folded text to single-spaced alphanumeric tokens. The
+// fold is what lets a Latin-keyboard query reach non-Latin metadata; the collapse keeps the tokens
+// and edit-distance inputs the fuzzy matcher already expects.
+internal fun normalizeSearchText(value: String): String = buildString(value.length) {
+    var previousSpace = true
+    SearchFold.fold(value).forEach { character ->
+        when {
+            character.isLetterOrDigit() -> {
+                append(character)
+                previousSpace = false
+            }
+            !previousSpace -> {
+                append(' ')
+                previousSpace = true
+            }
+        }
+    }
+    if (isNotEmpty() && last() == ' ') setLength(length - 1)
+}
+
+private fun searchTokens(value: String): List<String> =
+    value.split(' ').filter { it.isNotBlank() }
+
+private fun relatedSearchTokens(queryToken: String, fieldToken: String): Boolean {
+    if (queryToken == fieldToken) return true
+    // Typing progressively: the query being a prefix of a real word is kinship at any length.
+    if (fieldToken.startsWith(queryToken)) return true
+    // The reverse only counts when the field token is a word, not an initial: a 1-2 letter
+    // token ("t" from "Mousse T.") would otherwise claim kinship with EVERY query it starts.
+    if (fieldToken.length >= 3 && queryToken.startsWith(fieldToken)) return true
+    if (queryToken.length < 4 || fieldToken.length < 4 ||
+        queryToken.first() != fieldToken.first()
+    ) {
+        return false
+    }
+    val allowedEdits = if (maxOf(queryToken.length, fieldToken.length) >= 8) 2 else 1
+    return editDistanceAtMost(queryToken, fieldToken, allowedEdits)
+}
+
+private fun editDistanceAtMost(left: String, right: String, limit: Int): Boolean {
+    if (kotlin.math.abs(left.length - right.length) > limit) return false
+    var previous = IntArray(right.length + 1) { it }
+    for (leftIndex in left.indices) {
+        val current = IntArray(right.length + 1)
+        current[0] = leftIndex + 1
+        var rowMinimum = current[0]
+        for (rightIndex in right.indices) {
+            current[rightIndex + 1] = minOf(
+                current[rightIndex] + 1,
+                previous[rightIndex + 1] + 1,
+                previous[rightIndex] + if (left[leftIndex] == right[rightIndex]) 0 else 1,
+            )
+            rowMinimum = minOf(rowMinimum, current[rightIndex + 1])
+        }
+        if (rowMinimum > limit) return false
+        previous = current
+    }
+    return previous[right.length] <= limit
+}
+
+private data class RankedTrack(
+    val track: TrackDescriptor,
+    val rank: Int,
+    val affinity: Double,
+    val nameKey: String,
+    val libraryOrder: Int,
+)
+
+private data class SearchDocument(
+    val track: TrackDescriptor,
+    val fields: List<String?>,
+    val fieldTokens: List<List<String>>,
+    val libraryOrder: Int,
+)
+
+private class SearchIndex private constructor(
+    val songs: List<TrackDescriptor>,
+    val documents: List<SearchDocument>,
+    val byId: Map<TrackId, TrackDescriptor>,
+) {
+    companion object {
+        fun build(songs: List<TrackDescriptor>): SearchIndex {
+            val documents = songs.mapIndexed { index, track ->
+                // POSITIONAL on purpose: index 0 is always the title, 1 the artist, 2 the album,
+                // 3 the genre — the rank is field-major and must know which field matched.
+                val fields = listOf(track.title, track.artist, track.album, track.genre)
+                    .map { value -> value?.let(::normalizeSearchText)?.takeIf { it.isNotEmpty() } }
+                SearchDocument(
+                    track = track,
+                    fields = fields,
+                    fieldTokens = fields.map { it?.let(::searchTokens).orEmpty() },
+                    libraryOrder = index,
+                )
+            }
+            return SearchIndex(songs, documents, songs.associateBy { it.id })
+        }
+    }
+}
+
+private const val MIN_SEMANTIC_QUERY_CHARS = 2
+private const val SEMANTIC_DEBOUNCE_MS = 180L
+
+/** Avoid flashing progress UI for local searches that complete before somebody can perceive it. */
+private const val SEARCH_PROGRESS_DELAY_MS = 140L
+// The confidence gate measures a background band up to rank [SemanticGate.BG_HI]; fetch enough
+// candidates to fill it, or the section always declines. 200 gives the band real headroom.
+private const val SEMANTIC_CANDIDATE_LIMIT = 200
+private const val SEMANTIC_RESULT_LIMIT = 24
+private const val SEARCH_RESULT_LIMIT = 80
+private const val CANCELLATION_CHECK_INTERVAL = 32

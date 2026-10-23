@@ -1,0 +1,26 @@
+{
+  "NOTICES.txt": {
+    "sha256": "5f9ff982ee1fd107f694eda26b3a7e84606311a23cf74ec0814fd46e6a96c638",
+    "bytes": 808
+  },
+  "calibrators.json": {
+    "sha256": "cbfec3769831012b9172580c65392c9363bb32448ebcf3fb522308edcc9ab8f1",
+    "bytes": 280496
+  },
+  "manifest.json": {
+    "sha256": "a2c93905c9536f2c449f660cca5877b2fe80d3161a092ad0d3c1478a3d85b21c",
+    "bytes": 3861
+  },
+  "reference-vector.npz": {
+    "sha256": "dedf469071e5aa5272c9aa47ba614df30102663a09f9ef1aa76e00d4cae6f90c",
+    "bytes": 713141
+  },
+  "riff-level2-efficientat-eval-v2.tflite": {
+    "sha256": "8819c2b3723d448dc63e92c12135a57eab00a3f867697439e4eb327bc6f32813",
+    "bytes": 28241012
+  },
+  "validation-report.json": {
+    "sha256": "6eced13fd07fb8bdb82e7706a8f2a3ba9758bce41a6f3f7d72044a5cf7cc647a",
+    "bytes": 4327
+  }
+}

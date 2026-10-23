@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <provider
+            android:name="link.roadio.riff.indexer.android.level0.FixtureDocumentsProvider"
+            android:authorities="${applicationId}.fixture.documents"
+            android:exported="false" />
+        <provider
+            android:name="link.roadio.riff.indexer.android.cuetree.SafProbeDocumentsProvider"
+            android:authorities="${applicationId}.safprobe.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS" />
+    </application>
+</manifest>

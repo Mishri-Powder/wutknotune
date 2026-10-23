@@ -1,0 +1,1 @@
+-keep class link.roadio.cuegrain.ced.CedEncodingDetector { *; }

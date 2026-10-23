@@ -1,0 +1,574 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cuegrain JSON schema version 1",
+  "description": "Read-only reports and CLI envelopes. Source arrays preserve competing and repeated provenance.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/report"
+    },
+    {
+      "$ref": "#/$defs/results"
+    },
+    {
+      "$ref": "#/$defs/help"
+    },
+    {
+      "$ref": "#/$defs/version"
+    },
+    {
+      "$ref": "#/$defs/error"
+    }
+  ],
+  "$defs": {
+    "time": {
+      "type": "object",
+      "properties": {
+        "ticks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timescale": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": ["ticks", "timescale"]
+    },
+    "position": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "time": {
+          "$ref": "#/$defs/time"
+        }
+      },
+      "required": ["file", "time"]
+    },
+    "tag": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "original": {
+          "type": "string"
+        },
+        "location": {
+          "type": ["string", "null"]
+        },
+        "formatKey": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["key", "value", "original", "location"]
+    },
+    "gain": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "raw": {
+          "type": "string"
+        },
+        "reference": {
+          "type": ["number", "null"]
+        },
+        "referenceUnit": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["kind", "scope", "value", "unit", "key", "raw", "reference", "referenceUnit"]
+    },
+    "artwork": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "type": {
+          "type": ["integer", "null"]
+        },
+        "description": {
+          "type": ["string", "null"]
+        },
+        "size": {
+          "type": ["integer", "null"]
+        },
+        "externalUrl": {
+          "type": ["string", "null"]
+        },
+        "base64": {
+          "type": "string",
+          "contentEncoding": "base64"
+        },
+        "frameIndex": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      },
+      "required": ["id", "mimeType", "type", "description", "size", "externalUrl"]
+    },
+    "file": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "declaredType": {
+          "type": ["string", "null"]
+        },
+        "resolvedInput": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["id", "path", "declaredType", "resolvedInput"]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "riffMetric": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "confidence": {
+          "type": ["number", "null"]
+        }
+      },
+      "required": ["value", "confidence"]
+    },
+    "riffFeatures": {
+      "type": "object",
+      "properties": {
+        "arousal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/riffMetric"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/riffMetric"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pte": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/riffMetric"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "genres": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": ["number", "null"]
+              }
+            },
+            "required": ["value", "confidence"]
+          }
+        }
+      },
+      "required": ["arousal", "valence", "pte", "genres"]
+    },
+    "entry": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "number": {
+          "type": ["integer", "null"]
+        },
+        "kind": {
+          "type": "string"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/position"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/position"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "endOrigin": {
+          "type": ["string", "null"]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tag"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "riffFeatures": {
+          "$ref": "#/$defs/riffFeatures"
+        },
+        "gains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gain"
+          }
+        },
+        "indexes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer"
+              },
+              "position": {
+                "$ref": "#/$defs/position"
+              }
+            },
+            "required": ["number", "position"]
+          }
+        },
+        "pregap": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "postgap": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        },
+        "artwork": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artwork"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "number",
+        "kind",
+        "start",
+        "end",
+        "endOrigin",
+        "tags",
+        "metadata",
+        "riffFeatures",
+        "gains",
+        "indexes",
+        "pregap",
+        "postgap",
+        "attributes",
+        "artwork"
+      ]
+    },
+    "table": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "ordered": {
+          "type": "boolean"
+        },
+        "root": {
+          "type": "boolean"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tag"
+          }
+        }
+      },
+      "required": ["id", "ordered", "root", "children", "tags"]
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tag"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "riffFeatures": {
+          "$ref": "#/$defs/riffFeatures"
+        },
+        "gains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gain"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/file"
+          }
+        },
+        "artwork": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artwork"
+          }
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entry"
+          }
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/table"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "location",
+        "tags",
+        "metadata",
+        "riffFeatures",
+        "gains",
+        "files",
+        "artwork",
+        "attributes",
+        "entries",
+        "tables"
+      ]
+    },
+    "diagnostic": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": ["info", "warning", "error"]
+        },
+        "source": {
+          "type": "string"
+        },
+        "location": {
+          "type": ["string", "null"]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": ["code", "severity", "source", "location", "message"]
+    },
+    "report": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "input": {
+          "type": "string"
+        },
+        "status": {
+          "enum": ["ok", "partial", "error"]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        }
+      },
+      "required": ["schemaVersion", "input", "status", "sources", "diagnostics"]
+    },
+    "results": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "ced": {
+          "type": "boolean"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/report"
+          }
+        }
+      },
+      "required": ["schemaVersion", "ced", "results"]
+    },
+    "help": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "name": {
+          "const": "cuegrain"
+        },
+        "usage": {
+          "type": "string"
+        },
+        "readOnly": {
+          "const": true
+        },
+        "output": {
+          "const": "JSON"
+        },
+        "exitCodes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["schemaVersion", "name", "usage", "readOnly", "output", "exitCodes"]
+    },
+    "version": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "name": {
+          "const": "cuegrain"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": ["schemaVersion", "name", "version"]
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": ["code", "message"]
+        }
+      },
+      "required": ["schemaVersion", "error"]
+    }
+  }
+}

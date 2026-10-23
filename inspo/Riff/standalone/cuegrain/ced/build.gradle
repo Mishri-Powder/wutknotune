@@ -1,0 +1,22 @@
+plugins { id 'java-library'; id 'maven-publish' }
+dependencies { api project(':core') }
+def nativeOutput = layout.buildDirectory.dir('native')
+def cmake = providers.gradleProperty('cmakeExecutable').orElse('cmake')
+tasks.register('configureNative', Exec) {
+    inputs.files(fileTree('native'), fileTree('vendor'))
+    outputs.file(nativeOutput.map { it.file('CMakeCache.txt') })
+    environment 'JAVA_HOME', System.getProperty('java.home')
+    commandLine cmake.get(), '-S', file('native'), '-B', nativeOutput.get().asFile, '-DCMAKE_BUILD_TYPE=Release'
+}
+tasks.register('buildNative', Exec) {
+    dependsOn 'configureNative'
+    inputs.files(fileTree('native'), fileTree('vendor'))
+    outputs.file(nativeOutput.map { it.file(System.mapLibraryName('cuegrain_ced')) })
+    commandLine cmake.get(), '--build', nativeOutput.get().asFile, '--parallel', '2'
+}
+tasks.named('processResources') {
+    dependsOn 'buildNative'
+    from(nativeOutput) { include System.mapLibraryName('cuegrain_ced'); into 'native' }
+}
+java { withSourcesJar() }
+publishing { publications { library(MavenPublication) { from components.java; artifactId='cuegrain-ced' } } }

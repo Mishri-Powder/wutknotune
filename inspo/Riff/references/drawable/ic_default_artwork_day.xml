@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Default media artwork — day theme (option 2a: sonar rings + Cruzeiro do Sul) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <!-- Background -->
+    <path
+        android:fillColor="#F7F3EA"
+        android:pathData="M0,0 H512 V512 H0 Z" />
+
+    <!-- Sonar rings (outermost to innermost) -->
+    <path
+        android:strokeColor="#E3EAE5"
+        android:strokeWidth="2"
+        android:pathData="M-39,256 A295,295 0 1,1 551,256 A295,295 0 1,1 -39,256 Z" />
+    <path
+        android:strokeColor="#D7E2DA"
+        android:strokeWidth="2"
+        android:pathData="M31,256 A225,225 0 1,1 481,256 A225,225 0 1,1 31,256 Z" />
+    <path
+        android:strokeColor="#C7D6CB"
+        android:strokeWidth="2"
+        android:pathData="M91,256 A165,165 0 1,1 421,256 A165,165 0 1,1 91,256 Z" />
+    <path
+        android:strokeColor="#B7CABD"
+        android:strokeWidth="2"
+        android:pathData="M146,256 A110,110 0 1,1 366,256 A110,110 0 1,1 146,256 Z" />
+    <path
+        android:strokeColor="#AAC0B1"
+        android:strokeWidth="2"
+        android:pathData="M196,256 A60,60 0 1,1 316,256 A60,60 0 1,1 196,256 Z" />
+
+    <!-- Center dot -->
+    <path
+        android:fillColor="#B49E58"
+        android:pathData="M239,256 A17,17 0 1,1 273,256 A17,17 0 1,1 239,256 Z" />
+
+    <!-- Cruzeiro do Sul -->
+    <path
+        android:fillColor="#6E809D"
+        android:pathData="M344,100 A4,4 0 1,1 352,100 A4,4 0 1,1 344,100 Z" />
+    <path
+        android:fillColor="#6E809D"
+        android:pathData="M338,212.5 A4.5,4.5 0 1,1 347,212.5 A4.5,4.5 0 1,1 338,212.5 Z" />
+    <path
+        android:fillColor="#6E809D"
+        android:pathData="M292,152 A4,4 0 1,1 300,152 A4,4 0 1,1 292,152 Z" />
+    <path
+        android:fillColor="#6E809D"
+        android:pathData="M396,137.5 A3.5,3.5 0 1,1 403,137.5 A3.5,3.5 0 1,1 396,137.5 Z" />
+    <path
+        android:fillColor="#8391A8"
+        android:pathData="M372,164.5 A2.5,2.5 0 1,1 377,164.5 A2.5,2.5 0 1,1 372,164.5 Z" />
+</vector>

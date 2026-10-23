@@ -1,0 +1,32 @@
+{
+  "slug": "albums-singles-fsm",
+  "sources": {
+    "en": "docs/Riff/LATEST/albums-singles-fsm-en.md",
+    "ru": "docs/Riff/LATEST/albums-singles-fsm-ru.md"
+  },
+  "summaries": {
+    "en": "Implemented album/Singles classification: retained weights, filename ordinals, version bases, DJ-set evidence, FILF and publication TTL.",
+    "ru": "Реализованная классификация альбомов и Singles: прежние веса, нумерация имён, основы версий, признаки DJ-сетов, FILF и TTL публикаций."
+  },
+  "assets": [
+    {
+      "source": "tools/website/assets/singles-fsm-en.svg",
+      "target": "assets/singles-fsm-en.90fcc8034f77.svg"
+    },
+    {
+      "source": "tools/website/assets/singles-fsm-ru.svg",
+      "target": "assets/singles-fsm-ru.30df3096ca60.svg"
+    },
+    {
+      "source": "tools/website/assets/singles-fsm.css",
+      "target": "assets/singles-fsm.64621d6370fa.css"
+    }
+  ],
+  "stylesheets": [
+    "/assets/singles-fsm.64621d6370fa.css"
+  ],
+  "homepageTopicSummary": {
+    "en": "Everyday listening, Player and Indexer communication, probabilistic selection, and album / Singles mechanics in Riff 1.0.0.",
+    "ru": "Прослушивание без неожиданностей, Player и Indexer, вероятностный подбор и механика альбомов / Singles в Riff 1.0.0."
+  }
+}

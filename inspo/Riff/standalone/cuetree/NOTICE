@@ -1,0 +1,7 @@
+Cuetree
+Copyright 2026 Cuetree contributors
+
+Gradle wrapper is Copyright Gradle, Inc., Apache-2.0.
+Cuetree consumes Cuegrain and hash4j as external Apache-2.0 libraries.
+The unmodified FlatBuffers Java runtime sources and their license are bundled
+under third_party/flatbuffers. No Riff implementation is incorporated.

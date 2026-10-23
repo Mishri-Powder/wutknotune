@@ -1,0 +1,920 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2026 LatentJam Project
+  SPDX-License-Identifier: Apache-2.0
+
+  Brazilian Portuguese translation of values/strings.xml.
+
+  Placeholders are POSITIONAL (%1$s / %1$d) and keep their numbers.
+  Apostrophes and quotation marks are written RAW: Compose Multiplatform only
+  unescapes \uXXXX, \n, \t and \\, so a backslash would reach the UI.
+  "LatentJam" and "SMART" are names and stay untranslated.
+
+  Terminology follows real players (Spotify, YouTube Music, Apple Music):
+  música, fila, ordem aleatória, playlist, biblioteca.
+  Quotation marks are the Brazilian curly double quotes “…”.
+-->
+<resources>
+
+    <!-- ============================================================ actions -->
+    <string name="action_play">Reproduzir</string>
+    <string name="action_pause">Pausar</string>
+    <string name="action_next">Próxima</string>
+    <string name="action_previous">Anterior</string>
+    <string name="action_shuffle">Ordem aleatória</string>
+    <string name="action_close">Fechar</string>
+    <string name="action_back">Voltar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Excluir</string>
+    <string name="action_rename">Renomear</string>
+    <string name="action_clear">Limpar</string>
+    <string name="action_track_options">Opções da música</string>
+    <string name="action_create">Criar</string>
+    <string name="action_play_all">Reproduzir tudo</string>
+    <string name="action_shuffle_all">Reproduzir tudo em ordem aleatória</string>
+    <string name="action_share">Compartilhar</string>
+    <string name="action_select_all">Selecionar tudo</string>
+    <string name="action_deselect_all">Desmarcar tudo</string>
+    <string name="selection_count">Faixas selecionadas: %1$d</string>
+    <string name="action_add">Adicionar</string>
+    <string name="cd_more_options">Mais opções</string>
+    <string name="cd_search_library">Buscar na biblioteca</string>
+    <string name="cd_alphabet_index">Índice alfabético</string>
+
+    <!-- ======================================================= track labels -->
+    <string name="label_track">Música</string>
+    <string name="track_untitled">Sem título</string>
+    <string name="track_unknown_artist">Artista desconhecido</string>
+    <string name="track_unknown_album">Álbum desconhecido</string>
+    <string name="track_unknown_genre">Gênero desconhecido</string>
+    <!-- Portuguese distinguishes one (1) and other (everything else). -->
+    <plurals name="count_tracks">
+        <item quantity="one">%1$d música</item>
+        <item quantity="other">%1$d músicas</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="cd_track_options_for">Mais opções para %1$s</string>
+    <string name="cd_track_options_generic">Mais opções para esta música</string>
+
+    <plurals name="count_albums">
+        <item quantity="one">%1$d álbum</item>
+        <item quantity="other">%1$d álbuns</item>
+    </plurals>
+    <plurals name="count_artists">
+        <item quantity="one">%1$d artista</item>
+        <item quantity="other">%1$d artistas</item>
+    </plurals>
+    <plurals name="count_genres">
+        <item quantity="one">%1$d gênero</item>
+        <item quantity="other">%1$d gêneros</item>
+    </plurals>
+
+    <!-- ======================================================= browse tabs -->
+    <string name="tab_for_you">Para você</string>
+    <string name="tab_playlists">Playlists</string>
+    <string name="tab_tracks">Músicas</string>
+    <string name="tab_albums">Álbuns</string>
+    <string name="tab_artists">Artistas</string>
+    <string name="tab_genres">Gêneros</string>
+    <string name="tab_map">Mapa</string>
+
+    <!-- ===================================================== library shell -->
+    <string name="library_empty">Nenhuma música encontrada neste dispositivo.</string>
+    <string name="action_rescan_library">Atualizar biblioteca</string>
+    <string name="sort_recently_added">Adicionadas recentemente</string>
+    <string name="sort_custom_order">Ordem personalizada</string>
+    <string name="sort_name">Nome</string>
+    <string name="sort_direction_ascending">Crescente</string>
+    <string name="sort_direction_descending">Decrescente</string>
+    <string name="snack_track_deleted">Música excluída</string>
+    <string name="snack_track_delete_denied">É preciso acesso aos arquivos para excluir estas faixas.</string>
+    <string name="snack_track_delete_failed">Não foi possível excluir o arquivo</string>
+    <string name="snack_track_delete_summary">Excluídos: %1$d. Acesso negado: %2$d. Falhas: %3$d. Cancelados: %4$d.</string>
+
+    <!-- =========================================================== for you -->
+    <string name="foryou_empty">Ouça algumas músicas e esta página vai se encher de coisas que valem a pena revisitar.</string>
+    <string name="foryou_section_continue">Ainda inacabadas</string>
+    <string name="foryou_section_worth_revisiting">Há tempos sem ouvir</string>
+    <string name="foryou_section_worlds">Seus mixes</string>
+    <string name="foryou_mix_discovery">Mix de descobertas</string>
+    <string name="foryou_section_never_played">Nunca reproduzidas</string>
+    <!-- As duas coisas que dá para fazer com um mundo, oferecidas em vez de adivinhadas. -->
+    <string name="foryou_world_open">Ver as faixas</string>
+    <string name="foryou_world_smart">Ouvir parecidas</string>
+    <string name="foryou_kicker_resume">Continue de onde parou</string>
+    <plurals name="foryou_kicker_played_times">
+        <item quantity="one">Você ouviu %1$d vez</item>
+        <item quantity="other">Você ouviu %1$d vezes</item>
+    </plurals>
+    <string name="foryou_kicker_never_played">Nunca reproduzida</string>
+    <plurals name="foryou_caption_played_before">
+        <item quantity="one">%1$d vez antes</item>
+        <item quantity="other">%1$d vezes antes</item>
+    </plurals>
+
+    <!-- =============================================================== map -->
+    <string name="map_lens_worlds">Mundos</string>
+    <string name="map_lens_plays">Reproduções</string>
+    <string name="map_lens_never_played">Nunca reproduzidas</string>
+    <string name="map_lens_skips">Pulos</string>
+
+    <plurals name="count_regions">
+        <item quantity="one">%1$d região</item>
+        <item quantity="other">%1$d regiões</item>
+    </plurals>
+
+    <string name="map_headline_worlds">O mapa agrupa %1$s em %2$s. Toque em uma para ouvir o que tem dentro.</string>
+    <string name="map_headline_worlds_partial">O mapa agrupa %1$d de %2$s em %3$s. Toque em uma para ouvir o que tem dentro.</string>
+    <string name="map_headline_plays">Nas regiões do mapa, metade das reproduções vem de %1$s: %2$d\u0025 das suas faixas.</string>
+    <string name="map_headline_never_played">Nas regiões do mapa, você nunca reproduziu %1$d de %2$s. “%3$s” continua %4$d\u0025 sem ouvir.</string>
+    <string name="map_headline_skips">É em “%1$s” que você desiste mais: %2$d\u0025 das reproduções iniciadas.</string>
+
+    <string name="map_headline_unplayed_total">Regiões do mapa: %2$s · Sem reproduções no histórico: %1$d.</string>
+    <string name="map_select_region">Escolher região</string>
+    <string name="map_fullscreen">Abrir mapa em tela cheia</string>
+    <string name="map_exit_fullscreen">Sair do mapa em tela cheia</string>
+    <string name="map_gesture_hint">Use dois dedos para mover ou ampliar o mapa.</string>
+    <string name="map_reset_view">Redefinir mapa</string>
+    <string name="map_region_unplayed">Não reproduzidas aqui: %1$d</string>
+    <string name="map_action_play_unheard">Ouvir não reproduzidas</string>
+    <string name="map_action_play_region">Reproduzir região</string>
+    <string name="map_action_smart_here">SMART daqui</string>
+    <string name="map_empty_indexing">Ainda estamos lendo sua biblioteca. O mapa aparece quando a indexação terminar.</string>
+    <string name="map_empty_building">Estamos construindo o mapa da sua biblioteca. Se ela for grande, isso pode levar um tempo.</string>
+    <string name="map_empty_too_large">Sua biblioteca tem %1$s — mais do que %2$s que o mapa consegue mostrar agora.</string>
+
+    <string name="map_legend_selected">região selecionada</string>
+    <string name="map_legend_rest">resto da biblioteca</string>
+    <string name="map_dot_outside_hint">Região mais próxima: %1$s</string>
+    <string name="map_legend_never">nunca reproduzidas</string>
+    <string name="map_legend_played">reproduzidas ao menos uma vez</string>
+    <string name="map_legend_never_skips">nunca puladas</string>
+    <string name="map_legend_always_skips">sempre puladas</string>
+
+    <!-- ================================================== now playing/queue -->
+    <string name="now_playing_nothing">Nada tocando</string>
+    <string name="now_playing_source">Tocando de: %1$s</string>
+    <string name="cd_now_playing">Tocando agora</string>
+    <string name="queue_title">Fila</string>
+    <!-- %1$d is how many tracks are in the queue -->
+    <string name="queue_title_count">Fila · %1$d</string>
+    <string name="queue_row_continuation">Não é uma recomendação — para a música não parar</string>
+    <string name="cd_repeat_off">A repetição está desativada. Toque para repetir a fila.</string>
+    <string name="cd_repeat_all">Repetindo a fila. Toque para repetir uma única música.</string>
+    <string name="cd_repeat_one">Repetindo uma única música. Toque para desativar a repetição.</string>
+    <string name="cd_shuffle_off">A ordem aleatória está desativada. Toque para alterar.</string>
+    <string name="cd_shuffle_on">A ordem aleatória está ativada. Toque para alterar.</string>
+    <string name="cd_shuffle_smart">A ordem aleatória SMART está ativada. Toque para alterar.</string>
+
+    <!-- ============================================================= search -->
+    <string name="search_placeholder">Música, artista ou letra</string>
+    <string name="cd_close_search">Fechar a busca</string>
+    <string name="cd_clear_query">Limpar o texto da busca</string>
+    <!-- %1$s is what the user typed -->
+    <string name="search_no_matches">Nenhum resultado para “%1$s”.</string>
+    <!-- %1$d is the size of the library -->
+    <plurals name="search_hint_count">
+        <item quantity="one">Busque na sua %1$d música.</item>
+        <item quantity="other">Busque nas suas %1$d músicas.</item>
+    </plurals>
+    <string name="search_recent_title">Buscas recentes</string>
+    <!-- %1$s is a past search term being removed from history -->
+    <string name="cd_forget_search">Esquecer “%1$s”</string>
+
+    <!-- ========================================================== playlists -->
+    <string name="playlists_empty">Nenhuma playlist ainda — use + para criar uma.</string>
+    <string name="playlist_name_placeholder">Nome da playlist</string>
+    <string name="playlist_new">Nova playlist</string>
+    <!-- %1$s is a playlist name -->
+    <string name="cd_playlist_options">Opções de %1$s</string>
+    <!-- Sheet header. %1$s is a track title; the generic form is used when the
+         track has no title at all. -->
+    <string name="playlist_add_to_title">Adicionar “%1$s” a uma playlist</string>
+    <string name="playlist_add_to_title_generic">Adicionar a música a uma playlist</string>
+    <string name="playlist_rename_title">Renomear playlist</string>
+    <string name="action_change_playlist_cover">Alterar capa</string>
+    <string name="action_reset_playlist_cover">Usar capa automática</string>
+    <string name="playlist_cover_error">Não foi possível alterar a capa da playlist. Tente outra imagem.</string>
+    <string name="snack_playlist_created">Playlist "%1$s" criada</string>
+    <string name="snack_playlist_deleted">Playlist "%1$s" excluída</string>
+    <string name="snack_added_to_playlist">Adicionada a "%1$s"</string>
+    <string name="auto_playlist_favorites">Favoritas</string>
+    <string name="auto_playlist_recently_added">Adicionadas recentemente</string>
+    <string name="auto_playlist_most_played">Mais tocadas</string>
+    <string name="auto_playlist_recently_played">Tocadas recentemente</string>
+    <string name="auto_playlist_never_played">Nunca tocadas</string>
+    <string name="auto_playlist_rediscover">Redescobrir</string>
+
+    <!-- ============================================== track actions + sheet -->
+    <string name="action_play_next">Reproduzir a seguir</string>
+    <string name="action_add_to_queue">Adicionar à fila</string>
+    <string name="action_add_to_playlist">Adicionar à playlist</string>
+    <string name="action_add_favorite">Adicionar às favoritas</string>
+    <string name="action_remove_favorite">Remover das favoritas</string>
+    <string name="action_add_all_favorites">Adicionar todas às favoritas</string>
+    <plurals name="snack_favorites_added">
+        <item quantity="one">%1$d música adicionada às favoritas</item>
+        <item quantity="other">%1$d músicas adicionadas às favoritas</item>
+    </plurals>
+    <plurals name="snack_favorites_removed">
+        <item quantity="one">%1$d música removida das favoritas</item>
+        <item quantity="other">%1$d músicas removidas das favoritas</item>
+    </plurals>
+    <plurals name="snack_favorites_already">
+        <item quantity="one">%1$d já estava nas favoritas</item>
+        <item quantity="other">%1$d já estavam nas favoritas</item>
+    </plurals>
+    <string name="action_remove_from_playlist">Remover desta playlist</string>
+    <string name="snack_playlist_track_removed">Removido de "%1$s"</string>
+    <plurals name="playlist_unavailable_tracks">
+        <item quantity="one">%1$d música desta playlist não está neste dispositivo.</item>
+        <item quantity="other">%1$d músicas desta playlist não estão neste dispositivo.</item>
+    </plurals>
+    <string name="action_go_to_album">Ir para o álbum</string>
+    <string name="action_go_to_artist">Ir para o artista</string>
+    <string name="action_show_on_map">Mostrar no mapa</string>
+    <string name="action_export_m3u">Exportar como M3U</string>
+    <string name="action_smart_keep_together">Manter juntas no SMART</string>
+    <string name="action_import_m3u">Importar M3U</string>
+    <plurals name="snack_m3u_imported_all">
+        <item quantity="one">%1$d faixa importada</item>
+        <item quantity="other">%1$d faixas importadas</item>
+    </plurals>
+    <plurals name="snack_m3u_imported_partial">
+        <item quantity="one">%1$d de %2$d faixa importada</item>
+        <item quantity="other">%1$d de %2$d faixas importadas</item>
+    </plurals>
+    <string name="snack_m3u_import_failed">Não foi possível importar a playlist</string>
+    <plurals name="m3u_import_found">
+        <item quantity="one">Encontrada %1$d de %2$d música</item>
+        <item quantity="other">Encontradas %1$d de %2$d músicas</item>
+    </plurals>
+    <plurals name="m3u_import_playlists">
+        <item quantity="one">%1$d playlist</item>
+        <item quantity="other">%1$d playlists</item>
+    </plurals>
+    <plurals name="m3u_import_skipped_files">
+        <item quantity="one">%1$d arquivo ignorado</item>
+        <item quantity="other">%1$d arquivos ignorados</item>
+    </plurals>
+    <string name="m3u_import_playlists_partial">Playlists criadas: %1$d de %2$d. As demais não puderam ser salvas.</string>
+    <plurals name="playlist_new_count">
+        <item quantity="one">%1$d nova playlist</item>
+        <item quantity="other">%1$d novas playlists</item>
+    </plurals>
+    <string name="playlist_imported_name">Playlist importada</string>
+    <string name="action_information">Informações</string>
+    <string name="action_delete_from_device">Excluir do dispositivo</string>
+    <string name="dialog_delete_tracks_message">As músicas selecionadas (%1$d) serão removidas deste dispositivo. Não é possível desfazer.</string>
+    <string name="dialog_delete_track_title">Excluir esta música?</string>
+    <plurals name="dialog_delete_tracks_title">
+        <item quantity="one">Excluir %1$d música?</item>
+        <item quantity="other">Excluir %1$d músicas?</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="dialog_delete_track_message">“%1$s” será removida deste dispositivo. Não é possível desfazer.</string>
+    <string name="dialog_delete_track_message_generic">Esta música será removida deste dispositivo. Não é possível desfazer.</string>
+
+    <!-- ======================================================== track info -->
+    <string name="info_title">Título</string>
+    <string name="info_artist">Artista</string>
+    <string name="info_album">Álbum</string>
+    <string name="info_genre">Gênero</string>
+    <string name="info_year">Ano</string>
+    <string name="info_duration">Duração</string>
+    <string name="info_location">Localização</string>
+    <string name="info_not_set">Não definido</string>
+    <string name="info_edit">Editar tags</string>
+    <string name="info_save">Salvar</string>
+    <string name="info_cancel">Cancelar</string>
+    <string name="editor_discard_title">Descartar as alterações?</string>
+    <string name="editor_discard">Descartar</string>
+    <string name="editor_keep_editing">Continuar editando</string>
+    <string name="info_saving">Salvando…</string>
+    <string name="info_edit_note">Salvo no próprio arquivo, então todos os aplicativos veem a correção. Talvez seja solicitada permissão para modificar o arquivo.</string>
+    <string name="info_edit_refused">As tags deste arquivo estão em um formato que não pode ser reescrito com segurança, então nada foi alterado.</string>
+    <string name="info_edit_failed">Não foi possível gravar neste arquivo. Ele foi mantido como estava.</string>
+    <string name="info_edit_no_space">Não há espaço livre suficiente para salvar estas tags com segurança. Nada foi alterado.</string>
+    <string name="info_edit_recovery_pending">O salvamento foi interrompido. O LatentJam vai concluí-lo ou desfazê-lo na próxima vez que puder gravar no arquivo.</string>
+    <string name="tag_recovery_title">Concluir o salvamento das tags</string>
+    <plurals name="tag_recovery_body">
+        <item quantity="one">O LatentJam foi interrompido ao salvar tags em %1$d arquivo. Ele pode concluir a alteração agora ou desfazê-la se o arquivo não puder ser concluído.</item>
+        <item quantity="other">O LatentJam foi interrompido ao salvar tags em %1$d arquivos. Ele pode concluir as alterações agora ou desfazê-las onde um arquivo não puder ser concluído.</item>
+    </plurals>
+    <string name="tag_recovery_finish">Concluir</string>
+    <string name="tag_recovery_later">Depois</string>
+    <string name="tag_problem_unsupported_format">O LatentJam não consegue editar este tipo de arquivo.</string>
+    <string name="tag_problem_damaged">Este arquivo parece danificado, então foi mantido como está.</string>
+    <string name="tag_problem_protected">Este arquivo é protegido contra cópia e não pode ser alterado.</string>
+    <string name="tag_problem_tags_too_large">As tags ficariam grandes demais para este arquivo.</string>
+    <string name="tag_problem_bad_number">Os números da música e do disco devem ser números inteiros de 1 a 999.</string>
+    <string name="tag_problem_number_unreadable">O número da música ou do disco gravado no próprio arquivo não é um número simples, então o total dele não pode ser alterado separadamente.</string>
+    <string name="tag_problem_bad_image">A imagem não é um JPEG nem um PNG.</string>
+    <string name="tag_problem_read_only_storage">Este arquivo está em um armazenamento em que não é possível gravar.</string>
+    <string name="tag_problem_music_library">As músicas da biblioteca de música não podem ser editadas, apenas as importadas para o LatentJam.</string>
+    <string name="tag_problem_unreadable">Não foi possível ler este arquivo.</string>
+    <string name="tag_problem_not_allowed">A permissão para alterar o arquivo não foi concedida.</string>
+    <string name="tag_problem_missing">O arquivo não está mais lá.</string>
+    <string name="tag_problem_stopped">Interrompido antes deste arquivo.</string>
+    <string name="tag_problem_cancelled">A solicitação de permissão foi fechada.</string>
+    <string name="tag_problem_undone">Um salvamento interrompido foi desfeito: o arquivo está como antes.</string>
+    <string name="tag_problem_changed_elsewhere">Outro aplicativo alterou o arquivo depois que o salvamento foi interrompido, então ele foi mantido como está.</string>
+    <string name="tag_problem_lost">O LatentJam não conseguiu saber como este salvamento terminou. Confira as tags do arquivo.</string>
+
+    <!-- =========================================================== settings -->
+    <string name="settings_title">Configurações</string>
+    <string name="settings_section_appearance">Aparência</string>
+    <string name="settings_theme">Tema</string>
+    <string name="theme_system">Seguir o sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Escuro</string>
+    <string name="settings_section_playback">Reprodução</string>
+    <string name="settings_equalizer">Equalizador</string>
+    <string name="settings_equalizer_subtitle">Controles de tonalidade para a saída de áudio deste dispositivo</string>
+    <string name="settings_intelligence">Motor SMART</string>
+    <string name="settings_smart_engine">Motor SMART</string>
+    <string name="settings_smart_engine_subtitle">O que o modelo do dispositivo sabe sobre a sua biblioteca</string>
+    <string name="settings_about_body">LatentJam — um reprodutor de música local com um recomendador que roda no próprio dispositivo. Nada do que você ouve sai daqui.</string>
+
+    <!-- ========================================================== equalizer -->
+    <string name="state_on">Ativado</string>
+    <string name="state_off">Desativado</string>
+    <string name="equalizer_presets">Predefinições</string>
+    <string name="equalizer_bands">Bandas</string>
+    <string name="equalizer_bass_boost">Reforço de graves</string>
+    <string name="equalizer_reset">Redefinir para plano</string>
+
+    <!-- ======================================================= intelligence -->
+    <string name="intelligence_section_status">Status</string>
+    <string name="intelligence_engine">Motor</string>
+    <string name="intelligence_library">Biblioteca</string>
+    <string name="intelligence_fingerprints">Impressões sonoras</string>
+    <!-- %1$d tracks analysed out of %2$d in the library -->
+    <string name="intelligence_indexed_of">%1$d de %2$d</string>
+    <string name="engine_state_not_started">Não iniciado</string>
+    <string name="engine_state_starting">Iniciando…</string>
+    <string name="engine_state_ready">Pronto</string>
+    <!-- %1$s is a technical failure reason reported by the engine -->
+    <string name="engine_state_unavailable">Indisponível — %1$s</string>
+
+    <!-- ========================================================= permission -->
+    <string name="permission_audio_rationale">O LatentJam precisa de acesso à sua música para ler a biblioteca.</string>
+    <string name="permission_grant">Conceder acesso</string>
+    <string name="permission_audio_settings_rationale">O acesso às músicas está bloqueado. Abra as configurações do sistema e permita que o LatentJam acesse músicas e arquivos de áudio.</string>
+    <string name="permission_open_settings">Abrir configurações</string>
+    <string name="permission_notifications_title">Mostrar o progresso da análise?</string>
+    <string name="permission_notifications_rationale">O SMART analisa sua biblioteca neste dispositivo. Permita notificações para acompanhar o progresso e voltar ao LatentJam durante o trabalho. A análise continua se você escolher “Agora não”.</string>
+    <string name="permission_not_now">Agora não</string>
+    <string name="permission_continue">Continuar</string>
+
+
+    <string name="engine_error_model_unavailable">O SMART não pôde carregar os modelos incluídos. Tente configurar novamente; se continuar, reinstale o app ou relate o problema.</string>
+    <string name="engine_error_not_indexed">A biblioteca ainda não foi indexada.</string>
+    <string name="engine_error_audio_unavailable">Não foi possível ler ou decodificar esta faixa. Confira se o arquivo ainda está disponível e tente novamente.</string>
+    <string name="engine_error_backend">O SMART encontrou um erro interno. Tente configurar novamente; se continuar, relate o problema.</string>
+
+    <string name="indexing_notification_title">Analisando suas músicas</string>
+    <string name="indexing_notification_progress">%1$d de %2$d</string>
+    <string name="indexing_notification_progress_eta">%1$d de %2$d · cerca de %3$d min restantes</string>
+    <!-- =================================================== expanded settings -->
+    <string name="settings_appearance">Aparência</string>
+    <string name="settings_appearance_subtitle">Tema, cores do player e idioma</string>
+    <string name="settings_library">Biblioteca</string>
+    <string name="settings_library_subtitle">Atualização, importação e músicas ocultas</string>
+    <string name="settings_playback">Reprodução</string>
+    <string name="settings_playback_subtitle">Equalizador e controles de áudio</string>
+    <string name="settings_privacy">Privacidade e dados</string>
+    <string name="settings_privacy_subtitle">Histórico de reprodução e pesquisas recentes</string>
+    <string name="settings_about">Sobre o LatentJam</string>
+    <string name="settings_about_subtitle">Licença, código-fonte e suporte</string>
+    <string name="settings_section_library">Biblioteca</string>
+    <string name="settings_section_navigation">Navegação</string>
+    <string name="settings_section_privacy">Dados no dispositivo</string>
+    <string name="settings_track_colors">Cores do player</string>
+    <string name="settings_page_header">Cabeçalho das páginas</string>
+    <string name="settings_page_header_dots">Pontos</string>
+    <string name="settings_page_header_neighbours">Páginas vizinhas</string>
+    <string name="settings_page_header_tabs">Abas</string>
+    <string name="settings_page_header_pills">Pílulas</string>
+    <string name="settings_page_header_menu">Menu</string>
+    <string name="settings_color_custom">Personalizada</string>
+    <string name="settings_color_custom_body">Sua cor tinge o player, a nuvem, o miniplayer, os interruptores e o botão Play, toque o que tocar.</string>
+    <string name="settings_accent_swatch">Cor %1$d de %2$d</string>
+    <string name="settings_pure_black">Preto puro</string>
+    <string name="settings_pure_black_body">Para telas OLED: preto real em vez de cinza escuro</string>
+    <string name="settings_cloud">Nuvem</string>
+    <string name="settings_cloud_off">Desligada</string>
+    <string name="settings_cloud_soft">Suave</string>
+    <string name="settings_cloud_normal">Padrão</string>
+    <string name="settings_cloud_vivid">Intensa</string>
+    <string name="settings_cloud_motion">Movimento no player</string>
+    <string name="settings_cloud_motion_body">A nuvem desliza devagar enquanto a música toca</string>
+    <string name="settings_player_background">Fundo do player</string>
+    <string name="settings_player_background_cloud">Nuvem</string>
+    <string name="settings_player_background_cover">Capa desfocada</string>
+    <string name="settings_shape">Forma</string>
+    <string name="settings_shape_round">Redonda</string>
+    <string name="settings_shape_soft">Suave</string>
+    <string name="settings_shape_sharp">Reta</string>
+    <string name="settings_shape_body">Cantos de menus, painéis, botões, chips e capas em todo o app.</string>
+    <string name="settings_mini_player">Miniplayer</string>
+    <string name="settings_mini_player_card">Cartão</string>
+    <string name="settings_mini_player_bar">Barra</string>
+    <string name="settings_section_handling">Uso</string>
+    <string name="settings_left_handed">Canhoto</string>
+    <string name="settings_left_handed_body">Botão aleatório e alfabeto à esquerda</string>
+    <string name="settings_color_dynamic">Capa</string>
+    <string name="settings_color_dynamic_body">Use as cores da capa, com SMART como alternativa.</string>
+    <string name="settings_color_smart">SMART</string>
+    <string name="settings_color_smart_body">Use cores derivadas da impressão sonora de cada música.</string>
+    <string name="settings_color_theme">Tema</string>
+    <string name="settings_color_theme_body">Use o tema do app em vez de cores específicas para cada música.</string>
+    <string name="settings_start_page">Página inicial</string>
+    <string name="settings_start_page_body">Será usada na próxima vez que você abrir o LatentJam.</string>
+    <string name="settings_library_count">Músicas na biblioteca</string>
+    <string name="settings_library_refresh">Atualizar biblioteca</string>
+    <string name="settings_library_refresh_body">Encontre músicas novas e remova as entradas de arquivos que não estão mais disponíveis.</string>
+    <string name="settings_library_import">Importar músicas</string>
+    <string name="settings_library_import_body">Escolha arquivos de áudio para copiar para o LatentJam.</string>
+    <string name="settings_library_restore">Restaurar músicas ocultas</string>
+    <string name="settings_library_restore_body">Devolva à biblioteca todas as músicas removidas do LatentJam. Os arquivos no dispositivo não serão alterados.</string>
+    <string name="settings_playlist_relative_paths">Caminhos relativos nas playlists exportadas</string>
+    <string name="settings_playlist_relative_paths_body">Grava o caminho de cada faixa a partir da pasta da playlist (../Music/…), para que a playlist funcione também em outros dispositivos. Ao salvar em um local sem caminho de pasta, os caminhos continuam completos.</string>
+    <string name="settings_equalizer_unavailable">Indisponível para esta saída de áudio</string>
+    <string name="equalizer_unavailable_body">A saída de áudio atual não oferece ao LatentJam acesso a um equalizador. Tente outra saída. A reprodução continua funcionando normalmente.</string>
+    <string name="equalizer_bass_value">%1$d\u0025</string>
+    <string name="equalizer_preset_flat">Plano</string>
+    <string name="equalizer_preset_bass">Graves</string>
+    <string name="equalizer_preset_treble">Agudos</string>
+    <string name="equalizer_preset_vocal">Vocal</string>
+    <string name="equalizer_preset_electronic">Eletrônica</string>
+    <string name="intelligence_syncing">Sincronizando a biblioteca…</string>
+    <string name="intelligence_analysis_progress">%1$d de %2$d músicas analisadas</string>
+    <string name="intelligence_analysis_failed">Não foi possível analisar: %1$d</string>
+    <string name="intelligence_failures_more">E mais %1$d</string>
+    <string name="intelligence_retry">Tentar novamente a configuração SMART</string>
+    <string name="intelligence_section_recommendations">Recomendações</string>
+    <string name="intelligence_queue_length">Tamanho da fila SMART</string>
+    <string name="intelligence_queue_length_body">Escolha quantas músicas o SMART adiciona ao criar uma fila.</string>
+    <string name="intelligence_artist_variety">Variedade de artistas</string>
+    <string name="intelligence_artist_variety_body">O quanto o SMART espaça as músicas de um mesmo artista. Uma música que combina claramente melhor ainda toca, mesmo logo depois do mesmo artista.</string>
+    <string name="intelligence_artist_variety_free">Desligada</string>
+    <string name="intelligence_artist_variety_low">Baixa</string>
+    <string name="intelligence_artist_variety_balanced">Equilibrada</string>
+    <string name="intelligence_artist_variety_high">Alta</string>
+    <string name="intelligence_artist_variety_max">Máxima</string>
+    <string name="intelligence_include_novelty_mixes">Incluir mixes inusitados</string>
+    <string name="intelligence_include_novelty_mixes_body">Mostra em Para você mixes separados de memes, áudios virais e efeitos sonoros.</string>
+    <string name="foryou_mix_meme_viral">Memes e áudios virais</string>
+    <string name="foryou_mix_sound_effects">Efeitos sonoros</string>
+    <string name="foryou_mix_spoken_audio">Áudio falado</string>
+    <string name="foryou_mix_instrumental">Música instrumental</string>
+    <string name="intelligence_how_it_works">O SMART compara impressões sonoras neste dispositivo e combina semelhança musical com seu histórico de reprodução. Funciona sem conta ou conexão com a internet.</string>
+    <string name="privacy_local_body">Sua biblioteca, histórico de reprodução e dados SMART ficam neste dispositivo. O LatentJam não usa conta e não envia esses dados para um servidor.</string>
+    <string name="privacy_save_history_body">Salve reproduções e pulos neste dispositivo para o Para você e as recomendações SMART.</string>
+    <string name="privacy_remember_searches_body">Salve pesquisas neste dispositivo para exibi-las quando a busca estiver vazia.</string>
+    <string name="privacy_disable_history_body">Parar de salvar novas atividades de reprodução. O que fazer com o histórico que já está neste dispositivo?</string>
+    <string name="privacy_disable_searches_body">Parar de salvar novas pesquisas. O que fazer com as pesquisas que já estão neste dispositivo?</string>
+    <string name="privacy_keep_existing">Manter existentes</string>
+    <string name="privacy_delete_existing">Excluir existentes</string>
+    <string name="privacy_setting_save_failed">Não foi possível salvar esta configuração de privacidade. Tente novamente.</string>
+    <string name="privacy_data_clear_failed">Não foi possível limpar estes dados do dispositivo. Tente novamente.</string>
+    <string name="privacy_clear_history">Limpar histórico de reprodução</string>
+    <string name="privacy_clear_history_body">Remova os dados de reprodução e pulos usados para personalizar as recomendações.</string>
+    <string name="privacy_clear_history_confirm">Limpar todo o histórico de reprodução? As recomendações começarão a aprender seu gosto novamente.</string>
+    <string name="privacy_history_empty">Nenhum histórico de reprodução</string>
+    <plurals name="privacy_history_listens">
+        <item quantity="one">%1$d reprodução</item>
+        <item quantity="other">%1$d reproduções</item>
+    </plurals>
+    <string name="privacy_recent_searches">Pesquisas recentes</string>
+    <string name="privacy_clear_searches">Limpar pesquisas recentes</string>
+    <string name="privacy_clear_searches_body">Remova as consultas exibidas quando a pesquisa está vazia.</string>
+    <string name="privacy_clear_searches_confirm">Limpar todas as pesquisas recentes?</string>
+    <string name="settings_license">Licença</string>
+    <string name="settings_license_body">O LatentJam é um software livre licenciado sob a Apache License 2.0.</string>
+    <string name="settings_open_source">Código-fonte</string>
+    <string name="settings_open_source_body">Ver o projeto no GitHub</string>
+    <string name="settings_report_issue">Relatar um problema</string>
+    <string name="settings_section_preferences">Preferências</string>
+    <string name="settings_section_music">Música</string>
+    <string name="settings_section_data_support">Dados e suporte</string>
+    <string name="privacy_listening_history">Histórico de reprodução</string>
+    <string name="settings_version">Versão</string>
+    <string name="settings_library_loading">Carregando biblioteca…</string>
+    <string name="settings_library_refreshing">Atualizando…</string>
+    <string name="snack_library_refreshed">Biblioteca atualizada</string>
+    <string name="action_exclude_track_from_smart">Não recomendar esta faixa</string>
+    <string name="action_exclude_artist_from_smart">Não recomendar este artista</string>
+    <string name="action_include_track_in_smart">Voltar a recomendar esta faixa</string>
+    <string name="action_include_artist_in_smart">Voltar a recomendar este artista</string>
+    <string name="snack_track_excluded_from_smart">Faixa removida das recomendações SMART</string>
+    <string name="snack_artist_excluded_from_smart">Artista removido das recomendações SMART</string>
+    <string name="snack_track_included_in_smart">Faixa restaurada nas recomendações SMART</string>
+    <string name="snack_artist_included_in_smart">Artista restaurado nas recomendações SMART</string>
+    <string name="snack_smart_exclusion_failed">Não foi possível atualizar as recomendações SMART. Tente novamente.</string>
+    <string name="action_retry">Tentar novamente</string>
+
+    <string name="settings_language">Idioma</string>
+    <string name="settings_language_body">Altere o idioma nas configurações do sistema.</string>
+    <string name="settings_audio_access">Acesso à música</string>
+    <string name="settings_audio_access_allowed">Permitido</string>
+    <string name="settings_audio_access_blocked">Bloqueado</string>
+    <string name="settings_audio_access_not_requested">Não solicitado</string>
+    <string name="settings_audio_access_not_required">Não necessário</string>
+    <string name="settings_sources">Fontes de música</string>
+    <string name="settings_sources_body">Escolha quais pastas ou coleções do dispositivo aparecem no LatentJam. Os arquivos no dispositivo não são alterados.</string>
+    <string name="settings_sources_empty">Nenhuma fonte de música gerenciável foi encontrada.</string>
+    <string name="settings_source_unnamed">Músicas do dispositivo</string>
+    <string name="settings_source_music_library">Biblioteca de música</string>
+    <string name="settings_hidden_tracks">Faixas ocultas</string>
+    <string name="settings_hidden_tracks_body">Faixas ocultas apenas no LatentJam. Restaure qualquer faixa sem alterar o arquivo.</string>
+    <string name="settings_hidden_tracks_empty">Não há faixas ocultas no LatentJam.</string>
+    <string name="settings_interrupted_saves">Salvamentos interrompidos</string>
+    <plurals name="settings_interrupted_saves_body">
+        <item quantity="one">O salvamento de tags em %1$d arquivo foi interrompido. O LatentJam vai concluí-lo ou desfazê-lo assim que puder gravar no arquivo.</item>
+        <item quantity="other">O salvamento de tags em %1$d arquivos foi interrompido. O LatentJam vai concluir ou desfazer cada um assim que puder gravar no arquivo.</item>
+    </plurals>
+    <string name="settings_interrupted_finish">Concluir agora</string>
+    <string name="settings_interrupted_being_repaired">Em reparo: não é reproduzido até ser concluído</string>
+    <string name="settings_interrupted_forget">Esquecer</string>
+    <string name="settings_interrupted_forget_title">Esquecer este salvamento?</string>
+    <string name="settings_interrupted_forget_body">O arquivo continua exatamente como está agora, e o LatentJam deixa de tentar concluir ou desfazer o salvamento. Isso não pode ser desfeito.</string>
+    <string name="settings_interrupted_forget_damaged_body">Este salvamento parou no meio. O arquivo pode estar danificado e pode não tocar, e esquecê-lo apaga as cópias com que o LatentJam poderia repará-lo. Isso não pode ser desfeito.</string>
+    <string name="settings_duplicates">Duplicatas de áudio</string>
+    <string name="settings_duplicates_body">Encontra cópias da mesma gravação pelo som, independentemente das tags</string>
+    <string name="settings_duplicates_scanning">Comparando todos os pares de faixas…</string>
+    <string name="settings_duplicates_empty">Sem duplicatas — cada faixa soa única</string>
+    <string name="settings_restore">Restaurar</string>
+    <string name="settings_restore_all">Restaurar tudo</string>
+    <string name="settings_library_manage_failed">Não foi possível atualizar a biblioteca. Tente novamente.</string>
+    <string name="settings_lyrics_folders">Pastas com arquivos .lrc</string>
+    <string name="settings_lyrics_folders_body">O Android pergunta qual pasta permitir. Um arquivo .lrc com o mesmo nome da música passa a ser usado como letra.</string>
+    <string name="settings_lyrics_folders_add">Adicionar pasta</string>
+    <string name="settings_lyrics_folders_remove">Remover</string>
+    <string name="settings_lyrics_folders_failed">Não é possível usar esta pasta. Escolha uma no armazenamento deste dispositivo.</string>
+
+    <string name="settings_licenses">Licenças de código aberto</string>
+    <string name="settings_licenses_body">Avisos do LatentJam, modelos incluídos e software de terceiros</string>
+    <string name="settings_license_models">Modelos de áudio e SMART</string>
+    <string name="settings_license_models_body">Os pesos de áudio MobileNetV4 produzidos pelo LatentJam usam Apache-2.0. O modelo estudante usa timm (Apache-2.0) e foi destilado do EfficientAT (MIT, copyright © 2022 Florian Schmid).</string>
+    <string name="settings_license_text_model">Modelo de texto</string>
+    <string name="settings_license_text_model_body">O codificador de texto incluído e seu vocabulário foram treinados pelo LatentJam para reproduzir sentence-transformers/all-MiniLM-L6-v2 (Apache-2.0) e usam Apache-2.0.</string>
+    <string name="settings_license_runtime">ONNX Runtime</string>
+    <string name="settings_license_runtime_body">A inferência de modelos no dispositivo usa o Microsoft ONNX Runtime sob a Licença MIT. Copyright © Microsoft Corporation.</string>
+    <string name="settings_license_aliases">MusicBrainz e Wikidata</string>
+    <string name="settings_license_aliases_body">Os dados incluídos de busca por nomes alternativos de artistas vêm do MusicBrainz e do Wikidata e são fornecidos sob CC0.</string>
+    <string name="settings_license_libraries">Bibliotecas de terceiros</string>
+    <string name="settings_license_libraries_body">O LatentJam usa Kotlin, coroutines, Compose Multiplatform, AndroidX Media3, Koin e Coil sob licenças permissivas Apache-2.0 ou MIT. Os avisos completos acompanham a distribuição do código-fonte.</string>
+
+    <string name="sleep_timer">Timer de suspensão</string>
+    <string name="sleep_timer_off">Desativado</string>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="other">%1$d minutos</item>
+    </plurals>
+    <string name="sleep_timer_end_of_track">Fim da faixa atual</string>
+    <string name="sleep_timer_active_minutes">Restam %1$d min</string>
+    <string name="sleep_timer_active_end_of_track">Para após esta faixa</string>
+
+    <string name="intelligence_problems">Problemas de análise</string>
+    <string name="intelligence_problems_body">Faixas que o SMART não conseguiu analisar. Sua música continua reproduzível.</string>
+    <string name="intelligence_no_problems">Nenhum problema de análise</string>
+    <string name="intelligence_manage_exclusions">Exclusões de recomendações</string>
+    <string name="intelligence_manage_exclusions_body">Faixas e artistas que o SMART nunca deve recomendar</string>
+    <string name="intelligence_exclusions_empty">Nenhuma exclusão de recomendações</string>
+    <string name="intelligence_excluded_tracks">Faixas excluídas</string>
+    <string name="intelligence_excluded_artists">Artistas excluídos</string>
+    <string name="intelligence_rebuild">Refazer análise SMART</string>
+    <string name="intelligence_rebuild_body">Apague as impressões digitais locais e analise novamente a biblioteca visível.</string>
+    <string name="intelligence_rebuild_confirm">Refazer toda a análise SMART? Arquivos de música, playlists e histórico de reprodução não serão alterados.</string>
+    <string name="intelligence_how_title">Como o SMART funciona</string>
+    <string name="intelligence_notifications">Notificações de análise</string>
+    <string name="intelligence_notifications_body">Mostrar o progresso da indexação fora do LatentJam</string>
+    <string name="intelligence_exclusions_clear">Limpar todas as exclusões</string>
+
+    <string name="settings_backup">Backup local</string>
+    <string name="settings_backup_body">Exporte ou restaure playlists, favoritas, preferências, histórico, faixas ocultas, exclusões SMART e decisões do localizador de duplicatas. Arquivos de música e dados de modelos não são incluídos.</string>
+    <string name="backup_export">Exportar backup</string>
+    <string name="backup_import">Importar backup</string>
+    <string name="backup_import_title">Restaurar backup local</string>
+    <string name="backup_import_body">Escolha como combinar os dados importados com os que já estão neste dispositivo.</string>
+    <string name="backup_section_duplicate_decisions">Decisões do localizador de duplicatas</string>
+    <string name="backup_merge">Mesclar</string>
+    <string name="backup_replace">Substituir</string>
+    <string name="backup_replace_warning">Substituir os dados selecionados do app por este backup? Os arquivos de música nunca são alterados.</string>
+    <string name="backup_export_success">Backup exportado</string>
+    <string name="backup_import_success">Backup restaurado</string>
+    <string name="backup_import_success_unmatched">Backup restaurado; não foi possível associar %1$d referências de faixas neste dispositivo.</string>
+    <plurals name="backup_import_decisions_not_kept">
+        <item quantity="one">Não foi possível salvar %1$d decisão do localizador de duplicatas neste dispositivo.</item>
+        <item quantity="other">Não foi possível salvar %1$d decisões do localizador de duplicatas neste dispositivo.</item>
+    </plurals>
+    <string name="backup_import_partial">Alguns dados foram restaurados antes de ocorrer um erro.</string>
+    <string name="backup_failed">Não foi possível concluir a operação de backup.</string>
+    <string name="backup_invalid">Este não é um backup válido do LatentJam.</string>
+    <string name="backup_destination_warning">O backup contém dados privados do app. Um destino na nuvem ou de terceiros escolhido no seletor do sistema pode sincronizá-los.</string>
+    <string name="settings_stats">Estatísticas</string>
+    <string name="settings_stats_subtitle">Sua escuta em números</string>
+    <string name="stats_period_week">7 dias</string>
+    <string name="stats_period_month">30 dias</string>
+    <string name="stats_period_all">Todo o período</string>
+    <string name="stats_time_listened">Ouvido</string>
+    <string name="stats_plays">Reproduções</string>
+    <string name="stats_distinct_tracks">Faixas</string>
+    <string name="stats_streak_current">Sequência</string>
+    <string name="stats_streak_longest">Recorde</string>
+    <string name="stats_days_short">d</string>
+    <string name="stats_hours_short">h</string>
+    <string name="stats_minutes_short">min</string>
+    <string name="stats_finished_share">Concluídas</string>
+    <string name="stats_skipped_share">Puladas</string>
+    <string name="stats_empty">Nada foi reproduzido neste período ainda.</string>
+    <string name="stats_load_failed">Não foi possível carregar as estatísticas de reprodução.</string>
+    <string name="settings_normalize_volume">Normalização de volume</string>
+    <string name="settings_normalize_volume_subtitle">Reduz faixas altas para um nível mais uniforme</string>
+    <string name="settings_crossfade">Transições suaves</string>
+    <string name="settings_crossfade_subtitle">Suaviza o volume entre as faixas</string>
+    <string name="settings_crossfade_value">%1$d s</string>
+    <string name="duplicates_keep_this">Manter esta</string>
+    <string name="snack_duplicates_merged">Duplicatas mescladas: as playlists agora apontam para a cópia mantida</string>
+    <string name="info_lyrics">Letra</string>
+    <string name="info_album_artist">Artista do álbum</string>
+    <string name="info_track_number">Nº da música</string>
+    <string name="info_track_total">Total de músicas</string>
+    <string name="info_disc_number">Nº do disco</string>
+    <string name="info_disc_total">Total de discos</string>
+    <string name="info_cover">Capa</string>
+    <string name="info_cover_replace">Substituir</string>
+    <string name="info_cover_remove">Remover</string>
+    <string name="info_cover_keep">Manter a atual</string>
+    <string name="info_cover_new">Nova capa</string>
+    <string name="info_cover_removed">A capa será removida.</string>
+    <plurals name="info_cover_more">
+        <item quantity="one">+%1$d outra imagem no arquivo, mantida</item>
+        <item quantity="other">+%1$d outras imagens no arquivo, mantidas</item>
+    </plurals>
+    <string name="info_reading_file">Lendo o arquivo…</string>
+    <string name="action_edit_album">Editar álbum</string>
+    <string name="action_edit_artist">Editar artista</string>
+    <string name="action_favorite_short">Favoritar</string>
+    <string name="action_unfavorite_short">Desfavoritar</string>
+    <plurals name="count_files">
+        <item quantity="one">%1$d arquivo</item>
+        <item quantity="other">%1$d arquivos</item>
+    </plurals>
+    <plurals name="count_fields">
+        <item quantity="one">%1$d campo</item>
+        <item quantity="other">%1$d campos</item>
+    </plurals>
+    <string name="bulk_save">Alterar %1$s em %2$s</string>
+    <string name="bulk_reading">Lendo %1$d de %2$d…</string>
+    <plurals name="bulk_not_editable">
+        <item quantity="one">%1$d arquivo não pode ser editado e ficará como está:</item>
+        <item quantity="other">%1$d arquivos não podem ser editados e ficarão como estão:</item>
+    </plurals>
+    <plurals name="bulk_more_files">
+        <item quantity="one">e mais %1$d</item>
+        <item quantity="other">e mais %1$d</item>
+    </plurals>
+    <string name="bulk_nothing_editable">Nenhum destes arquivos pode ser editado.</string>
+    <string name="bulk_different">Valores diferentes</string>
+    <plurals name="bulk_removed">
+        <item quantity="one">Removido de %1$d arquivo</item>
+        <item quantity="other">Removido de todos os %1$d</item>
+    </plurals>
+    <string name="bulk_remove_field">Remover de todos os arquivos</string>
+    <string name="bulk_keep_field">Deixar como está</string>
+    <string name="bulk_kept">Fica como está: %1$s</string>
+    <string name="bulk_saving">%1$d de %2$d salvos</string>
+    <string name="bulk_stop">Parar</string>
+    <string name="bulk_result">%1$d de %2$d salvos.</string>
+    <plurals name="bulk_not_changed">
+        <item quantity="one">%1$d arquivo não alterado:</item>
+        <item quantity="other">%1$d arquivos não alterados:</item>
+    </plurals>
+    <string name="bulk_done">Concluído</string>
+    <string name="bulk_file_reason">%1$s — %2$s</string>
+    <plurals name="tags_saved">
+        <item quantity="one">Tags salvas em %1$d arquivo</item>
+        <item quantity="other">Tags salvas em %1$d arquivos</item>
+    </plurals>
+    <string name="tags_saved_partly">Tags salvas em %1$d de %2$d arquivos</string>
+    <plurals name="tag_recovery_done">
+        <item quantity="one">Salvamento concluído em %1$d arquivo</item>
+        <item quantity="other">Salvamento concluído em %1$d arquivos</item>
+    </plurals>
+    <plurals name="tag_recovery_undone">
+        <item quantity="one">%1$d salvamento interrompido foi desfeito; o arquivo está como antes</item>
+        <item quantity="other">%1$d salvamentos interrompidos foram desfeitos; os arquivos estão como antes</item>
+    </plurals>
+    <plurals name="tag_recovery_left">
+        <item quantity="one">%1$d arquivo foi alterado por outro aplicativo e foi mantido como está</item>
+        <item quantity="other">%1$d arquivos foram alterados por outro aplicativo e foram mantidos como estão</item>
+    </plurals>
+    <plurals name="tag_recovery_waiting">
+        <item quantity="one">Ainda não foi possível concluir %1$d arquivo. Veja Configurações → Biblioteca.</item>
+        <item quantity="other">Ainda não foi possível concluir %1$d arquivos. Veja Configurações → Biblioteca.</item>
+    </plurals>
+    <string name="lyrics_not_found">Nenhuma letra foi encontrada para esta faixa.</string>
+    <string name="cd_scroll_to_top">Voltar ao topo</string>
+    <string name="foryou_section_daypart_morning">Suas manhãs</string>
+    <string name="foryou_section_daypart_day">Suas tardes</string>
+    <string name="foryou_section_daypart_evening">Suas noites</string>
+    <string name="foryou_section_daypart_night">Suas madrugadas</string>
+    <string name="foryou_section_on_a_roll">Em repetição: %1$s</string>
+    <string name="foryou_caption_left_turn">Se você curte %1$s</string>
+    <string name="settings_pages">Páginas</string>
+    <string name="settings_pages_subtitle">Visibilidade, ordem e página inicial</string>
+    <string name="settings_pages_body">Arraste para reordenar. Desative as páginas que você não usa.</string>
+    <string name="settings_pages_last_visible">Mantenha pelo menos uma página ativada.</string>
+    <string name="settings_page_position">Posição %1$d de %2$d</string>
+    <string name="settings_page_move_up">Mover %1$s para cima</string>
+    <string name="settings_page_move_down">Mover %1$s para baixo</string>
+    <string name="settings_pages_reset">Redefinir páginas</string>
+    <string name="settings_pages_reset_body">Restaure a ordem, as páginas visíveis e a página inicial padrão.</string>
+
+    <!-- Listening dashboard -->
+    <string name="stats_dashboard_title">Suas músicas em números</string>
+    <string name="stats_recording_off">O histórico de reprodução está pausado. Suas estatísticas salvas continuam disponíveis; novas reproduções serão registradas quando você ativar o histórico nas configurações de privacidade.</string>
+    <string name="stats_comparison_more">%1$s a mais que nos %2$d dias anteriores</string>
+    <string name="stats_comparison_less">%1$s a menos que nos %2$d dias anteriores</string>
+    <string name="stats_comparison_same">O mesmo tempo de reprodução dos %1$d dias anteriores</string>
+    <string name="stats_comparison_first">Nenhuma reprodução nos %1$d dias anteriores</string>
+    <string name="stats_under_minute">&lt; 1 min</string>
+    <string name="stats_activity">Seu ritmo diário</string>
+    <string name="stats_calendar_days">Últimos %1$d dias do calendário · tempo de reprodução</string>
+    <string name="stats_today">Hoje</string>
+    <string name="stats_yesterday">Ontem</string>
+    <string name="stats_new_tracks">Primeiras audições</string>
+    <string name="stats_smart_detail">Proporção de reproduções iniciadas com o modo aleatório SMART ativado</string>
+    <string name="stats_listening_style">Como você ouve</string>
+    <string name="stats_recent_empty">Ainda não há reproduções nestes dias do calendário.</string>
+    <string name="stats_history_note">Baseado no histórico salvo, no fuso horário deste dispositivo; atualizado quando uma música termina ou muda. As listas mostram músicas que ainda estão na sua biblioteca. Um backup restaurado mantém só as músicas que consegue encontrar, e um artista conhecido apenas por músicas removidas pode aparecer como novo.</string>
+    <string name="stats_chart_day_summary">%1$s: %2$s · %3$s</string>
+    <plurals name="stats_days_ago">
+        <item quantity="one">Há %1$d dia</item>
+        <item quantity="other">Há %1$d dias</item>
+    </plurals>
+    <string name="stats_section_lately">Você ultimamente</string>
+    <string name="stats_section_numbers">Seus números</string>
+    <string name="stats_section_over_time">Ao longo do tempo</string>
+    <string name="stats_on_repeat">No repeat agora</string>
+    <string name="stats_artists_on_repeat">Artistas no repeat</string>
+    <plurals name="stats_on_days">
+        <item quantity="one">em %1$d dia</item>
+        <item quantity="other">em %1$d dias</item>
+    </plurals>
+    <string name="stats_week_days">Em %1$d dos últimos 7 dias</string>
+    <plurals name="stats_days_of_music">
+        <item quantity="one">≈ %1$d dia de música</item>
+        <item quantity="other">≈ %1$d dias de música</item>
+    </plurals>
+    <plurals name="stats_activity_last_months">
+        <item quantity="one">Último %1$d mês · tempo de reprodução</item>
+        <item quantity="other">Últimos %1$d meses · tempo de reprodução</item>
+    </plurals>
+    <string name="stats_activity_years">Por ano · tempo de reprodução</string>
+    <string name="stats_activity_over_time">Sua escuta ao longo do tempo</string>
+    <string name="stats_this_month">Este mês</string>
+    <string name="stats_this_year">Este ano</string>
+    <plurals name="stats_months_ago">
+        <item quantity="one">Há %1$d mês</item>
+        <item quantity="other">Há %1$d meses</item>
+    </plurals>
+    <plurals name="stats_years_ago">
+        <item quantity="one">Há %1$d ano</item>
+        <item quantity="other">Há %1$d anos</item>
+    </plurals>
+    <string name="stats_new_and_familiar">Novas e conhecidas</string>
+    <string name="stats_familiar">Conhecidas</string>
+    <plurals name="stats_new_tracks_count">
+        <item quantity="one">%1$d música nova</item>
+        <item quantity="other">%1$d músicas novas</item>
+    </plurals>
+    <plurals name="stats_new_artists_count">
+        <item quantity="one">%1$d artista novo</item>
+        <item quantity="other">%1$d artistas novos</item>
+    </plurals>
+    <string name="stats_new_previous">%1$d dias anteriores: %2$s de novidades</string>
+    <string name="stats_stuck_artists">Artistas novos que ficaram</string>
+    <string name="stats_stuck_artists_recent">Artistas novos que ficaram · últimos 3 meses</string>
+    <plurals name="stats_log_age">
+        <item quantity="one">O LatentJam ouve com você há %1$d dia</item>
+        <item quantity="other">O LatentJam ouve com você há %1$d dias</item>
+    </plurals>
+    <string name="stats_new_note">Primeira audição = tocada pela primeira vez no LatentJam. Sua biblioteca pode ser mais antiga que o app.</string>
+    <plurals name="stats_locked_plays">
+        <item quantity="one">Aparece após %1$d reprodução neste período</item>
+        <item quantity="other">Aparece após %1$d reproduções neste período</item>
+    </plurals>
+    <string name="stats_when_you_listen">Quando você ouve</string>
+    <string name="stats_night">Madrugada</string>
+    <string name="stats_morning">Manhã</string>
+    <string name="stats_afternoon">Tarde</string>
+    <string name="stats_evening">Noite</string>
+    <string name="stats_daypart_peak">Mais escuta: %1$s, %2$s</string>
+    <string name="stats_typical_session">Sessão típica</string>
+    <string name="stats_longest_session">Sessão mais longa</string>
+    <string name="stats_locked_sessions">Aparece após algumas sessões de escuta neste período</string>
+    <string name="stats_your_top">Seu top</string>
+    <string name="stats_show_more">Mostrar 10</string>
+    <string name="stats_show_less">Mostrar 5</string>
+    <string name="stats_partly_share">Ouvidas em parte</string>
+    <string name="stats_smart_mode_share">Tocadas no modo SMART</string>
+    <string name="stats_finish_note">Proporções de todos os inícios. Concluída = ouvida até 85%, pulada = abandonada nos primeiros 30 s.</string>
+    <string name="stats_slipping_away">Quase esquecidas</string>
+    <string name="stats_slipping_note">Favoritas que você costumava escolher, sem tocar no LatentJam há dois meses ou mais.</string>
+    <string name="stats_year_ago">Há um ano</string>
+    <string name="stats_patterns">Seus padrões</string>
+    <string name="stats_same_artist_picks">O mesmo artista de novo</string>
+    <string name="stats_of_100_picks">%1$d de cada 100 escolhas</string>
+    <string name="stats_same_artist_note">Quando você escolhe a próxima música. Inclui começar pela página de um artista.</string>
+    <string name="stats_picked_next">Escolhida logo depois</string>
+    <string name="stats_sequence_description">Depois de %1$s você escolheu %2$s %3$d de %4$d vezes</string>
+    <string name="stats_library">Sua biblioteca</string>
+    <string name="stats_played_once">Tocadas pelo menos uma vez</string>
+    <string name="stats_x_of_y">%1$s de %2$s</string>
+    <string name="stats_decades">Décadas</string>
+    <string name="stats_decade">Anos %1$d</string>
+    <string name="stats_more_appears">Mais coisas aparecem conforme você ouve</string>
+    <string name="stats_unlock_on_repeat">No repeat agora — após uma semana de escuta</string>
+    <string name="stats_unlock_slipping">Quase esquecidas — após três meses de escuta</string>
+    <string name="stats_part_failed">Não foi possível carregar algumas destas estatísticas.</string>
+    <string name="stats_playlist_row">Playlist</string>
+    <string name="stats_playlists_note">Reproduções de cada playlist. Não contam as faixas adicionadas pelo SMART nem as audições de antes de o LatentJam registrar de onde cada faixa foi iniciada.</string>
+
+    <!-- Duplicate finder -->
+    <string name="duplicates_summary">Grupos: %1$d · Cópias extras: %2$d · Recuperável: %3$s</string>
+    <string name="duplicates_keep_recommended">Manter as cópias recomendadas</string>
+    <string name="duplicates_keep_selected">Manter a cópia selecionada</string>
+    <string name="duplicates_not_duplicates">Não são duplicatas</string>
+    <string name="duplicates_recommended">Recomendada</string>
+    <string name="duplicates_hide_copy">Ocultar esta cópia</string>
+    <string name="duplicates_hide_files">Ocultar as outras cópias; os arquivos ficam no dispositivo</string>
+    <string name="duplicates_delete_files">Excluir os outros arquivos do dispositivo</string>
+    <string name="duplicates_merge_all_confirm">A cópia recomendada será mantida em todos os %1$d grupos.</string>
+    <string name="duplicates_merge_confirm_body">Playlists e favoritos passarão a apontar para a cópia mantida. As outras %1$d cópias:</string>
+    <string name="duplicates_reclaimable">%1$s recuperáveis</string>
+    <string name="duplicates_kbps">%1$d kbps</string>
+    <string name="unit_megabytes">%1$s MB</string>
+    <string name="snack_duplicates_dismissed">Marcadas como gravações diferentes</string>
+    <string name="cd_player_artwork">Capa. Toque para ver os detalhes da faixa, segure para ações, deslize para o lado para trocar de faixa, arraste para baixo para fechar.</string>
+    <string name="details_title">Detalhes da faixa</string>
+    <string name="details_language">Idioma</string>
+    <string name="details_format">Formato</string>
+    <string name="details_file">Arquivo</string>
+    <string name="details_plays">Reproduções</string>
+    <string name="details_plays_none">Ainda não tocada</string>
+    <string name="details_original_year">Primeiro lançamento</string>
+    <string name="cd_details_close">Voltar para a capa</string>
+    <string name="player_mode_title">Modo de reprodução</string>
+    <string name="player_mode_off">Em ordem</string>
+    <string name="player_mode_shuffle">Ordem aleatória</string>
+    <string name="player_mode_smart">SMART</string>
+    <string name="cd_mode_button">Modo de reprodução: %1$s. Toque para alterar, segure para escolher.</string>
+    <string name="cd_seek_position">Posição da reprodução</string>
+    <string name="cd_time_toggle">Alternar entre tempo restante e duração total</string>
+    <string name="seek_fine_half">½ da velocidade</string>
+    <string name="seek_fine_quarter">¼ da velocidade</string>
+    <string name="cd_skip_next_hold">Próxima faixa. Segure para avançar rápido.</string>
+    <string name="cd_skip_previous_hold">Faixa anterior. Segure para retroceder.</string>
+    <string name="output_phone_speaker">Alto-falante do telefone</string>
+    <string name="output_headphones">Fones de ouvido</string>
+    <string name="output_bluetooth">Bluetooth</string>
+    <string name="cd_output_route">Tocando em %1$s. Toque para escolher onde tocar.</string>
+    <string name="now_playing_next">A seguir: %1$s</string>
+    <string name="output_title">Saída de áudio</string>
+    <string name="output_current">Saída atual</string>
+    <string name="output_connect_device">Conectar um dispositivo</string>
+    <string name="output_selection_failed">Dispositivo indisponível. Verifique a conexão.</string>
+    <string name="queue_reorder">Reordenar faixa</string>
+    <string name="playlists_yours">Suas playlists</string>
+    <string name="playlists_empty_body">Crie uma playlist ou importe um arquivo M3U para reunir suas músicas.</string>
+    <string name="playlists_automatic">Automáticas</string>
+    <string name="settings_pages_order">Ordem</string>
+    <string name="settings_opens_on_launch">Abrir ao iniciar</string>
+    <string name="settings_reorder_page">Reordenar %1$s</string>
+    <string name="settings_backup_subtitle">Exportar ou restaurar</string>
+    <string name="duplicates_groups">Grupos</string>
+    <string name="duplicates_summary_title">Grupos: %1$d · %2$s</string>
+    <string name="duplicates_summary_extra">Cópias extras: %1$d</string>
+    <string name="duplicates_copy_count">Cópias: %1$d</string>
+    <string name="playlist_reorder_track">Arraste para reordenar %1$s</string>
+    <string name="equalizer_custom">Personalizado</string>
+    <string name="equalizer_hint">Escolha uma predefinição para ativar ou ajuste as bandas como preferir.</string>
+    <string name="equalizer_reset_short">Redefinir</string>
+    <string name="equalizer_bands_hint">Frequência em Hz · ganho em dB · deslize para mais bandas</string>
+    <string name="normalization_waiting">Reproduza uma faixa para medir o volume.</string>
+    <string name="normalization_measuring">Medindo esta faixa…</string>
+    <string name="normalization_unavailable">Não foi possível medir esta faixa. O volume original será usado.</string>
+    <string name="normalization_unchanged">Esta faixa não precisa de redução. Faixas mais baixas não são amplificadas.</string>
+    <string name="normalization_reduced">O volume desta faixa é reduzido em %1$s dB.</string>
+    <string name="equalizer_response">Resposta em frequência</string>
+    <string name="equalizer_response_preview">Prévia em %1$s kHz</string>
+    <string name="equalizer_response_headroom">Reserva de nível: %1$s dB</string>
+    <string name="equalizer_peak_reduction">Redução de picos: %1$s dB</string>
+    <string name="equalizer_peak_hint">Uma amplificação forte pode reduzir o volume de toda a faixa.</string>
+    <string name="map_memory_limited">Memória livre insuficiente para calcular o mapa. Feche outros aplicativos e abra o mapa novamente.</string>
+    <string name="map_unavailable">Não foi possível calcular o mapa. Abra-o novamente para tentar de novo.</string>
+</resources>

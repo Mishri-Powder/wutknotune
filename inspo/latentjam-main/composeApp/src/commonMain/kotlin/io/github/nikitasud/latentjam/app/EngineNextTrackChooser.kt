@@ -1,0 +1,241 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import io.github.nikitasud.latentjam.history.ListeningHistory
+import io.github.nikitasud.latentjam.history.epochMillis
+import io.github.nikitasud.latentjam.playback.NextTrackChooser
+import io.github.nikitasud.latentjam.playback.SmartChoice
+import io.github.nikitasud.latentjam.smart.SimilarityEngine
+import io.github.nikitasud.latentjam.smart.SmartHistoryEvent
+import io.github.nikitasud.latentjam.smart.TrackDescriptor
+import io.github.nikitasud.latentjam.smart.TrackId
+import io.github.nikitasud.latentjam.smart.continuesSmartPlan
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlin.time.TimeSource
+
+/**
+ * Adapts the similarity engine into the playback layer's [NextTrackChooser] port — the ONLY place
+ * the two meet, which is what keeps :core:smart and :core:playback mutually ignorant of each other.
+ *
+ * SMART is a *walk*, not a series of independent picks: the engine plans a chain of
+ * [CHAIN_LENGTH] tracks from a seed, and that plan is what keeps a queue coherent — it tracks how
+ * far it has drifted from the seed, which artists and titles it has spent, and how much the energy
+ * jumped last hop. Asking for one nearest neighbour at a time throws all of that away.
+ *
+ * So the chain is planned once and then served in order. It is replanned when it runs out, or when
+ * playback lands somewhere the plan did not predict (the user skipped, or picked a track by hand) —
+ * that track becomes the seed of the next chain, which is what the user just asked for.
+ *
+ * Abstains when neither the audio nor trusted-metadata path can plan. It never disguises a random
+ * pick as SMART — but abstention must not end the session either, so [continuation] supplies a
+ * clearly labelled unheard track and the walk resumes as soon as the engine can answer.
+ */
+class EngineNextTrackChooser(
+    private val engine: SimilarityEngine,
+    private val history: ListeningHistory,
+    /** Live view of the playlists the listener marked "keep together in SMART". */
+    private val companionGroups: () -> List<Set<TrackId>> = { emptyList() },
+) : NextTrackChooser {
+
+    private val mutex = Mutex()
+    /** The unserved rest of the current plan, each id with its index in that plan. */
+    private var planned = ArrayDeque<IndexedValue<TrackId>>()
+    private var expectedNext: TrackId? = null
+    /** The queue's last track when [expectedNext] was served: where the queue ends if that row goes. */
+    private var servedAfter: TrackId? = null
+    /** The queued prefix distinguishes a continuation from a new start at the same track. */
+    private var expectedPrecedingIds: List<TrackId> = emptyList()
+    private var plannedWithGroups: List<Set<TrackId>> = emptyList()
+
+    /** Artists of the last few continuations, so a run of them cannot become an album dump. */
+    private val recentContinuationArtists = ArrayDeque<String>()
+
+    override suspend fun choose(
+        current: TrackDescriptor,
+        recentIds: List<TrackId>,
+        candidates: List<TrackDescriptor>,
+    ): SmartChoice? = mutex.withLock {
+        val sameQueue = continuesSmartPlan(expectedPrecedingIds, recentIds)
+        // Removing the row served last, or moving it up, ends the queue where that row was served
+        // from. The rest of the plan still follows there, and a removed row is not served again.
+        val onPlan = current.id == expectedNext || current.id == servedAfter
+        if (expectedNext != null && (!onPlan || !sameQueue)) {
+            // A new queue can start at the expected track too; its preceding tracks identify it,
+            // and they survive the listener's edits to the upcoming tracks (continuesSmartPlan).
+            planned.clear()
+        }
+        // Marking or unmarking a playlist takes effect on the NEXT hop, not after the previous
+        // plan (up to CHAIN_LENGTH tracks) has run dry — the stale plan is discarded.
+        val groups = companionGroups()
+        if (groups != plannedWithGroups) {
+            plannedWithGroups = groups
+            planned.clear()
+        }
+        fun nextPlanned(): SmartChoice? {
+            while (planned.isNotEmpty()) {
+                val (index, id) = planned.removeFirst()
+                val chosen = candidates.firstOrNull { it.id == id } ?: continue
+                expectedNext = chosen.id
+                servedAfter = current.id
+                expectedPrecedingIds = (recentIds + current.id).takeLast(CHAIN_LENGTH)
+                // A slot skipped as ineligible still counts: the position says how far from its
+                // seed the plan put this track, which is what drift along a plan is measured by.
+                return SmartChoice(chosen, planPosition = index + 1)
+            }
+            return null
+        }
+        // Eligibility can change without the playhead moving. Exhaust an obsolete cached plan
+        // before deciding whether to replan, so available tracks are considered in this call.
+        nextPlanned()?.let { return@withLock it }
+        if (candidates.isNotEmpty()) {
+            val started = TimeSource.Monotonic.markNow()
+            val events = smartHistoryFor(history, current)
+            // A top-up can extend this chooser's plan or one the UI requested directly, even
+            // after replacing the previous queue. The engine checks the preceding queued tracks
+            // before carrying a walk; an unrelated seed starts fresh there.
+            val plan = engine.continueSmartQueue(
+                current, candidates, CHAIN_LENGTH, events, groups, precedingTrackIds = recentIds,
+            )
+            planned = ArrayDeque(plan.withIndex().toList())
+            // Diagnostics stay aggregate on purpose: no title, artist or track id goes to the
+            // system log. On Android that log is plain logcat, which other apps could read on
+            // older releases, and the app promises that nothing about what is played leaves it.
+            println(
+                "SMART: planned ${planned.size} of $CHAIN_LENGTH slots from " +
+                    "${candidates.size} candidates in " +
+                    "${started.elapsedNow().inWholeMilliseconds} ms",
+            )
+        }
+
+        // At most one new plan per call, including when the engine itself returns no usable ids.
+        nextPlanned()?.let { return@withLock it }
+        expectedNext = null
+        servedAfter = null
+        expectedPrecedingIds = emptyList()
+        println("SMART: no eligible local plan candidates=${candidates.size}")
+        null
+    }
+
+    /**
+     * Not a recommendation, and never dressed as one: the longest-unheard track still available.
+     *
+     * The controller asks for this only after [choose] abstained, labels the row, and comes back
+     * to [choose] at the very next transition — so this keeps a session alive while the index
+     * warms up or a plan momentarily fails, instead of leaving the listener in silence.
+     */
+    override suspend fun continuation(
+        current: TrackDescriptor,
+        recentIds: List<TrackId>,
+        candidates: List<TrackDescriptor>,
+    ): TrackDescriptor? = mutex.withLock {
+        val lastPlayedAtMs = runCatching { history.stats() }
+            .getOrNull()
+            ?.mapValues { (_, stats) -> stats.lastPlayedAtMs }
+            .orEmpty()
+        val chosen = smartContinuationTrack(
+            candidates = candidates,
+            lastPlayedAtMs = lastPlayedAtMs,
+            avoidArtists = recentContinuationArtists.toSet(),
+        ) ?: return@withLock null
+        continuationArtistKey(chosen)?.let { artist ->
+            recentContinuationArtists.addLast(artist)
+            while (recentContinuationArtists.size > CONTINUATION_ARTIST_SPACING) {
+                recentContinuationArtists.removeFirst()
+            }
+        }
+        chosen
+    }
+
+    private companion object {
+        /**
+         * Tracks planned per chain. Matches the length the chain's weighting was tuned at: long
+         * enough for seed gravity and the artist-spacing rules to matter, short enough that the plan
+         * still reflects what the listener picked rather than where it drifted.
+         */
+        const val CHAIN_LENGTH = 12
+
+        /** How many continuations must pass before the same artist may continue the queue again. */
+        const val CONTINUATION_ARTIST_SPACING = 3
+    }
+}
+
+/**
+ * Picks the track that keeps SMART playing when the recommender cannot: the one the listener has
+ * not heard, or heard longest ago, skipping [avoidArtists] so consecutive continuations do not
+ * walk an album end to end.
+ *
+ * Deliberately deterministic — never random. Randomness here would be indistinguishable from the
+ * shuffle SMART exists to replace, and a listener who reports "it played something odd" deserves
+ * an answer that can be reproduced. Library order breaks ties, and the artist filter yields rather
+ * than returning nothing when every remaining candidate shares one artist: silence is the worse
+ * outcome. `null` means the pool really is empty, which ends the queue honestly.
+ */
+internal fun smartContinuationTrack(
+    candidates: List<TrackDescriptor>,
+    lastPlayedAtMs: Map<TrackId, Long>,
+    avoidArtists: Set<String>,
+): TrackDescriptor? {
+    if (candidates.isEmpty()) return null
+    // Stable sort: equally unheard candidates keep the order the library handed over.
+    val ordered = candidates.sortedBy { track -> lastPlayedAtMs[track.id] ?: Long.MIN_VALUE }
+    return ordered.firstOrNull { track ->
+        continuationArtistKey(track)?.let { it !in avoidArtists } ?: true
+    } ?: ordered.first()
+}
+
+/** Null for an unknown artist: those tracks share no artist and must not be spaced as if they did. */
+private fun continuationArtistKey(track: TrackDescriptor): String? =
+    track.artist?.trim()?.takeIf(String::isNotEmpty)?.lowercase()
+
+/**
+ * Plan positions for a SMART plan the app plays as an ordinary queue — a For You or Map journey —
+ * numbered as [EngineNextTrackChooser] numbers its own: the first slot after the seed is 1, and a
+ * slot the caller could not resolve to a track still takes its place in the count.
+ */
+internal fun smartPlanPositions(plan: List<TrackId>): Map<TrackId, Int> =
+    plan.withIndex().associate { (index, id) -> id to index + 1 }
+
+/** Projects the private append-only history log into SMART's model-only value type. */
+internal suspend fun smartHistoryFor(
+    history: ListeningHistory,
+    current: TrackDescriptor,
+): List<SmartHistoryEvent> = withContext(Dispatchers.Default) {
+    // This can project up to 10k persisted events. Queue top-up is launched by the playback
+    // controller's main-thread scope, so doing the copy/map before the engine's own dispatcher is
+    // entered made a track transition capable of consuming a UI frame on a large history log.
+    val observed = history.recentEvents(SMART_HISTORY_LIMIT).asReversed().map { event ->
+        val fraction = event.trackDurationMs
+            ?.takeIf { it > 0 }
+            ?.let { (event.playedMs.toDouble() / it).toFloat().coerceIn(0f, 1f) }
+            ?: when {
+                event.completed -> 1f
+                event.skipped -> 0f
+                else -> 0.5f
+            }
+        SmartHistoryEvent(
+            trackId = event.trackId,
+            startedAtMs = event.startedAtMs,
+            playedFraction = fraction,
+            completed = event.completed,
+            skipped = event.skipped,
+        )
+    }
+    // The history recorder emits only when playback leaves a track. Queue planning happens while
+    // [current] is still playing, so add it as the latest positive intent explicitly.
+    val now = maxOf(epochMillis(), (observed.lastOrNull()?.startedAtMs ?: Long.MIN_VALUE) + 1)
+    observed + SmartHistoryEvent(
+        trackId = current.id,
+        startedAtMs = now,
+        playedFraction = 1f,
+        completed = true,
+        skipped = false,
+    )
+}
+
+private const val SMART_HISTORY_LIMIT = 10_000

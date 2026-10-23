@@ -1,0 +1,743 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.app
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.Surface
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import io.github.nikitasud.latentjam.app.generated.resources.Res
+import io.github.nikitasud.latentjam.app.generated.resources.action_play
+import io.github.nikitasud.latentjam.app.generated.resources.count_tracks
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_caption_left_turn
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_caption_played_before
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_section_daypart_day
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_section_daypart_evening
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_section_daypart_morning
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_section_daypart_night
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_section_on_a_roll
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_empty
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_kicker_never_played
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_kicker_played_times
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_kicker_resume
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_section_continue
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_section_never_played
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_section_worlds
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_section_worth_revisiting
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_world_open
+import io.github.nikitasud.latentjam.app.generated.resources.foryou_world_smart
+import io.github.nikitasud.latentjam.app.generated.resources.track_unknown_artist
+import io.github.nikitasud.latentjam.app.generated.resources.track_untitled
+import io.github.nikitasud.latentjam.history.ForYouImpression
+import io.github.nikitasud.latentjam.history.epochMillis
+import io.github.nikitasud.latentjam.history.localTimePoint
+import io.github.nikitasud.latentjam.smart.TrackDescriptor
+import io.github.nikitasud.latentjam.smart.TrackId
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * For You: what to play, drawn from what you own and how you have listened.
+ *
+ * This is not discovery — there is no catalogue to discover. It is rediscovery and decision support:
+ * things you own but forgot, and a shorter path than scrolling 850 tracks. A row therefore earns its
+ * place only by showing something you could not have reached by browsing; anything a plain sort
+ * would produce belongs on the Tracks tab, not here.
+ *
+ * The page is built once per visit and does not re-rank underneath the reader. A surface that
+ * reshuffles while being read is indistinguishable from a broken one, and repeated exposure is what
+ * turns a suggestion into a play.
+ *
+ * An offer counts as an IMPRESSION only when its card is on screen. The page cannot tell: it is
+ * built all at once, while the rows below compose only what fits the viewport, so the builder's
+ * own list of offers is an upper bound rather than a record of what was seen. The caller therefore
+ * receives what actually scrolled into view — hero included — through [onCardShown].
+ */
+@Composable
+fun ForYouTab(
+    page: ForYouPage,
+    accent: TrackAccent? = null,
+    contentPadding: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    /** The page is being built; an empty page then means "not ready yet", not "no history". */
+    isLoading: Boolean = false,
+    /** The history could not be read and no page exists; the caller's snackbar says why. */
+    loadFailed: Boolean = false,
+    onPlay: (List<TrackDescriptor>, Int) -> Unit,
+    onPlayHero: (ForYouHero) -> Unit,
+    onTrackMenu: (TrackDescriptor) -> Unit,
+    onOpenCollection: (ForYouCollection) -> Unit,
+    /**
+     * Plays a collection or mix card in its order, continuing with SMART after it. The cover's
+     * play button; tapping the card still opens it (see [WorldActionsSheet] for why).
+     */
+    onPlayCollection: (ForYouCollection) -> Unit = {},
+    onOpenWorld: (ForYouCard) -> Unit = {},
+    /** Current presentation only: changing artwork must not rebuild or reorder recommendations. */
+    playlistArtworkUris: Map<String, String> = emptyMap(),
+    /**
+     * Called as cards reach the viewport, once per card per page visit. Defaults to doing nothing
+     * so a preview or a test can render the page without writing an impression.
+     */
+    onCardShown: (ForYouImpression) -> Unit = {},
+    /** The page's unit of change; injectable so a replay can pin a day the way a timezone is pinned. */
+    epochDay: () -> Long = { localTimePoint(epochMillis()).epochDay },
+) {
+    val reduceMotion = rememberReduceMotion()
+    val listState = rememberLazyListState()
+    val shown = rememberUpdatedState(onCardShown)
+    val day = rememberUpdatedState(epochDay)
+    // The store's record() deduplicates (track, day), and so does this: a page rebuild or a return
+    // to the tab must not rewrite the file for a card the listener has already been shown today.
+    val reported = remember { mutableSetOf<ForYouImpression>() }
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        if (page.isEmpty) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                // The empty-history invitation is only true once a build has finished and found
+                // nothing; shown while loading it told listeners with years of history to "play a
+                // few tracks". A failed read leaves the space blank — the snackbar explains it.
+                when {
+                    isLoading -> AppSpinner(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
+                    loadFailed -> Unit
+                    else -> Text(
+                        text = stringResource(Res.string.foryou_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else {
+            FadingLazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = listState,
+                contentPadding = contentPadding,
+            ) {
+                page.hero?.let { hero ->
+                    item(key = HERO_ITEM_KEY) {
+                        Box(
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = tween(
+                                    if (reduceMotion) Motion.REDUCED_MS else Motion.APPEAR_MS,
+                                ),
+                                placementSpec = if (reduceMotion) null else tween(Motion.APPEAR_MS),
+                                fadeOutSpec = tween(
+                                    if (reduceMotion) Motion.REDUCED_MS else Motion.REPLACE_MS,
+                                ),
+                            ),
+                        ) {
+                            // The hero is an offer like any other, and the one most likely to be
+                            // seen: it is the only card on the opening screen that needs no scroll.
+                            // It is reported here rather than from the builder's offer list, which
+                            // never contained it, and only once the layout has actually placed it.
+                            ObserveHeroCard(hero, listState, reported, shown, day)
+                            HeroCard(hero, accent = accent, onPlay = { onPlayHero(hero) })
+                        }
+                    }
+                }
+                items(page.sections, key = { it.kind.name }) { section ->
+                    Column(
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = tween(
+                                if (reduceMotion) Motion.REDUCED_MS else Motion.APPEAR_MS,
+                            ),
+                            placementSpec = if (reduceMotion) null else tween(Motion.APPEAR_MS),
+                            fadeOutSpec = tween(
+                                if (reduceMotion) Motion.REDUCED_MS else Motion.REPLACE_MS,
+                            ),
+                        ),
+                    ) {
+                        Text(
+                            text = section.title(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                letterSpacing = 0.4.sp,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(
+                                start = 20.dp,
+                                end = 20.dp,
+                                top = 18.dp,
+                                bottom = 8.dp,
+                            ),
+                        )
+                        val rowState = rememberLazyListState()
+                        // The section is recorded under the identifier the builder already uses for
+                        // its own offer list, not under the enum name: one spelling per section, or
+                        // the impression log ends up holding two names for the same row.
+                        val sectionKey = section.kind.impressionSection()
+                        // A row is not shown merely because it exists: the column composes what
+                        // fits around the viewport, and its rows then lay out every card they hold.
+                        // Reporting on a snapshot of the row's own layout is what separates the two
+                        // or three cards a phone actually shows from the eight in the list.
+                        ObserveShownCards(rowState, sectionKey, reported, shown, day)
+                        LazyRow(
+                            state = rowState,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                        ) {
+                            // Keyed by the card's own identity: a collection or a mix is reported as
+                            // itself, never as an offer of its cover track (ForYouCard.impressionKey).
+                            items(section.cards, key = { it.impressionKey }) { card ->
+                                Box(
+                                    modifier = Modifier.animateItem(
+                                        fadeInSpec = tween(
+                                            if (reduceMotion) {
+                                                Motion.REDUCED_MS
+                                            } else {
+                                                Motion.APPEAR_MS
+                                            },
+                                        ),
+                                        placementSpec = if (reduceMotion) {
+                                            null
+                                        } else {
+                                            tween(Motion.APPEAR_MS)
+                                        },
+                                        fadeOutSpec = tween(
+                                            if (reduceMotion) Motion.REDUCED_MS else Motion.REPLACE_MS,
+                                        ),
+                                    ),
+                                ) {
+                                    ForYouCardItem(
+                                        card = card,
+                                        artworkUri =
+                                            card.collection?.playlistId?.let(playlistArtworkUris::get)
+                                                ?: card.track.artworkUri,
+                                        onClick = {
+                                            when {
+                                                // A world is a hundred-odd tracks, and there are two
+                                                // reasonable things to do with one. Guessing which was the
+                                                // previous build's mistake: it played immediately, and the
+                                                // tap that meant "show me this" was indistinguishable from
+                                                // the tap that meant "play it".
+                                                section.kind == ForYouSectionKind.WORLDS -> onOpenWorld(card)
+                                                // Browsing a collection should not replace playback. Its
+                                                // detail page's play control is the commitment to a new queue.
+                                                card.collection != null -> onOpenCollection(card.collection)
+                                                else -> {
+                                                    val tracks = section.cards
+                                                        .filter { it.collection == null }
+                                                        .map { it.track }
+                                                    onPlay(
+                                                        tracks,
+                                                        tracks.indexOfFirst { it.id == card.track.id },
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onLongClick = if (card.collection == null) {
+                                            { onTrackMenu(card.track) }
+                                        } else {
+                                            null
+                                        },
+                                        onPlayCollection = card.collection?.let { collection ->
+                                            { onPlayCollection(collection) }
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The hero is the column's first item; its presence in the layout is the whole visibility test. */
+private const val HERO_ITEM_KEY = "hero"
+
+/** Section identifier recorded for the hero card; the others come from the section's own kind. */
+private const val HERO_SECTION = "hero"
+
+/**
+ * The section identifier written to the impression log.
+ *
+ * The builder names the sections it collects discovery offers from ("daypart", "wildcard",
+ * "never-played"), so the tab reports the same words rather than the enum constant — the log is
+ * free-form by design, and two names for one row make it unreadable.
+ */
+private fun ForYouSectionKind.impressionSection(): String = when (this) {
+    ForYouSectionKind.DAYPART -> "daypart"
+    ForYouSectionKind.NEVER_PLAYED -> "never-played"
+    ForYouSectionKind.CONTINUE -> "continue"
+    ForYouSectionKind.WORTH_REVISITING -> "worth-revisiting"
+    ForYouSectionKind.ON_A_ROLL -> "on-a-roll"
+    ForYouSectionKind.WORLDS -> "worlds"
+}
+
+/**
+ * Reports the hero once the column has actually put it on screen.
+ *
+ * Read through a snapshot rather than once on entry: a page built before the first layout pass has
+ * no visible items yet, and an offer that is silently dropped is exactly the defect this records
+ * against.
+ */
+@Composable
+private fun ObserveHeroCard(
+    hero: ForYouHero,
+    listState: LazyListState,
+    reported: MutableSet<ForYouImpression>,
+    onShown: State<(ForYouImpression) -> Unit>,
+    epochDay: State<() -> Long>,
+) {
+    LaunchedEffect(hero.track.id, listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.any { it.key == HERO_ITEM_KEY } }
+            .collect { onScreen ->
+                if (!onScreen) return@collect
+                val impression = ForYouImpression(
+                    trackId = hero.track.id,
+                    section = HERO_SECTION,
+                    epochDay = epochDay.value(),
+                )
+                if (reported.add(impression)) onShown.value(impression)
+            }
+    }
+}
+
+/**
+ * Reports the cards of one row as they reach the viewport, each at most once per composition.
+ *
+ * [reported] is what makes "once" true across rows, rebuilds and returns to the tab. Each item key
+ * is the card's [ForYouCard.impressionKey]: a track id for a track card, the collection's or mix's
+ * own key otherwise — so showing a collection never counts as offering its cover track. The key
+ * travels in the impression's track-id field; the journal stores ids as free strings.
+ */
+@Composable
+private fun ObserveShownCards(
+    rowState: LazyListState,
+    sectionKey: String,
+    reported: MutableSet<ForYouImpression>,
+    onShown: State<(ForYouImpression) -> Unit>,
+    epochDay: State<() -> Long>,
+) {
+    LaunchedEffect(rowState, sectionKey) {
+        snapshotFlow {
+            rowState.layoutInfo.visibleItemsInfo.map { it.key as? String }.filterNotNull()
+        }
+            .collect { visibleKeys ->
+                val day = epochDay.value()
+                val new = visibleKeys.mapNotNull { key ->
+                    val id = TrackId(key)
+                    val impression = ForYouImpression(id, sectionKey, day)
+                    if (reported.add(impression)) impression else null
+                }
+                new.forEach { onShown.value(it) }
+            }
+    }
+}
+
+/**
+ * The builder emits a section KIND; the heading is written here.
+ *
+ * Keeping the two apart is what lets the page rules stay a pure, unit-tested function while the
+ * words it implies still arrive in the reader's language.
+ */
+@Composable
+private fun ForYouSection.title(): String = when (kind) {
+    ForYouSectionKind.CONTINUE -> stringResource(Res.string.foryou_section_continue).uppercaseForDisplay()
+    ForYouSectionKind.DAYPART -> stringResource(
+        when (daypart) {
+            ForYouDaypart.MORNING -> Res.string.foryou_section_daypart_morning
+            ForYouDaypart.DAY -> Res.string.foryou_section_daypart_day
+            ForYouDaypart.EVENING -> Res.string.foryou_section_daypart_evening
+            ForYouDaypart.NIGHT, null -> Res.string.foryou_section_daypart_night
+        },
+    ).uppercaseForDisplay()
+    ForYouSectionKind.WORTH_REVISITING ->
+        stringResource(Res.string.foryou_section_worth_revisiting).uppercaseForDisplay()
+    // The artist IS the headline. The heading's own words are uppercased like every other header,
+    // the artist's name is not: shouting someone's name reads as an error, and case can be part of it.
+    ForYouSectionKind.ON_A_ROLL -> {
+        val marker = "\uE000"
+        stringResource(Res.string.foryou_section_on_a_roll, marker)
+            .uppercaseForDisplay()
+            .replace(marker, bidiWrap(subject.orEmpty()))
+    }
+    ForYouSectionKind.WORLDS -> stringResource(Res.string.foryou_section_worlds).uppercaseForDisplay()
+    ForYouSectionKind.NEVER_PLAYED -> stringResource(Res.string.foryou_section_never_played).uppercaseForDisplay()
+}
+
+/**
+ * The two things a world is good for, asked rather than assumed.
+ *
+ * A region of the library is not one record, so tapping it cannot mean one thing. Offering the
+ * choice costs a tap and buys the difference between browsing and committing — the previous
+ * implementation played on touch, and the way back from a hundred-track queue you did not ask for
+ * is long enough that people stopped touching.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun WorldActionsSheet(
+    card: ForYouCard,
+    onOpen: () -> Unit,
+    onStartSmart: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val world = card.collection ?: return
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    val reduceMotion = rememberReduceMotion()
+    var dismissalInFlight by remember { mutableStateOf(false) }
+
+    fun dismissThen(action: () -> Unit) {
+        if (dismissalInFlight) return
+        dismissalInFlight = true
+        if (reduceMotion) {
+            // Nothing animates, so there is no window in which the choice could be withdrawn.
+            onDismiss()
+            action()
+        } else {
+            // Back or a scrim tap during the animation cancels this hide and takes the choice with
+            // it: the sheet leaves either way, only an uninterrupted hide means "yes".
+            scope.hideSheetThenConfirmed(sheetState::hide, onDismiss = onDismiss, action = action)
+        }
+    }
+
+    fun dismissWhile(action: () -> Unit) {
+        if (dismissalInFlight) return
+        dismissalInFlight = true
+        action()
+        if (reduceMotion) {
+            onDismiss()
+        } else {
+            scope.hideSheetThen(sheetState::hide) { onDismiss() }
+        }
+    }
+
+    AppModalSheet(
+        onDismissRequest = { dismissThen {} },
+        sheetState = sheetState,
+        sheetGesturesEnabled = !dismissalInFlight,
+    ) {
+        Column(modifier = Modifier.navigationBarsPadding()) {
+            Row(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Artwork(uri = card.track.artworkUri, size = 56.dp, cornerRadius = 12.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = world.title,
+                        style = MaterialTheme.typography.titleMedium.metadata(),
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = pluralStringResource(
+                            Res.plurals.count_tracks,
+                            world.tracks.size,
+                            world.tracks.size,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            SheetAction(
+                icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                label = stringResource(Res.string.foryou_world_open),
+                onClick = { dismissThen(onOpen) },
+            )
+            // Seeded from the cover, which is the world's most central track — so the journey
+            // starts from the middle of the region rather than from its edge.
+            SheetAction(
+                icon = LatentJamMark,
+                label = stringResource(Res.string.foryou_world_smart),
+                onClick = { dismissWhile(onStartSmart) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SheetAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Icon(imageVector = icon, contentDescription = null)
+        Text(text = label, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/**
+ * Card captions. Both carry a count, so both go through the plural machinery rather than through
+ * string concatenation — the difference between "1 трек" and "5 треков" is not a suffix.
+ */
+@Composable
+private fun ForYouCaption.text(): String = when (this) {
+    is ForYouCaption.PlayedBefore ->
+        pluralStringResource(Res.plurals.foryou_caption_played_before, plays, plays)
+    is ForYouCaption.TrackCount ->
+        pluralStringResource(Res.plurals.count_tracks, tracks, tracks)
+    is ForYouCaption.LeftTurnFrom ->
+        stringResource(Res.string.foryou_caption_left_turn, bidiWrap(title))
+}
+
+@Composable
+private fun ForYouKicker.text(): String = when (this) {
+    ForYouKicker.Resume -> stringResource(Res.string.foryou_kicker_resume)
+    is ForYouKicker.PlayedTimes ->
+        pluralStringResource(Res.plurals.foryou_kicker_played_times, plays, plays)
+    ForYouKicker.NeverPlayed -> stringResource(Res.string.foryou_kicker_never_played)
+}
+
+/**
+ * Artwork identifies the item; title and artist remain readable even when a recommendation has a
+ * reason. Collection cards separate opening their contents from explicitly starting playback.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ForYouCardItem(
+    card: ForYouCard,
+    artworkUri: String?,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
+    /** Present for collection and mix cards: plays them without opening them first. */
+    onPlayCollection: (() -> Unit)? = null,
+) {
+    // The whole card is the touch target, but the press ripple is shown only on the cover — a
+    // default clickable would paint the entire column, text and all, with a grey rectangle on
+    // every tap. The interaction source is shared so the cover lights up while the column
+    // handles the gesture. combinedClickable also finally wires the long-press: the old
+    // clickable() dropped onLongClick, so opening a card's menu never worked.
+    val interaction = remember { MutableInteractionSource() }
+    Column(
+        modifier = Modifier
+            .width(132.dp)
+            .scaleOnPress(interaction)
+            .combinedClickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
+    ) {
+        Box {
+            Artwork(
+                uri = artworkUri,
+                size = 132.dp,
+                cornerRadius = 16.dp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp.corner()))
+                    .indication(interaction, ripple()),
+            )
+            if (onPlayCollection != null) {
+                // A collection or mix opens on tap — playing a hundred tracks on a touch that
+                // meant "show me" was a mistake already made once — so playing it gets its own
+                // control, on the cover where a play button is expected.
+                val playPress = rememberPressSource()
+                FilledIconButton(
+                    onClick = onPlayCollection,
+                    interactionSource = playPress,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp)
+                        .size(40.dp)
+                        .scaleOnPress(playPress, Motion.BUTTON_PRESS_SCALE),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = playButtonColors(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = stringResource(Res.string.action_play),
+                    )
+                }
+            }
+        }
+        Text(
+            text = card.collection?.title
+                ?: card.track.title
+                ?: stringResource(Res.string.track_untitled),
+            style = MaterialTheme.typography.bodyMedium.metadata(),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        )
+        val collection = card.collection
+        val collectionArtist = remember(collection) {
+            collection?.tracks?.mapNotNull { it.artist?.takeIf(String::isNotBlank) }
+                ?.distinct()?.singleOrNull()
+        }
+        // A mixed collection must not be credited to its representative cover's artist.
+        val artist = if (collection == null) {
+            card.track.artist?.takeIf(String::isNotBlank)
+                ?: stringResource(Res.string.track_unknown_artist)
+        } else {
+            collectionArtist
+        }
+        val caption = card.caption
+        val reason = when {
+            caption != null -> {
+                caption.text()
+            }
+            collection != null -> pluralStringResource(
+                Res.plurals.count_tracks,
+                collection.tracks.size,
+                collection.tracks.size,
+            )
+            else -> null
+        }
+        Text(
+            text = joinBidiWrapped(listOfNotNull(artist, reason)),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/**
+ * The one-tap card.
+ *
+ * Sized so it and the first row's covers share the opening screen — the point is a decision made
+ * without scrolling, and a card that fills the viewport would hide the alternatives that make the
+ * choice feel like a choice. Playing it hands the track to SMART as a seed rather than queuing it
+ * alone: the personal signal decides what to start from, the model decides what follows.
+ */
+@Composable
+private fun HeroCard(hero: ForYouHero, accent: TrackAccent?, onPlay: () -> Unit) {
+    val tint = accent?.vivid ?: MaterialTheme.colorScheme.primary
+    val ink = accent?.let { browseAccentInk(it) } ?: MaterialTheme.colorScheme.primary
+    val interaction = remember { MutableInteractionSource() }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, bottom = 4.dp)
+            .scaleOnPress(interaction)
+            .clickable(
+                interactionSource = interaction,
+                indication = ripple(),
+                onClick = onPlay,
+            ),
+        shape = RoundedCornerShape(24.dp.corner()),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, ink.copy(alpha = 0.16f)),
+    ) {
+        Row(
+            modifier = Modifier.background(Brush.linearGradient(
+                listOf(tint.copy(alpha = 0.22f), tint.copy(alpha = 0.05f)),
+            )).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Artwork(uri = hero.track.artworkUri, size = 92.dp, cornerRadius = 16.dp)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = hero.kicker.text().uppercaseForDisplay(),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        letterSpacing = 0.5.sp,
+                    ),
+                    color = ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = hero.track.title ?: stringResource(Res.string.track_untitled),
+                    style = MaterialTheme.typography.titleMedium.metadata(),
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Text(
+                    text = hero.track.artist ?: stringResource(Res.string.track_unknown_artist),
+                    style = MaterialTheme.typography.bodySmall.metadata(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            // Icon-only and fixed size: a labelled button here clips under translation and large
+            // font scales, which is a mistake this project has already made three times.
+            val playPress = rememberPressSource()
+            FilledIconButton(
+                onClick = onPlay,
+                interactionSource = playPress,
+                modifier = Modifier.size(48.dp).scaleOnPress(playPress, Motion.BUTTON_PRESS_SCALE),
+                shape = RoundedCornerShape(24.dp),
+                colors = playButtonColors(),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(Res.string.action_play),
+                )
+            }
+        }
+    }
+}

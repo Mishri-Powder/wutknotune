@@ -1,0 +1,1103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2026 LatentJam Project
+  SPDX-License-Identifier: Apache-2.0
+
+  Arabic translation of values/strings.xml.
+
+  Placeholders are POSITIONAL (%1$s / %1$d) and keep their numbers.
+  Apostrophes and quotation marks are written RAW: Compose Multiplatform only
+  unescapes \uXXXX, \n, \t and \\, so a backslash would reach the UI.
+  "LatentJam" and "SMART" are names and stay untranslated, in Latin script.
+  Compose picks a paragraph's direction from its first strong character, so a
+  sentence never OPENS with a Latin name (that would lay it out left to right).
+  The only control characters are the two U+200F marks inside the model-licence
+  line, where a Latin name would otherwise pull the bracket after it.
+-->
+<resources>
+
+    <!-- ============================================================ actions -->
+    <string name="action_play">تشغيل</string>
+    <string name="action_pause">إيقاف مؤقت</string>
+    <string name="action_next">التالي</string>
+    <string name="action_previous">السابق</string>
+    <string name="action_shuffle">تشغيل عشوائي</string>
+    <string name="action_close">إغلاق</string>
+    <string name="action_back">رجوع</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="action_delete">حذف</string>
+    <string name="action_rename">إعادة تسمية</string>
+    <string name="action_clear">مسح</string>
+    <string name="action_track_options">خيارات المقطع الصوتي</string>
+    <string name="action_create">إنشاء</string>
+    <string name="action_play_all">تشغيل الكل</string>
+    <string name="action_shuffle_all">تشغيل الكل عشوائيًا</string>
+    <string name="action_share">مشاركة</string>
+    <string name="action_select_all">تحديد الكل</string>
+    <string name="action_deselect_all">إلغاء تحديد الكل</string>
+    <string name="selection_count">المقاطع المحددة: %1$d</string>
+    <string name="action_add">إضافة</string>
+    <string name="cd_more_options">خيارات أخرى</string>
+    <string name="cd_search_library">البحث في المكتبة</string>
+    <string name="cd_alphabet_index">الفهرس الأبجدي</string>
+
+    <!-- ======================================================= track labels -->
+    <string name="label_track">مقطع صوتي</string>
+    <string name="track_untitled">بدون عنوان</string>
+    <string name="track_unknown_artist">فنان غير معروف</string>
+    <string name="track_unknown_album">ألبوم غير معروف</string>
+    <string name="track_unknown_genre">نوع غير معروف</string>
+    <!-- Arabic distinguishes all six CLDR categories: zero, one, two (dual),
+         few (3–10), many (11–99) and the required other fallback. -->
+    <plurals name="count_tracks">
+        <item quantity="zero">%1$d مقطع صوتي</item>
+        <item quantity="one">%1$d مقطع صوتي</item>
+        <item quantity="two">%1$d مقطعان صوتيان</item>
+        <item quantity="few">%1$d مقاطع صوتية</item>
+        <item quantity="many">%1$d مقطعًا صوتيًا</item>
+        <item quantity="other">%1$d مقطع صوتي</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="cd_track_options_for">المزيد من الخيارات لـ %1$s</string>
+    <string name="cd_track_options_generic">المزيد من الخيارات لهذا المقطع الصوتي</string>
+
+    <plurals name="count_albums">
+        <item quantity="zero">%1$d ألبوم</item>
+        <item quantity="one">%1$d ألبوم</item>
+        <item quantity="two">%1$d ألبومان</item>
+        <item quantity="few">%1$d ألبومات</item>
+        <item quantity="many">%1$d ألبومًا</item>
+        <item quantity="other">%1$d ألبوم</item>
+    </plurals>
+    <plurals name="count_artists">
+        <item quantity="zero">%1$d فنان</item>
+        <item quantity="one">%1$d فنان</item>
+        <item quantity="two">%1$d فنانان</item>
+        <item quantity="few">%1$d فنانين</item>
+        <item quantity="many">%1$d فنانًا</item>
+        <item quantity="other">%1$d فنان</item>
+    </plurals>
+    <plurals name="count_genres">
+        <item quantity="zero">%1$d نوع</item>
+        <item quantity="one">%1$d نوع</item>
+        <item quantity="two">%1$d نوعان</item>
+        <item quantity="few">%1$d أنواع</item>
+        <item quantity="many">%1$d نوعًا</item>
+        <item quantity="other">%1$d نوع</item>
+    </plurals>
+
+    <!-- ======================================================= browse tabs -->
+    <string name="tab_for_you">لك</string>
+    <string name="tab_playlists">قوائم التشغيل</string>
+    <string name="tab_tracks">المقاطع</string>
+    <string name="tab_albums">الألبومات</string>
+    <string name="tab_artists">الفنانون</string>
+    <string name="tab_genres">الأنواع</string>
+    <string name="tab_map">الخريطة</string>
+
+    <!-- ===================================================== library shell -->
+    <string name="library_empty">لم يتم العثور على موسيقى على هذا الجهاز.</string>
+    <string name="action_rescan_library">تحديث المكتبة</string>
+    <string name="sort_recently_added">المضافة حديثًا</string>
+    <string name="sort_custom_order">ترتيب مخصص</string>
+    <string name="sort_name">الاسم</string>
+    <string name="sort_direction_ascending">تصاعدي</string>
+    <string name="sort_direction_descending">تنازلي</string>
+    <string name="snack_track_deleted">تم حذف المقطع</string>
+    <string name="snack_track_delete_denied">يلزم الوصول إلى الملفات لحذف هذه المقاطع.</string>
+    <string name="snack_track_delete_failed">تعذّر حذف الملف</string>
+    <string name="snack_track_delete_summary">تم الحذف: %1$d. رُفض الوصول: %2$d. فشل: %3$d. أُلغي: %4$d.</string>
+
+    <!-- =========================================================== for you -->
+    <string name="foryou_empty">شغّل بضعة مقاطع وستمتلئ هذه الصفحة بما يستحق العودة إليه.</string>
+    <string name="foryou_section_continue">لم تكتمل بعد</string>
+    <string name="foryou_section_worth_revisiting">لم تسمعها منذ فترة</string>
+    <string name="foryou_section_worlds">مزيجاتك</string>
+    <string name="foryou_mix_discovery">مزيج اكتشاف</string>
+    <string name="foryou_section_never_played">لم تُشغَّل قط</string>
+    <!-- الشيئان اللذان يمكن فعلهما بعالم، معروضان بدل تخمينهما. -->
+    <string name="foryou_world_open">عرض المقاطع</string>
+    <string name="foryou_world_smart">تشغيل المشابه</string>
+    <string name="foryou_kicker_resume">تابع من حيث توقفت</string>
+    <plurals name="foryou_kicker_played_times">
+        <item quantity="zero">شغّلته %1$d مرة</item>
+        <item quantity="one">شغّلته %1$d مرة</item>
+        <item quantity="two">شغّلته %1$d مرتين</item>
+        <item quantity="few">شغّلته %1$d مرات</item>
+        <item quantity="many">شغّلته %1$d مرة</item>
+        <item quantity="other">شغّلته %1$d مرة</item>
+    </plurals>
+    <string name="foryou_kicker_never_played">لم يُشغَّل قط</string>
+    <plurals name="foryou_caption_played_before">
+        <item quantity="zero">%1$d مرة سابقًا</item>
+        <item quantity="one">%1$d مرة سابقًا</item>
+        <item quantity="two">%1$d مرتين سابقًا</item>
+        <item quantity="few">%1$d مرات سابقًا</item>
+        <item quantity="many">%1$d مرة سابقًا</item>
+        <item quantity="other">%1$d مرة سابقًا</item>
+    </plurals>
+
+    <!-- =============================================================== map -->
+    <string name="map_lens_worlds">العوالم</string>
+    <string name="map_lens_plays">مرات التشغيل</string>
+    <string name="map_lens_never_played">لم تُشغَّل قط</string>
+    <string name="map_lens_skips">التخطي</string>
+
+    <plurals name="count_regions">
+        <item quantity="zero">%1$d منطقة</item>
+        <item quantity="one">%1$d منطقة</item>
+        <item quantity="two">%1$d منطقتان</item>
+        <item quantity="few">%1$d مناطق</item>
+        <item quantity="many">%1$d منطقةً</item>
+        <item quantity="other">%1$d منطقة</item>
+    </plurals>
+
+    <string name="map_headline_worlds">تنقسم مكتبتك إلى %2$s تضم %1$s. المس إحداها لتسمع ما فيها.</string>
+    <string name="map_headline_worlds_partial">تنقسم مكتبتك إلى %3$s تضم %1$d من أصل %2$s. المس إحداها لتسمع ما فيها.</string>
+    <string name="map_headline_plays">في مناطق الخريطة، يأتي نصف مرات التشغيل من %1$s — أي %2$d\u0025 من مقاطعها.</string>
+    <string name="map_headline_never_played">في مناطق الخريطة، لم تشغّل %1$d من أصل %2$s قط. لم تستمع إلى %4$d\u0025 من منطقة «%3$s».</string>
+    <string name="map_headline_skips">في «%1$s» تتوقف أكثر من أي مكان آخر — %2$d\u0025 من مرات البدء.</string>
+
+    <string name="map_headline_unplayed_total">مناطق الخريطة: %2$s · بلا تشغيل في السجل: %1$d.</string>
+    <string name="map_select_region">اختيار منطقة</string>
+    <string name="map_fullscreen">فتح الخريطة بملء الشاشة</string>
+    <string name="map_exit_fullscreen">إغلاق الخريطة بملء الشاشة</string>
+    <string name="map_gesture_hint">استخدم إصبعين لتحريك الخريطة أو تكبيرها.</string>
+    <string name="map_reset_view">إعادة ضبط عرض الخريطة</string>
+    <string name="map_region_unplayed">لم تُشغّل هنا: %1$d</string>
+    <string name="map_action_play_unheard">تشغيل غير المسموع</string>
+    <string name="map_action_play_region">تشغيل المنطقة</string>
+    <string name="map_action_smart_here">ابدأ SMART من هنا</string>
+    <string name="map_empty_indexing">ما زلنا نقرأ مكتبتك. ستظهر الخريطة عند انتهاء الفهرسة.</string>
+    <string name="map_empty_building">نحسب شكل مكتبتك على الخريطة. قد يستغرق ذلك بعض الوقت إذا كانت مكتبتك كبيرة.</string>
+    <string name="map_empty_too_large">تحتوي مكتبتك على %1$s — أكثر من %2$s التي يمكن للخريطة عرضها حاليًا.</string>
+
+    <string name="map_legend_selected">المنطقة المحددة</string>
+    <string name="map_legend_rest">بقية المكتبة</string>
+    <string name="map_dot_outside_hint">أقرب منطقة: %1$s</string>
+    <string name="map_legend_never">لم تُشغَّل قط</string>
+    <string name="map_legend_played">شُغِّلت مرة واحدة على الأقل</string>
+    <string name="map_legend_never_skips">لم يتم تخطيها قط</string>
+    <string name="map_legend_always_skips">تُتخطى دائمًا</string>
+
+    <!-- ================================================== now playing/queue -->
+    <string name="now_playing_nothing">لا يوجد تشغيل حاليًا</string>
+    <string name="now_playing_source">التشغيل من: %1$s</string>
+    <string name="cd_now_playing">قيد التشغيل الآن</string>
+    <string name="queue_title">قائمة الانتظار</string>
+    <!-- %1$d is how many tracks are in the queue -->
+    <string name="queue_title_count">قائمة الانتظار · %1$d</string>
+    <string name="queue_row_continuation">ليس اقتراحًا — لمواصلة تشغيل الموسيقى</string>
+    <string name="cd_repeat_off">التكرار متوقف. انقر لتكرار قائمة الانتظار.</string>
+    <string name="cd_repeat_all">يتم تكرار قائمة الانتظار. انقر لتكرار مقطع واحد.</string>
+    <string name="cd_repeat_one">يتم تكرار مقطع واحد. انقر لإيقاف التكرار.</string>
+    <string name="cd_shuffle_off">التشغيل العشوائي متوقف. انقر للتغيير.</string>
+    <string name="cd_shuffle_on">التشغيل العشوائي مفعّل. انقر للتغيير.</string>
+    <string name="cd_shuffle_smart">تشغيل SMART العشوائي مفعّل. انقر للتغيير.</string>
+
+    <!-- ============================================================= search -->
+    <string name="search_placeholder">أغنية أو فنان أو كلمات</string>
+    <string name="cd_close_search">إغلاق البحث</string>
+    <string name="cd_clear_query">مسح نص البحث</string>
+    <!-- %1$s is what the user typed -->
+    <string name="search_no_matches">لا توجد نتائج لـ «%1$s».</string>
+    <!-- %1$d is the size of the library -->
+    <plurals name="search_hint_count">
+        <item quantity="zero">ابحث في مكتبتك: %1$d مقطع صوتي.</item>
+        <item quantity="one">ابحث في مكتبتك: %1$d مقطع صوتي.</item>
+        <item quantity="two">ابحث في مكتبتك: %1$d مقطعان صوتيان.</item>
+        <item quantity="few">ابحث في مكتبتك: %1$d مقاطع صوتية.</item>
+        <item quantity="many">ابحث في مكتبتك: %1$d مقطعًا صوتيًا.</item>
+        <item quantity="other">ابحث في مكتبتك: %1$d مقطع صوتي.</item>
+    </plurals>
+    <string name="search_recent_title">عمليات البحث الأخيرة</string>
+    <!-- %1$s is a past search term being removed from history -->
+    <string name="cd_forget_search">نسيان «%1$s»</string>
+
+    <!-- ========================================================== playlists -->
+    <string name="playlists_empty">لا توجد قوائم تشغيل بعد — استخدم + لإنشاء واحدة.</string>
+    <string name="playlist_name_placeholder">اسم قائمة التشغيل</string>
+    <string name="playlist_new">قائمة تشغيل جديدة</string>
+    <!-- %1$s is a playlist name -->
+    <string name="cd_playlist_options">خيارات %1$s</string>
+    <!-- Sheet header. %1$s is a track title; the generic form is used when the
+         track has no title at all. -->
+    <string name="playlist_add_to_title">إضافة «%1$s» إلى قائمة تشغيل</string>
+    <string name="playlist_add_to_title_generic">إضافة المقطع الصوتي إلى قائمة تشغيل</string>
+    <string name="playlist_rename_title">إعادة تسمية قائمة التشغيل</string>
+    <string name="action_change_playlist_cover">تغيير الغلاف</string>
+    <string name="action_reset_playlist_cover">استخدام غلاف تلقائي</string>
+    <string name="playlist_cover_error">تعذّر تغيير غلاف قائمة التشغيل. جرّب صورة أخرى.</string>
+    <string name="snack_playlist_created">تم إنشاء "%1$s"</string>
+    <string name="snack_playlist_deleted">تم حذف "%1$s"</string>
+    <string name="snack_added_to_playlist">تمت الإضافة إلى "%1$s"</string>
+    <string name="auto_playlist_favorites">المفضلة</string>
+    <string name="auto_playlist_recently_added">المضافة حديثًا</string>
+    <string name="auto_playlist_most_played">الأكثر تشغيلًا</string>
+    <string name="auto_playlist_recently_played">المشغَّلة حديثًا</string>
+    <string name="auto_playlist_never_played">لم تُشغَّل من قبل</string>
+    <string name="auto_playlist_rediscover">أعد الاكتشاف</string>
+
+    <!-- ============================================== track actions + sheet -->
+    <string name="action_play_next">تشغيل التالي</string>
+    <string name="action_add_to_queue">إضافة إلى قائمة الانتظار</string>
+    <string name="action_add_to_playlist">إضافة إلى قائمة تشغيل</string>
+    <string name="action_add_favorite">إضافة إلى المفضلة</string>
+    <string name="action_remove_favorite">إزالة من المفضلة</string>
+    <string name="action_add_all_favorites">إضافة الكل إلى المفضلة</string>
+    <plurals name="snack_favorites_added">
+        <item quantity="zero">تمت إضافة %1$d مقطع صوتي إلى المفضلة</item>
+        <item quantity="one">تمت إضافة %1$d مقطع صوتي إلى المفضلة</item>
+        <item quantity="two">تمت إضافة %1$d مقطعين صوتيين إلى المفضلة</item>
+        <item quantity="few">تمت إضافة %1$d مقاطع صوتية إلى المفضلة</item>
+        <item quantity="many">تمت إضافة %1$d مقطعًا صوتيًا إلى المفضلة</item>
+        <item quantity="other">تمت إضافة %1$d مقطع صوتي إلى المفضلة</item>
+    </plurals>
+    <plurals name="snack_favorites_removed">
+        <item quantity="zero">تمت إزالة %1$d مقطع صوتي من المفضلة</item>
+        <item quantity="one">تمت إزالة %1$d مقطع صوتي من المفضلة</item>
+        <item quantity="two">تمت إزالة %1$d مقطعين صوتيين من المفضلة</item>
+        <item quantity="few">تمت إزالة %1$d مقاطع صوتية من المفضلة</item>
+        <item quantity="many">تمت إزالة %1$d مقطعًا صوتيًا من المفضلة</item>
+        <item quantity="other">تمت إزالة %1$d مقطع صوتي من المفضلة</item>
+    </plurals>
+    <plurals name="snack_favorites_already">
+        <item quantity="zero">%1$d موجود مسبقًا في المفضلة</item>
+        <item quantity="one">%1$d موجود مسبقًا في المفضلة</item>
+        <item quantity="two">%1$d موجودان مسبقًا في المفضلة</item>
+        <item quantity="few">%1$d موجودة مسبقًا في المفضلة</item>
+        <item quantity="many">%1$d موجودًا مسبقًا في المفضلة</item>
+        <item quantity="other">%1$d موجود مسبقًا في المفضلة</item>
+    </plurals>
+    <string name="action_remove_from_playlist">إزالة من قائمة التشغيل هذه</string>
+    <string name="snack_playlist_track_removed">تمت الإزالة من "%1$s"</string>
+    <plurals name="playlist_unavailable_tracks">
+        <item quantity="zero">%1$d مقطع صوتي في قائمة التشغيل هذه غير موجود على هذا الجهاز.</item>
+        <item quantity="one">%1$d مقطع صوتي في قائمة التشغيل هذه غير موجود على هذا الجهاز.</item>
+        <item quantity="two">%1$d مقطعان صوتيان في قائمة التشغيل هذه غير موجودين على هذا الجهاز.</item>
+        <item quantity="few">%1$d مقاطع صوتية في قائمة التشغيل هذه غير موجودة على هذا الجهاز.</item>
+        <item quantity="many">%1$d مقطعًا صوتيًا في قائمة التشغيل هذه غير موجودة على هذا الجهاز.</item>
+        <item quantity="other">%1$d مقطع صوتي في قائمة التشغيل هذه غير موجودة على هذا الجهاز.</item>
+    </plurals>
+    <string name="action_go_to_album">الانتقال إلى الألبوم</string>
+    <string name="action_go_to_artist">الانتقال إلى الفنان</string>
+    <string name="action_show_on_map">عرض على الخريطة</string>
+    <string name="action_export_m3u">تصدير كملف M3U</string>
+    <string name="action_smart_keep_together">إبقاؤها معًا في SMART</string>
+    <string name="action_import_m3u">استيراد M3U</string>
+    <plurals name="snack_m3u_imported_all">
+        <item quantity="zero">تم استيراد %1$d مقطع</item>
+        <item quantity="one">تم استيراد %1$d مقطع</item>
+        <item quantity="two">تم استيراد %1$d مقطعين</item>
+        <item quantity="few">تم استيراد %1$d مقاطع</item>
+        <item quantity="many">تم استيراد %1$d مقطعًا</item>
+        <item quantity="other">تم استيراد %1$d مقطع</item>
+    </plurals>
+    <plurals name="snack_m3u_imported_partial">
+        <item quantity="zero">تم استيراد %1$d من أصل %2$d مقطع</item>
+        <item quantity="one">تم استيراد %1$d من أصل %2$d مقطع</item>
+        <item quantity="two">تم استيراد %1$d من أصل %2$d مقطعين</item>
+        <item quantity="few">تم استيراد %1$d من أصل %2$d مقاطع</item>
+        <item quantity="many">تم استيراد %1$d من أصل %2$d مقطعًا</item>
+        <item quantity="other">تم استيراد %1$d من أصل %2$d مقطع</item>
+    </plurals>
+    <string name="snack_m3u_import_failed">تعذّر استيراد قائمة التشغيل</string>
+    <plurals name="m3u_import_found">
+        <item quantity="zero">تم العثور على %1$d من أصل %2$d مقطع صوتي</item>
+        <item quantity="one">تم العثور على %1$d من أصل %2$d مقطع صوتي</item>
+        <item quantity="two">تم العثور على %1$d من أصل %2$d مقطعين صوتيين</item>
+        <item quantity="few">تم العثور على %1$d من أصل %2$d مقاطع صوتية</item>
+        <item quantity="many">تم العثور على %1$d من أصل %2$d مقطعًا صوتيًا</item>
+        <item quantity="other">تم العثور على %1$d من أصل %2$d مقطع صوتي</item>
+    </plurals>
+    <plurals name="m3u_import_playlists">
+        <item quantity="zero">%1$d قائمة تشغيل</item>
+        <item quantity="one">%1$d قائمة تشغيل</item>
+        <item quantity="two">%1$d قائمتا تشغيل</item>
+        <item quantity="few">%1$d قوائم تشغيل</item>
+        <item quantity="many">%1$d قائمة تشغيل</item>
+        <item quantity="other">%1$d قائمة تشغيل</item>
+    </plurals>
+    <plurals name="m3u_import_skipped_files">
+        <item quantity="zero">تم تخطي %1$d ملف</item>
+        <item quantity="one">تم تخطي %1$d ملف</item>
+        <item quantity="two">تم تخطي %1$d ملفين</item>
+        <item quantity="few">تم تخطي %1$d ملفات</item>
+        <item quantity="many">تم تخطي %1$d ملفًا</item>
+        <item quantity="other">تم تخطي %1$d ملف</item>
+    </plurals>
+    <string name="m3u_import_playlists_partial">قوائم التشغيل التي أُنشئت: %1$d من %2$d. تعذّر حفظ الباقي.</string>
+    <plurals name="playlist_new_count">
+        <item quantity="zero">%1$d قائمة تشغيل جديدة</item>
+        <item quantity="one">%1$d قائمة تشغيل جديدة</item>
+        <item quantity="two">%1$d قائمتا تشغيل جديدتان</item>
+        <item quantity="few">%1$d قوائم تشغيل جديدة</item>
+        <item quantity="many">%1$d قائمة تشغيل جديدة</item>
+        <item quantity="other">%1$d قائمة تشغيل جديدة</item>
+    </plurals>
+    <string name="playlist_imported_name">قائمة مستوردة</string>
+    <string name="action_information">معلومات</string>
+    <string name="action_delete_from_device">حذف من الجهاز</string>
+    <string name="dialog_delete_tracks_message">ستتم إزالة المقاطع المحددة (%1$d) من هذا الجهاز. لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="dialog_delete_track_title">حذف هذا المقطع الصوتي؟</string>
+    <plurals name="dialog_delete_tracks_title">
+        <item quantity="zero">حذف %1$d مقطع؟</item>
+        <item quantity="one">حذف %1$d مقطع؟</item>
+        <item quantity="two">حذف %1$d مقطعين؟</item>
+        <item quantity="few">حذف %1$d مقاطع؟</item>
+        <item quantity="many">حذف %1$d مقطعًا؟</item>
+        <item quantity="other">حذف %1$d مقطع؟</item>
+    </plurals>
+    <!-- %1$s is a track title -->
+    <string name="dialog_delete_track_message">سيتم حذف «%1$s» من هذا الجهاز. لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="dialog_delete_track_message_generic">سيتم حذف هذا المقطع الصوتي من هذا الجهاز. لا يمكن التراجع عن هذا الإجراء.</string>
+
+    <!-- ======================================================== track info -->
+    <string name="info_title">العنوان</string>
+    <string name="info_artist">الفنان</string>
+    <string name="info_album">الألبوم</string>
+    <string name="info_genre">النوع</string>
+    <string name="info_year">السنة</string>
+    <string name="info_duration">المدة</string>
+    <string name="info_location">الموقع</string>
+    <string name="info_not_set">غير محدد</string>
+    <string name="info_edit">تعديل الوسوم</string>
+    <string name="info_save">حفظ</string>
+    <string name="info_cancel">إلغاء</string>
+    <string name="editor_discard_title">هل تريد تجاهل التغييرات؟</string>
+    <string name="editor_discard">تجاهل</string>
+    <string name="editor_keep_editing">متابعة التعديل</string>
+    <string name="info_saving">جارٍ الحفظ…</string>
+    <string name="info_edit_note">يُحفظ في الملف نفسه، فترى كل التطبيقات التصحيح. قد يُطلب منك إذن لتعديل الملف.</string>
+    <string name="info_edit_refused">وسوم هذا الملف بصيغة لا يمكن إعادة كتابتها بأمان، لذلك لم يتغير شيء.</string>
+    <string name="info_edit_failed">تعذّرت الكتابة إلى هذا الملف. تُرك كما كان.</string>
+    <string name="info_edit_no_space">لا توجد مساحة فارغة كافية لحفظ هذه الوسوم بأمان. لم يتغير شيء.</string>
+    <string name="info_edit_recovery_pending">توقّف الحفظ. سيُكمله LatentJam أو يتراجع عنه في المرة التالية التي يُسمح له فيها بالكتابة إلى الملف.</string>
+    <string name="tag_recovery_title">إكمال حفظ الوسوم</string>
+    <plurals name="tag_recovery_body">
+        <item quantity="zero">توقّف LatentJam أثناء حفظ الوسوم في %1$d ملف. يمكنه إكمال التغييرات الآن، أو التراجع عنها حيث يتعذر إكمال الملف.</item>
+        <item quantity="one">توقّف LatentJam أثناء حفظ الوسوم في ملف واحد (%1$d). يمكنه إكمال التغيير الآن، أو التراجع عنه إذا تعذر إكمال الملف.</item>
+        <item quantity="two">توقّف LatentJam أثناء حفظ الوسوم في ملفين (%1$d). يمكنه إكمال التغييرين الآن، أو التراجع عنهما حيث يتعذر إكمال ملف.</item>
+        <item quantity="few">توقّف LatentJam أثناء حفظ الوسوم في %1$d ملفات. يمكنه إكمال التغييرات الآن، أو التراجع عنها حيث يتعذر إكمال ملف.</item>
+        <item quantity="many">توقّف LatentJam أثناء حفظ الوسوم في %1$d ملفًا. يمكنه إكمال التغييرات الآن، أو التراجع عنها حيث يتعذر إكمال ملف.</item>
+        <item quantity="other">توقّف LatentJam أثناء حفظ الوسوم في %1$d ملف. يمكنه إكمال التغييرات الآن، أو التراجع عنها حيث يتعذر إكمال ملف.</item>
+    </plurals>
+    <string name="tag_recovery_finish">إكمال</string>
+    <string name="tag_recovery_later">لاحقًا</string>
+    <string name="tag_problem_unsupported_format">لا يستطيع LatentJam تعديل هذا النوع من الملفات.</string>
+    <string name="tag_problem_damaged">يبدو هذا الملف تالفًا، لذلك تُرك كما هو.</string>
+    <string name="tag_problem_protected">هذا الملف محمي من النسخ ولا يمكن تغييره.</string>
+    <string name="tag_problem_tags_too_large">ستكون الوسوم أكبر من أن يتسع لها هذا الملف.</string>
+    <string name="tag_problem_bad_number">يجب أن يكون رقم المقطع ورقم القرص عددين صحيحين من 1 إلى 999.</string>
+    <string name="tag_problem_number_unreadable">رقم المقطع أو القرص المكتوب في الملف ليس رقمًا عاديًا، لذلك لا يمكن تغيير إجماليه وحده.</string>
+    <string name="tag_problem_bad_image">الصورة ليست بصيغة JPEG أو PNG.</string>
+    <string name="tag_problem_read_only_storage">هذا الملف موجود على وحدة تخزين لا يمكن الكتابة إليها.</string>
+    <string name="tag_problem_music_library">لا يمكن تعديل الأغاني من مكتبة الموسيقى، بل فقط الأغاني المستوردة إلى LatentJam.</string>
+    <string name="tag_problem_unreadable">تعذّرت قراءة هذا الملف.</string>
+    <string name="tag_problem_not_allowed">لم يُمنح الإذن بتغيير الملف.</string>
+    <string name="tag_problem_missing">الملف لم يعد موجودًا.</string>
+    <string name="tag_problem_stopped">تم الإيقاف قبل الوصول إلى هذا الملف.</string>
+    <string name="tag_problem_cancelled">أُغلق طلب الإذن.</string>
+    <string name="tag_problem_undone">أُلغي حفظ متوقف: الملف كما كان من قبل.</string>
+    <string name="tag_problem_changed_elsewhere">غيّر تطبيق آخر الملف بعد توقف الحفظ، لذلك تُرك كما هو.</string>
+    <string name="tag_problem_lost">تعذّر على LatentJam معرفة كيف انتهى هذا الحفظ. تحقّق من وسوم الملف.</string>
+
+    <!-- =========================================================== settings -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_section_appearance">المظهر</string>
+    <string name="settings_theme">السمة</string>
+    <string name="theme_system">اتّباع النظام</string>
+    <string name="theme_light">فاتح</string>
+    <string name="theme_dark">داكن</string>
+    <string name="settings_section_playback">التشغيل</string>
+    <string name="settings_equalizer">المعادل الصوتي</string>
+    <string name="settings_equalizer_subtitle">التحكم في نبرة الصوت لمخرج الصوت في هذا الجهاز</string>
+    <string name="settings_intelligence">محرك SMART</string>
+    <string name="settings_smart_engine">محرك SMART</string>
+    <string name="settings_smart_engine_subtitle">ما يعرفه النموذج العامل على الجهاز عن مكتبتك</string>
+    <string name="settings_about_body">مشغّل موسيقى محلي من LatentJam مزوّد بمحرك توصيات يعمل على الجهاز. لا تغادر أي معلومات عن استماعك هذا الجهاز.</string>
+
+    <!-- ========================================================== equalizer -->
+    <string name="state_on">مفعّل</string>
+    <string name="state_off">متوقف</string>
+    <string name="equalizer_presets">الإعدادات المسبقة</string>
+    <string name="equalizer_bands">النطاقات</string>
+    <string name="equalizer_bass_boost">تعزيز الجهير</string>
+    <string name="equalizer_reset">إعادة الضبط إلى الوضع المسطح</string>
+
+    <!-- ======================================================= intelligence -->
+    <string name="intelligence_section_status">الحالة</string>
+    <string name="intelligence_engine">المحرك</string>
+    <string name="intelligence_library">المكتبة</string>
+    <string name="intelligence_fingerprints">البصمات الصوتية</string>
+    <!-- %1$d tracks analysed out of %2$d in the library -->
+    <string name="intelligence_indexed_of">%1$d من %2$d</string>
+    <string name="engine_state_not_started">لم يبدأ</string>
+    <string name="engine_state_starting">جارٍ البدء…</string>
+    <string name="engine_state_ready">جاهز</string>
+    <!-- %1$s is a technical failure reason reported by the engine -->
+    <string name="engine_state_unavailable">غير متاح — %1$s</string>
+
+    <!-- ========================================================= permission -->
+    <string name="permission_audio_rationale">يحتاج LatentJam إلى الوصول إلى موسيقاك لفحص المكتبة.</string>
+    <string name="permission_grant">السماح بالوصول</string>
+    <string name="permission_audio_settings_rationale">تم حظر الوصول إلى الموسيقى. افتح إعدادات النظام واسمح لـ LatentJam بالوصول إلى الموسيقى والملفات الصوتية.</string>
+    <string name="permission_open_settings">فتح الإعدادات</string>
+    <string name="permission_notifications_title">هل تريد عرض تقدم التحليل؟</string>
+    <string name="permission_notifications_rationale">يحلل SMART مكتبتك على هذا الجهاز. اسمح بالإشعارات لرؤية التقدم والعودة إلى LatentJam أثناء العمل. يستمر التحليل إذا اخترت «ليس الآن».</string>
+    <string name="permission_not_now">ليس الآن</string>
+    <string name="permission_continue">متابعة</string>
+
+
+    <string name="engine_error_model_unavailable">تعذّر على SMART تحميل النماذج المضمّنة. أعد الإعداد؛ وإذا استمرت المشكلة، أعد تثبيت التطبيق أو أبلغ عنها.</string>
+    <string name="engine_error_not_indexed">لم تتم فهرسة المكتبة بعد.</string>
+    <string name="engine_error_audio_unavailable">تعذّرت قراءة هذا المقطع أو فك ترميزه. تأكد من أن الملف ما زال متاحًا ثم أعد المحاولة.</string>
+    <string name="engine_error_backend">واجه SMART خطأ داخليًا. أعد الإعداد؛ وإذا استمر، فأبلغ عن المشكلة.</string>
+
+    <string name="indexing_notification_title">جارٍ تحليل موسيقاك</string>
+    <string name="indexing_notification_progress">%1$d من %2$d</string>
+    <string name="indexing_notification_progress_eta">%1$d من %2$d · نحو %3$d د متبقية</string>
+    <!-- =================================================== expanded settings -->
+    <string name="settings_appearance">المظهر</string>
+    <string name="settings_appearance_subtitle">السمة وألوان المشغّل واللغة</string>
+    <string name="settings_library">المكتبة</string>
+    <string name="settings_library_subtitle">تحديث الموسيقى واستيرادها وإدارة المقاطع المخفية</string>
+    <string name="settings_playback">التشغيل</string>
+    <string name="settings_playback_subtitle">معادل الصوت وعناصر التحكم بالصوت</string>
+    <string name="settings_privacy">الخصوصية والبيانات</string>
+    <string name="settings_privacy_subtitle">سجل الاستماع وعمليات البحث الأخيرة</string>
+    <string name="settings_about">حول LatentJam</string>
+    <string name="settings_about_subtitle">الترخيص ورمز المصدر والدعم</string>
+    <string name="settings_section_library">المكتبة</string>
+    <string name="settings_section_navigation">التنقل</string>
+    <string name="settings_section_privacy">البيانات على الجهاز</string>
+    <string name="settings_track_colors">ألوان المشغّل</string>
+    <string name="settings_page_header">رأس الصفحات</string>
+    <string name="settings_page_header_dots">نقاط</string>
+    <string name="settings_page_header_neighbours">الصفحات المجاورة</string>
+    <string name="settings_page_header_tabs">علامات تبويب</string>
+    <string name="settings_page_header_pills">كبسولات</string>
+    <string name="settings_page_header_menu">قائمة</string>
+    <string name="settings_color_custom">مخصص</string>
+    <string name="settings_color_custom_body">لونك الخاص يلوّن المشغل والسحابة والمشغل المصغر والمفاتيح وزر التشغيل، أياً كان ما يُشغَّل.</string>
+    <string name="settings_accent_swatch">اللون %1$d من %2$d</string>
+    <string name="settings_pure_black">أسود خالص</string>
+    <string name="settings_pure_black_body">لشاشات OLED: أسود حقيقي بدلاً من الرمادي الداكن</string>
+    <string name="settings_cloud">السحابة</string>
+    <string name="settings_cloud_off">إيقاف</string>
+    <string name="settings_cloud_soft">خفيفة</string>
+    <string name="settings_cloud_normal">عادية</string>
+    <string name="settings_cloud_vivid">زاهية</string>
+    <string name="settings_cloud_motion">الحركة في المشغل</string>
+    <string name="settings_cloud_motion_body">تنساب السحابة ببطء أثناء تشغيل الموسيقى</string>
+    <string name="settings_player_background">خلفية المشغل</string>
+    <string name="settings_player_background_cloud">السحابة</string>
+    <string name="settings_player_background_cover">غلاف مموّه</string>
+    <string name="settings_shape">الشكل</string>
+    <string name="settings_shape_round">دائري</string>
+    <string name="settings_shape_soft">ناعم</string>
+    <string name="settings_shape_sharp">حاد</string>
+    <string name="settings_shape_body">زوايا القوائم واللوحات والأزرار والشرائح والأغلفة في التطبيق كله.</string>
+    <string name="settings_mini_player">المشغل المصغر</string>
+    <string name="settings_mini_player_card">بطاقة</string>
+    <string name="settings_mini_player_bar">شريط</string>
+    <string name="settings_section_handling">الاستخدام</string>
+    <string name="settings_left_handed">لليد اليسرى</string>
+    <string name="settings_left_handed_body">زر الخلط والأبجدية على اليسار</string>
+    <string name="settings_color_dynamic">صورة الغلاف</string>
+    <string name="settings_color_dynamic_body">استخدام ألوان مأخوذة من صورة الغلاف، والرجوع إلى SMART عند الحاجة.</string>
+    <string name="settings_color_smart">SMART</string>
+    <string name="settings_color_smart_body">استخدام ألوان مشتقة من البصمة الصوتية لكل مقطع.</string>
+    <string name="settings_color_theme">السمة</string>
+    <string name="settings_color_theme_body">استخدام سمة التطبيق بدلاً من ألوان خاصة بكل مقطع.</string>
+    <string name="settings_start_page">صفحة البدء</string>
+    <string name="settings_start_page_body">تُستخدم في المرة القادمة التي تفتح فيها LatentJam.</string>
+    <string name="settings_library_count">المقاطع في المكتبة</string>
+    <string name="settings_library_refresh">تحديث المكتبة</string>
+    <string name="settings_library_refresh_body">البحث عن الموسيقى المضافة حديثًا وإزالة إدخالات الملفات التي لم تعد متاحة.</string>
+    <string name="settings_library_import">استيراد الموسيقى</string>
+    <string name="settings_library_import_body">اختيار ملفات صوتية لنسخها إلى LatentJam.</string>
+    <string name="settings_library_restore">استعادة المقاطع المخفية</string>
+    <string name="settings_library_restore_body">إعادة كل المقاطع التي أُزيلت من LatentJam إلى المكتبة. لن تتغير الملفات على الجهاز.</string>
+    <string name="settings_playlist_relative_paths">مسارات نسبية في قوائم التشغيل المصدَّرة</string>
+    <string name="settings_playlist_relative_paths_body">كتابة مسار كل مقطع نسبةً إلى مجلد قائمة التشغيل، لكي تعمل القائمة على الأجهزة الأخرى أيضًا. عند الحفظ في مكان بلا مسار مجلد، تبقى المسارات كاملة.</string>
+    <string name="settings_equalizer_unavailable">غير متاح لمخرج الصوت الحالي</string>
+    <string name="equalizer_unavailable_body">لا يوفّر مخرج الصوت الحالي لـ LatentJam إمكانية الوصول إلى معادل الصوت. جرّب مخرجًا آخر. سيستمر التشغيل بشكل طبيعي.</string>
+    <string name="equalizer_bass_value">%1$d\u0025</string>
+    <string name="equalizer_preset_flat">مسطح</string>
+    <string name="equalizer_preset_bass">جهير</string>
+    <string name="equalizer_preset_treble">ترددات عالية</string>
+    <string name="equalizer_preset_vocal">غنائي</string>
+    <string name="equalizer_preset_electronic">إلكتروني</string>
+    <string name="intelligence_syncing">جارٍ مزامنة المكتبة…</string>
+    <string name="intelligence_analysis_progress">تم تحليل %1$d من أصل %2$d</string>
+    <string name="intelligence_analysis_failed">تعذر تحليل: %1$d</string>
+    <string name="intelligence_failures_more">و%1$d أخرى</string>
+    <string name="intelligence_retry">إعادة إعداد SMART</string>
+    <string name="intelligence_section_recommendations">التوصيات</string>
+    <string name="intelligence_queue_length">طول قائمة انتظار SMART</string>
+    <string name="intelligence_queue_length_body">اختر عدد المقاطع التي يضيفها SMART عند إنشاء قائمة انتظار.</string>
+    <string name="intelligence_artist_variety">تنوّع الفنانين</string>
+    <string name="intelligence_artist_variety_body">مدى تباعد SMART بين أغاني الفنان نفسه. الأغنية التي تناسب بوضوح أكثر تُشغَّل رغم ذلك، حتى بعد الفنان نفسه مباشرةً.</string>
+    <string name="intelligence_artist_variety_free">إيقاف</string>
+    <string name="intelligence_artist_variety_low">منخفض</string>
+    <string name="intelligence_artist_variety_balanced">متوازن</string>
+    <string name="intelligence_artist_variety_high">مرتفع</string>
+    <string name="intelligence_artist_variety_max">أقصى</string>
+    <string name="intelligence_include_novelty_mixes">تضمين المزيجات الطريفة</string>
+    <string name="intelligence_include_novelty_mixes_body">عرض مزيجات مستقلة للميمات والمقاطع الرائجة والمؤثرات الصوتية في «لك».</string>
+    <string name="foryou_mix_meme_viral">ميمات ومقاطع رائجة</string>
+    <string name="foryou_mix_sound_effects">مؤثرات صوتية</string>
+    <string name="foryou_mix_spoken_audio">محتوى منطوق</string>
+    <string name="foryou_mix_instrumental">موسيقى آلية</string>
+    <string name="intelligence_how_it_works">يقارن SMART البصمات الصوتية على هذا الجهاز، ثم يجمع بين التشابه الموسيقي وسجل استماعك. يعمل من دون حساب أو اتصال بالإنترنت.</string>
+    <string name="privacy_local_body">تبقى مكتبتك وسجل استماعك وبيانات SMART على هذا الجهاز. لا يحتاج LatentJam إلى حساب ولا يرسل أيًا منها إلى خادم.</string>
+    <string name="privacy_save_history_body">احفظ مرات التشغيل والتخطي على هذا الجهاز لاستخدامها في «لك» وتوصيات SMART.</string>
+    <string name="privacy_remember_searches_body">احفظ عمليات البحث على هذا الجهاز لعرضها عندما يكون حقل البحث فارغًا.</string>
+    <string name="privacy_disable_history_body">إيقاف حفظ نشاط الاستماع الجديد. ماذا تريد أن تفعل بالسجل المحفوظ حاليًا على هذا الجهاز؟</string>
+    <string name="privacy_disable_searches_body">إيقاف حفظ عمليات البحث الجديدة. ماذا تريد أن تفعل بعمليات البحث المحفوظة حاليًا على هذا الجهاز؟</string>
+    <string name="privacy_keep_existing">الاحتفاظ بالبيانات الحالية</string>
+    <string name="privacy_delete_existing">حذف البيانات الحالية</string>
+    <string name="privacy_setting_save_failed">تعذر حفظ إعداد الخصوصية هذا. حاول مرة أخرى.</string>
+    <string name="privacy_data_clear_failed">تعذر مسح هذه البيانات من الجهاز. حاول مرة أخرى.</string>
+    <string name="privacy_clear_history">مسح سجل الاستماع</string>
+    <string name="privacy_clear_history_body">إزالة بيانات التشغيل والتخطي المستخدمة لتخصيص التوصيات.</string>
+    <string name="privacy_clear_history_confirm">هل تريد مسح سجل الاستماع بالكامل؟ ستبدأ التوصيات في تعلم ذوقك من جديد.</string>
+    <string name="privacy_history_empty">لا يوجد سجل استماع</string>
+    <plurals name="privacy_history_listens">
+        <item quantity="zero">%1$d عملية استماع</item>
+        <item quantity="one">%1$d عملية استماع</item>
+        <item quantity="two">%1$d عمليتا استماع</item>
+        <item quantity="few">%1$d عمليات استماع</item>
+        <item quantity="many">%1$d عملية استماع</item>
+        <item quantity="other">%1$d عملية استماع</item>
+    </plurals>
+    <string name="privacy_recent_searches">عمليات البحث الأخيرة</string>
+    <string name="privacy_clear_searches">مسح عمليات البحث الأخيرة</string>
+    <string name="privacy_clear_searches_body">إزالة العبارات التي تظهر عندما يكون البحث فارغًا.</string>
+    <string name="privacy_clear_searches_confirm">هل تريد مسح كل عمليات البحث الأخيرة؟</string>
+    <string name="settings_license">الترخيص</string>
+    <string name="settings_license_body">برنامج LatentJam حر مرخّص بموجب ترخيص Apache 2.0.</string>
+    <string name="settings_open_source">رمز المصدر</string>
+    <string name="settings_open_source_body">عرض المشروع على GitHub</string>
+    <string name="settings_report_issue">الإبلاغ عن مشكلة</string>
+    <string name="settings_section_preferences">التفضيلات</string>
+    <string name="settings_section_music">الموسيقى</string>
+    <string name="settings_section_data_support">البيانات والدعم</string>
+    <string name="privacy_listening_history">سجل الاستماع</string>
+    <string name="settings_version">الإصدار</string>
+    <string name="settings_library_loading">جارٍ تحميل المكتبة…</string>
+    <string name="settings_library_refreshing">جارٍ التحديث…</string>
+    <string name="snack_library_refreshed">تم تحديث المكتبة</string>
+    <string name="action_exclude_track_from_smart">عدم اقتراح هذا المقطع</string>
+    <string name="action_exclude_artist_from_smart">عدم اقتراح هذا الفنان</string>
+    <string name="action_include_track_in_smart">اقتراح هذا المقطع مجددًا</string>
+    <string name="action_include_artist_in_smart">اقتراح هذا الفنان مجددًا</string>
+    <string name="snack_track_excluded_from_smart">تمت إزالة المقطع من توصيات SMART</string>
+    <string name="snack_artist_excluded_from_smart">تمت إزالة الفنان من توصيات SMART</string>
+    <string name="snack_track_included_in_smart">تمت إعادة المقطع إلى توصيات SMART</string>
+    <string name="snack_artist_included_in_smart">تمت إعادة الفنان إلى توصيات SMART</string>
+    <string name="snack_smart_exclusion_failed">تعذر تحديث توصيات SMART. حاول مرة أخرى.</string>
+    <string name="action_retry">إعادة المحاولة</string>
+
+    <string name="settings_language">اللغة</string>
+    <string name="settings_language_body">غيّر اللغة في إعدادات النظام.</string>
+    <string name="settings_audio_access">الوصول إلى الموسيقى</string>
+    <string name="settings_audio_access_allowed">مسموح</string>
+    <string name="settings_audio_access_blocked">محظور</string>
+    <string name="settings_audio_access_not_requested">لم يُطلب</string>
+    <string name="settings_audio_access_not_required">غير مطلوب</string>
+    <string name="settings_sources">مصادر الموسيقى</string>
+    <string name="settings_sources_body">اختر المجلدات أو مجموعات الجهاز التي تظهر في LatentJam. لن تتغير الملفات على الجهاز.</string>
+    <string name="settings_sources_empty">لم يتم العثور على مصادر موسيقى يمكن إدارتها.</string>
+    <string name="settings_source_unnamed">موسيقى الجهاز</string>
+    <string name="settings_source_music_library">مكتبة الموسيقى</string>
+    <string name="settings_hidden_tracks">المقاطع المخفية</string>
+    <string name="settings_hidden_tracks_body">مقاطع مخفية في LatentJam فقط. يمكنك استعادة أي مقطع من دون تغيير ملفه.</string>
+    <string name="settings_hidden_tracks_empty">لا توجد مقاطع مخفية في LatentJam.</string>
+    <string name="settings_interrupted_saves">عمليات حفظ متوقفة</string>
+    <plurals name="settings_interrupted_saves_body">
+        <item quantity="zero">توقّف حفظ الوسوم في %1$d ملف. سيُكمل LatentJam كل حفظ أو يتراجع عنه عندما يُسمح له بالكتابة إلى الملف.</item>
+        <item quantity="one">توقّف حفظ الوسوم في ملف واحد (%1$d). سيُكمله LatentJam أو يتراجع عنه عندما يُسمح له بالكتابة إلى الملف.</item>
+        <item quantity="two">توقّف حفظ الوسوم في ملفين (%1$d). سيُكمل LatentJam كل حفظ أو يتراجع عنه عندما يُسمح له بالكتابة إلى الملف.</item>
+        <item quantity="few">توقّف حفظ الوسوم في %1$d ملفات. سيُكمل LatentJam كل حفظ أو يتراجع عنه عندما يُسمح له بالكتابة إلى الملف.</item>
+        <item quantity="many">توقّف حفظ الوسوم في %1$d ملفًا. سيُكمل LatentJam كل حفظ أو يتراجع عنه عندما يُسمح له بالكتابة إلى الملف.</item>
+        <item quantity="other">توقّف حفظ الوسوم في %1$d ملف. سيُكمل LatentJam كل حفظ أو يتراجع عنه عندما يُسمح له بالكتابة إلى الملف.</item>
+    </plurals>
+    <string name="settings_interrupted_finish">إكمال الآن</string>
+    <string name="settings_interrupted_being_repaired">قيد الإصلاح: لن يُشغَّل حتى يكتمل</string>
+    <string name="settings_interrupted_forget">نسيان</string>
+    <string name="settings_interrupted_forget_title">هل تريد نسيان هذا الحفظ؟</string>
+    <string name="settings_interrupted_forget_body">يبقى الملف كما هو الآن، ويتوقف LatentJam عن محاولة إكمال الحفظ أو التراجع عنه. لا يمكن التراجع عن هذا.</string>
+    <string name="settings_interrupted_forget_damaged_body">توقّف هذا الحفظ في منتصفه. قد يكون الملف تالفًا وقد لا يُشغَّل، ونسيانه يحذف النسخ التي يمكن لـ LatentJam إصلاحه منها. لا يمكن التراجع عن هذا.</string>
+    <string name="settings_duplicates">التكرارات الصوتية</string>
+    <string name="settings_duplicates_body">يعثر على نسخ التسجيل نفسه بالصوت، بغض النظر عن الوسوم</string>
+    <string name="settings_duplicates_scanning">تتم مقارنة جميع المقاطع…</string>
+    <string name="settings_duplicates_empty">لا تكرارات — كل مقطع فريد بصوته</string>
+    <string name="settings_restore">استعادة</string>
+    <string name="settings_restore_all">استعادة الكل</string>
+    <string name="settings_library_manage_failed">تعذر تحديث المكتبة. حاول مرة أخرى.</string>
+    <string name="settings_lyrics_folders">مجلدات ملفات LRC</string>
+    <string name="settings_lyrics_folders_body">يسألك Android عن المجلد المسموح به. بعدها يُستخدم ملف LRC الذي يحمل اسم الأغنية لعرض كلماتها.</string>
+    <string name="settings_lyrics_folders_add">إضافة مجلد</string>
+    <string name="settings_lyrics_folders_remove">إزالة</string>
+    <string name="settings_lyrics_folders_failed">لا يمكن استخدام هذا المجلد. اختر مجلدًا في مساحة تخزين هذا الجهاز.</string>
+
+    <string name="settings_licenses">تراخيص المصادر المفتوحة</string>
+    <string name="settings_licenses_body">إشعارات LatentJam والنماذج المضمّنة وبرامج الجهات الخارجية</string>
+    <string name="settings_license_models">نماذج الصوت وSMART</string>
+    <string name="settings_license_models_body">أوزان الصوت MobileNetV4 التي أنتجها LatentJam مرخّصة وفق Apache-2.0. يستخدم النموذج الطالب timm ‏(Apache-2.0) وقد دُرّب بالتقطير من EfficientAT ‏(MIT، حقوق النشر © 2022 Florian Schmid).</string>
+    <string name="settings_license_text_model">نموذج النص</string>
+    <string name="settings_license_text_model_body">مُرمِّز النص المضمّن ومفرداته درّبهما LatentJam لمحاكاة sentence-transformers/all-MiniLM-L6-v2 (Apache-2.0)، وهما مرخّصان وفق Apache-2.0.</string>
+    <string name="settings_license_runtime">ONNX Runtime</string>
+    <string name="settings_license_runtime_body">يستخدم استدلال النماذج على الجهاز Microsoft ONNX Runtime بموجب ترخيص MIT. حقوق النشر © Microsoft Corporation.</string>
+    <string name="settings_license_aliases">MusicBrainz وWikidata</string>
+    <string name="settings_license_aliases_body">بيانات البحث المضمّنة عن الأسماء البديلة للفنانين مشتقة من MusicBrainz وWikidata ومتاحة وفق CC0.</string>
+    <string name="settings_license_libraries">مكتبات الجهات الخارجية</string>
+    <string name="settings_license_libraries_body">يستخدم LatentJam كلًا من Kotlin وcoroutines وCompose Multiplatform وAndroidX Media3 وKoin وCoil بموجب تراخيص Apache-2.0 أو MIT المتساهلة. الإشعارات الكاملة مضمّنة في توزيع المصدر.</string>
+
+    <string name="sleep_timer">مؤقت النوم</string>
+    <string name="sleep_timer_off">متوقف</string>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="zero">%1$d دقيقة</item>
+        <item quantity="one">%1$d دقيقة</item>
+        <item quantity="two">%1$d دقيقتان</item>
+        <item quantity="few">%1$d دقائق</item>
+        <item quantity="many">%1$d دقيقةً</item>
+        <item quantity="other">%1$d دقيقة</item>
+    </plurals>
+    <string name="sleep_timer_end_of_track">نهاية المقطع الحالي</string>
+    <string name="sleep_timer_active_minutes">متبقي %1$d دقيقة</string>
+    <string name="sleep_timer_active_end_of_track">يتوقف بعد هذا المقطع</string>
+
+    <string name="intelligence_problems">مشكلات التحليل</string>
+    <string name="intelligence_problems_body">مقاطع تعذر على SMART تحليلها. تظل موسيقاك قابلة للتشغيل.</string>
+    <string name="intelligence_no_problems">لا توجد مشكلات في التحليل</string>
+    <string name="intelligence_manage_exclusions">استثناءات التوصيات</string>
+    <string name="intelligence_manage_exclusions_body">المقاطع والفنانون الذين يجب ألا يقترحهم SMART مطلقًا</string>
+    <string name="intelligence_exclusions_empty">لا توجد استثناءات من التوصيات</string>
+    <string name="intelligence_excluded_tracks">المقاطع المستثناة</string>
+    <string name="intelligence_excluded_artists">الفنانون المستثنون</string>
+    <string name="intelligence_rebuild">إعادة إنشاء تحليل SMART</string>
+    <string name="intelligence_rebuild_body">احذف البصمات المحلية وحلّل المكتبة الظاهرة مجددًا.</string>
+    <string name="intelligence_rebuild_confirm">هل تريد إعادة إنشاء تحليل SMART بالكامل؟ لن تتغير ملفات الموسيقى أو قوائم التشغيل أو سجل الاستماع.</string>
+    <string name="intelligence_how_title">كيف يعمل SMART</string>
+    <string name="intelligence_notifications">إشعارات التحليل</string>
+    <string name="intelligence_notifications_body">إظهار تقدم الفهرسة خارج LatentJam</string>
+    <string name="intelligence_exclusions_clear">مسح كل الاستثناءات</string>
+
+    <string name="settings_backup">نسخة احتياطية محلية</string>
+    <string name="settings_backup_body">صدّر أو استعد قوائم التشغيل والمفضلة والتفضيلات والسجل والمقاطع المخفية واستثناءات SMART وقرارات أداة البحث عن التكرارات. لا تتضمن النسخة ملفات الموسيقى أو بيانات النماذج.</string>
+    <string name="backup_export">تصدير نسخة احتياطية</string>
+    <string name="backup_import">استيراد نسخة احتياطية</string>
+    <string name="backup_import_title">استعادة نسخة احتياطية محلية</string>
+    <string name="backup_import_body">اختر طريقة دمج البيانات المستوردة مع البيانات الموجودة على هذا الجهاز.</string>
+    <string name="backup_section_duplicate_decisions">قرارات أداة البحث عن التكرارات</string>
+    <string name="backup_merge">دمج</string>
+    <string name="backup_replace">استبدال</string>
+    <string name="backup_replace_warning">هل تريد استبدال بيانات التطبيق المحددة بهذه النسخة الاحتياطية؟ لن تتغير ملفات الموسيقى مطلقًا.</string>
+    <string name="backup_export_success">تم تصدير النسخة الاحتياطية</string>
+    <string name="backup_import_success">تمت استعادة النسخة الاحتياطية</string>
+    <string name="backup_import_success_unmatched">تمت استعادة النسخة الاحتياطية؛ تعذرت مطابقة %1$d من مراجع المقاطع على هذا الجهاز.</string>
+    <plurals name="backup_import_decisions_not_kept">
+        <item quantity="zero">تعذر الاحتفاظ بـ%1$d من قرارات أداة البحث عن التكرارات على هذا الجهاز.</item>
+        <item quantity="one">تعذر الاحتفاظ بـ%1$d من قرارات أداة البحث عن التكرارات على هذا الجهاز.</item>
+        <item quantity="two">تعذر الاحتفاظ بـ%1$d من قرارات أداة البحث عن التكرارات على هذا الجهاز.</item>
+        <item quantity="few">تعذر الاحتفاظ بـ%1$d من قرارات أداة البحث عن التكرارات على هذا الجهاز.</item>
+        <item quantity="many">تعذر الاحتفاظ بـ%1$d من قرارات أداة البحث عن التكرارات على هذا الجهاز.</item>
+        <item quantity="other">تعذر الاحتفاظ بـ%1$d من قرارات أداة البحث عن التكرارات على هذا الجهاز.</item>
+    </plurals>
+    <string name="backup_import_partial">تمت استعادة بعض البيانات قبل حدوث خطأ.</string>
+    <string name="backup_failed">تعذر إكمال عملية النسخ الاحتياطي.</string>
+    <string name="backup_invalid">هذه ليست نسخة احتياطية صالحة من LatentJam.</string>
+    <string name="backup_destination_warning">تحتوي النسخة الاحتياطية على بيانات خاصة بالتطبيق. قد تقوم وجهة سحابية أو تابعة لطرف ثالث يتم اختيارها في منتقي النظام بمزامنتها.</string>
+    <string name="settings_stats">الإحصائيات</string>
+    <string name="settings_stats_subtitle">استماعك بالأرقام</string>
+    <string name="stats_period_week">7 أيام</string>
+    <string name="stats_period_month">30 يومًا</string>
+    <string name="stats_period_all">كل الوقت</string>
+    <string name="stats_time_listened">مدة الاستماع</string>
+    <string name="stats_plays">مرات التشغيل</string>
+    <string name="stats_distinct_tracks">مقاطع</string>
+    <string name="stats_streak_current">سلسلة أيام</string>
+    <string name="stats_streak_longest">الرقم القياسي</string>
+    <string name="stats_days_short">ي</string>
+    <string name="stats_hours_short">س</string>
+    <string name="stats_minutes_short">د</string>
+    <string name="stats_finished_share">مكتملة</string>
+    <string name="stats_skipped_share">متخطاة</string>
+    <string name="stats_empty">لم يتم تشغيل أي شيء في هذه الفترة بعد.</string>
+    <string name="stats_load_failed">تعذر تحميل إحصاءات الاستماع.</string>
+    <string name="settings_normalize_volume">موازنة مستوى الصوت</string>
+    <string name="settings_normalize_volume_subtitle">يخفض المقاطع العالية نحو مستوى ثابت</string>
+    <string name="settings_crossfade">انتقالات سلسة</string>
+    <string name="settings_crossfade_subtitle">خفض تدريجي للصوت عند حدود المقاطع</string>
+    <string name="settings_crossfade_value">%1$d ث</string>
+    <string name="duplicates_keep_this">احتفظ بهذه</string>
+    <string name="snack_duplicates_merged">تم دمج التكرارات: تشير قوائم التشغيل الآن إلى النسخة المحتفَظ بها</string>
+    <string name="info_lyrics">كلمات الأغنية</string>
+    <string name="info_album_artist">فنان الألبوم</string>
+    <string name="info_track_number">رقم المقطع</string>
+    <string name="info_track_total">إجمالي المقاطع</string>
+    <string name="info_disc_number">رقم القرص</string>
+    <string name="info_disc_total">إجمالي الأقراص</string>
+    <string name="info_cover">الغلاف</string>
+    <string name="info_cover_replace">استبدال</string>
+    <string name="info_cover_remove">إزالة</string>
+    <string name="info_cover_keep">الإبقاء على الحالي</string>
+    <string name="info_cover_new">غلاف جديد</string>
+    <string name="info_cover_removed">ستتم إزالة الغلاف.</string>
+    <plurals name="info_cover_more">
+        <item quantity="zero">+%1$d صورة أخرى في الملف، ستبقى كما هي</item>
+        <item quantity="one">+%1$d صورة أخرى في الملف، ستبقى كما هي</item>
+        <item quantity="two">+%1$d صورتان أخريان في الملف، ستبقيان كما هما</item>
+        <item quantity="few">+%1$d صور أخرى في الملف، ستبقى كما هي</item>
+        <item quantity="many">+%1$d صورة أخرى في الملف، ستبقى كما هي</item>
+        <item quantity="other">+%1$d صورة أخرى في الملف، ستبقى كما هي</item>
+    </plurals>
+    <string name="info_reading_file">جارٍ قراءة الملف…</string>
+    <string name="action_edit_album">تعديل الألبوم</string>
+    <string name="action_edit_artist">تعديل الفنان</string>
+    <string name="action_favorite_short">تفضيل</string>
+    <string name="action_unfavorite_short">إلغاء التفضيل</string>
+    <plurals name="count_files">
+        <item quantity="zero">%1$d ملف</item>
+        <item quantity="one">%1$d ملف</item>
+        <item quantity="two">%1$d ملفان</item>
+        <item quantity="few">%1$d ملفات</item>
+        <item quantity="many">%1$d ملفًا</item>
+        <item quantity="other">%1$d ملف</item>
+    </plurals>
+    <plurals name="count_fields">
+        <item quantity="zero">%1$d حقل</item>
+        <item quantity="one">%1$d حقل</item>
+        <item quantity="two">%1$d حقلان</item>
+        <item quantity="few">%1$d حقول</item>
+        <item quantity="many">%1$d حقلًا</item>
+        <item quantity="other">%1$d حقل</item>
+    </plurals>
+    <string name="bulk_save">تعديل %1$s في %2$s</string>
+    <string name="bulk_reading">جارٍ قراءة %1$d من %2$d…</string>
+    <plurals name="bulk_not_editable">
+        <item quantity="zero">لا يمكن تعديل %1$d ملف، وسيبقى كما هو:</item>
+        <item quantity="one">لا يمكن تعديل %1$d ملف، وسيبقى كما هو:</item>
+        <item quantity="two">لا يمكن تعديل %1$d ملفين، وسيبقيان كما هما:</item>
+        <item quantity="few">لا يمكن تعديل %1$d ملفات، وستبقى كما هي:</item>
+        <item quantity="many">لا يمكن تعديل %1$d ملفًا، وستبقى كما هي:</item>
+        <item quantity="other">لا يمكن تعديل %1$d ملف، وستبقى كما هي:</item>
+    </plurals>
+    <plurals name="bulk_more_files">
+        <item quantity="zero">و%1$d أخرى</item>
+        <item quantity="one">و%1$d أخرى</item>
+        <item quantity="two">و%1$d أخرى</item>
+        <item quantity="few">و%1$d أخرى</item>
+        <item quantity="many">و%1$d أخرى</item>
+        <item quantity="other">و%1$d أخرى</item>
+    </plurals>
+    <string name="bulk_nothing_editable">لا يمكن تعديل أي من هذه الملفات.</string>
+    <string name="bulk_different">قيم مختلفة</string>
+    <plurals name="bulk_removed">
+        <item quantity="zero">أُزيل من %1$d ملف</item>
+        <item quantity="one">أُزيل من %1$d ملف</item>
+        <item quantity="two">أُزيل من جميع الملفات (%1$d)</item>
+        <item quantity="few">أُزيل من جميع الملفات (%1$d)</item>
+        <item quantity="many">أُزيل من جميع الملفات (%1$d)</item>
+        <item quantity="other">أُزيل من جميع الملفات (%1$d)</item>
+    </plurals>
+    <string name="bulk_remove_field">إزالة من كل الملفات</string>
+    <string name="bulk_keep_field">الإبقاء كما هو</string>
+    <string name="bulk_kept">سيبقى كما هو: %1$s</string>
+    <string name="bulk_saving">تم حفظ %1$d من %2$d</string>
+    <string name="bulk_stop">إيقاف</string>
+    <string name="bulk_result">تم حفظ %1$d من %2$d.</string>
+    <plurals name="bulk_not_changed">
+        <item quantity="zero">%1$d ملف لم يتغيّر:</item>
+        <item quantity="one">%1$d ملف لم يتغيّر:</item>
+        <item quantity="two">%1$d ملفان لم يتغيّرا:</item>
+        <item quantity="few">%1$d ملفات لم تتغيّر:</item>
+        <item quantity="many">%1$d ملفًا لم تتغيّر:</item>
+        <item quantity="other">%1$d ملف لم تتغيّر:</item>
+    </plurals>
+    <string name="bulk_done">تم</string>
+    <string name="bulk_file_reason">%1$s — %2$s</string>
+    <plurals name="tags_saved">
+        <item quantity="zero">حُفظت الوسوم في %1$d ملف</item>
+        <item quantity="one">حُفظت الوسوم في %1$d ملف</item>
+        <item quantity="two">حُفظت الوسوم في %1$d ملفين</item>
+        <item quantity="few">حُفظت الوسوم في %1$d ملفات</item>
+        <item quantity="many">حُفظت الوسوم في %1$d ملفًا</item>
+        <item quantity="other">حُفظت الوسوم في %1$d ملف</item>
+    </plurals>
+    <string name="tags_saved_partly">حُفظت الوسوم في %1$d من أصل %2$d ملف</string>
+    <plurals name="tag_recovery_done">
+        <item quantity="zero">اكتمل حفظ %1$d ملف</item>
+        <item quantity="one">اكتمل حفظ %1$d ملف</item>
+        <item quantity="two">اكتمل حفظ %1$d ملفين</item>
+        <item quantity="few">اكتمل حفظ %1$d ملفات</item>
+        <item quantity="many">اكتمل حفظ %1$d ملفًا</item>
+        <item quantity="other">اكتمل حفظ %1$d ملف</item>
+    </plurals>
+    <plurals name="tag_recovery_undone">
+        <item quantity="zero">أُلغيت %1$d عملية حفظ متوقفة؛ الملفات كما كانت</item>
+        <item quantity="one">أُلغيت %1$d عملية حفظ متوقفة؛ الملف كما كان</item>
+        <item quantity="two">أُلغيت %1$d عمليتا حفظ متوقفتان؛ الملفان كما كانا</item>
+        <item quantity="few">أُلغيت %1$d عمليات حفظ متوقفة؛ الملفات كما كانت</item>
+        <item quantity="many">أُلغيت %1$d عملية حفظ متوقفة؛ الملفات كما كانت</item>
+        <item quantity="other">أُلغيت %1$d عملية حفظ متوقفة؛ الملفات كما كانت</item>
+    </plurals>
+    <plurals name="tag_recovery_left">
+        <item quantity="zero">غيّر تطبيق آخر %1$d ملف، لذلك تُركت كما هي</item>
+        <item quantity="one">غيّر تطبيق آخر %1$d ملف، لذلك تُرك كما هو</item>
+        <item quantity="two">غيّر تطبيق آخر %1$d ملفين، لذلك تُركا كما هما</item>
+        <item quantity="few">غيّر تطبيق آخر %1$d ملفات، لذلك تُركت كما هي</item>
+        <item quantity="many">غيّر تطبيق آخر %1$d ملفًا، لذلك تُركت كما هي</item>
+        <item quantity="other">غيّر تطبيق آخر %1$d ملف، لذلك تُركت كما هي</item>
+    </plurals>
+    <plurals name="tag_recovery_waiting">
+        <item quantity="zero">تعذّر حتى الآن إكمال حفظ %1$d ملف. راجع الإعدادات ← المكتبة.</item>
+        <item quantity="one">تعذّر حتى الآن إكمال حفظ %1$d ملف. راجع الإعدادات ← المكتبة.</item>
+        <item quantity="two">تعذّر حتى الآن إكمال حفظ %1$d ملفين. راجع الإعدادات ← المكتبة.</item>
+        <item quantity="few">تعذّر حتى الآن إكمال حفظ %1$d ملفات. راجع الإعدادات ← المكتبة.</item>
+        <item quantity="many">تعذّر حتى الآن إكمال حفظ %1$d ملفًا. راجع الإعدادات ← المكتبة.</item>
+        <item quantity="other">تعذّر حتى الآن إكمال حفظ %1$d ملف. راجع الإعدادات ← المكتبة.</item>
+    </plurals>
+    <string name="lyrics_not_found">لم يتم العثور على كلمات لهذه الأغنية.</string>
+    <string name="cd_scroll_to_top">العودة إلى الأعلى</string>
+    <string name="foryou_section_daypart_morning">صباحاتك</string>
+    <string name="foryou_section_daypart_day">فترات ظهيرتك</string>
+    <string name="foryou_section_daypart_evening">أمسياتك</string>
+    <string name="foryou_section_daypart_night">لياليك</string>
+    <string name="foryou_section_on_a_roll">يتكرر هذه الأيام: %1$s</string>
+    <string name="foryou_caption_left_turn">إن كنت تحب %1$s</string>
+    <string name="settings_pages">الصفحات</string>
+    <string name="settings_pages_subtitle">الظهور والترتيب وصفحة البدء</string>
+    <string name="settings_pages_body">اسحب لإعادة الترتيب. عطّل الصفحات التي لا تستخدمها.</string>
+    <string name="settings_pages_last_visible">أبقِ صفحة واحدة على الأقل مفعّلة.</string>
+    <string name="settings_page_position">الموضع %1$d من %2$d</string>
+    <string name="settings_page_move_up">نقل %1$s إلى الأعلى</string>
+    <string name="settings_page_move_down">نقل %1$s إلى الأسفل</string>
+    <string name="settings_pages_reset">إعادة ضبط الصفحات</string>
+    <string name="settings_pages_reset_body">استعد الترتيب والصفحات الظاهرة وصفحة البدء الافتراضية.</string>
+    <string name="stats_dashboard_title">استماعك</string>
+    <string name="stats_recording_off">تسجيل سجل الاستماع متوقف مؤقتًا. إحصائياتك المحفوظة ما زالت متاحة؛ لن يُضاف استماع جديد حتى تفعّل السجل في إعدادات الخصوصية.</string>
+    <string name="stats_comparison_more">أكثر بمقدار %1$s مقارنة بفترة الأيام الـ %2$d السابقة</string>
+    <string name="stats_comparison_less">أقل بمقدار %1$s مقارنة بفترة الأيام الـ %2$d السابقة</string>
+    <string name="stats_comparison_same">نفس مدة الاستماع في فترة الأيام الـ %1$d السابقة</string>
+    <string name="stats_comparison_first">لم تسجّل أي استماع في فترة الأيام الـ %1$d السابقة</string>
+    <string name="stats_under_minute">&lt; دقيقة واحدة</string>
+    <string name="stats_activity">إيقاعك اليومي</string>
+    <string name="stats_calendar_days">آخر %1$d يومًا تقويميًا · مدة الاستماع</string>
+    <string name="stats_today">اليوم</string>
+    <string name="stats_yesterday">أمس</string>
+    <string name="stats_new_tracks">مقاطع جديدة عليك</string>
+    <string name="stats_smart_detail">نسبة مرات التشغيل التي بدأت مع تفعيل التشغيل العشوائي SMART</string>
+    <string name="stats_listening_style">كيف تستمع</string>
+    <string name="stats_recent_empty">لم تسجّل أي استماع في هذه الأيام التقويمية بعد.</string>
+    <string name="stats_history_note">تستند إلى السجل المحفوظ وبحسب المنطقة الزمنية لهذا الجهاز، وتُحدّث عند انتهاء المقطع أو تغييره. تعرض القوائم المقاطع التي ما زالت في مكتبتك. النسخة الاحتياطية المستعادة تحتفظ فقط بالمقاطع التي تعثر عليها، وقد يظهر فنان لا يُعرف إلا من مقاطع محذوفة على أنه جديد.</string>
+    <string name="stats_chart_day_summary">%1$s: %2$s · %3$s</string>
+    <plurals name="stats_days_ago">
+        <item quantity="zero">قبل %1$d يوم</item>
+        <item quantity="one">قبل %1$d يوم</item>
+        <item quantity="two">قبل %1$d يومين</item>
+        <item quantity="few">قبل %1$d أيام</item>
+        <item quantity="many">قبل %1$d يومًا</item>
+        <item quantity="other">قبل %1$d يوم</item>
+    </plurals>
+    <string name="stats_section_lately">أنت مؤخرًا</string>
+    <string name="stats_section_numbers">أرقامك</string>
+    <string name="stats_section_over_time">عبر الزمن</string>
+    <string name="stats_on_repeat">تستمع إليها بتكرار الآن</string>
+    <string name="stats_artists_on_repeat">فنانون تستمع إليهم بتكرار</string>
+    <plurals name="stats_on_days">
+        <item quantity="zero">في %1$d يوم</item>
+        <item quantity="one">في %1$d يوم</item>
+        <item quantity="two">في %1$d يومين</item>
+        <item quantity="few">في %1$d أيام</item>
+        <item quantity="many">في %1$d يومًا</item>
+        <item quantity="other">في %1$d يوم</item>
+    </plurals>
+    <string name="stats_week_days">في %1$d من آخر 7 أيام</string>
+    <plurals name="stats_days_of_music">
+        <item quantity="zero">≈ %1$d يوم من الموسيقى</item>
+        <item quantity="one">≈ %1$d يوم من الموسيقى</item>
+        <item quantity="two">≈ %1$d يومان من الموسيقى</item>
+        <item quantity="few">≈ %1$d أيام من الموسيقى</item>
+        <item quantity="many">≈ %1$d يومًا من الموسيقى</item>
+        <item quantity="other">≈ %1$d يوم من الموسيقى</item>
+    </plurals>
+    <plurals name="stats_activity_last_months">
+        <item quantity="zero">آخر %1$d شهر · مدة الاستماع</item>
+        <item quantity="one">آخر %1$d شهر · مدة الاستماع</item>
+        <item quantity="two">آخر %1$d شهرين · مدة الاستماع</item>
+        <item quantity="few">آخر %1$d أشهر · مدة الاستماع</item>
+        <item quantity="many">آخر %1$d شهرًا · مدة الاستماع</item>
+        <item quantity="other">آخر %1$d شهر · مدة الاستماع</item>
+    </plurals>
+    <string name="stats_activity_years">حسب السنة · مدة الاستماع</string>
+    <string name="stats_activity_over_time">استماعك عبر الزمن</string>
+    <string name="stats_this_month">هذا الشهر</string>
+    <string name="stats_this_year">هذا العام</string>
+    <plurals name="stats_months_ago">
+        <item quantity="zero">قبل %1$d شهر</item>
+        <item quantity="one">قبل %1$d شهر</item>
+        <item quantity="two">قبل %1$d شهرين</item>
+        <item quantity="few">قبل %1$d أشهر</item>
+        <item quantity="many">قبل %1$d شهرًا</item>
+        <item quantity="other">قبل %1$d شهر</item>
+    </plurals>
+    <plurals name="stats_years_ago">
+        <item quantity="zero">قبل %1$d سنة</item>
+        <item quantity="one">قبل %1$d سنة</item>
+        <item quantity="two">قبل %1$d سنتين</item>
+        <item quantity="few">قبل %1$d سنوات</item>
+        <item quantity="many">قبل %1$d سنة</item>
+        <item quantity="other">قبل %1$d سنة</item>
+    </plurals>
+    <string name="stats_new_and_familiar">جديد ومألوف</string>
+    <string name="stats_familiar">مألوفة</string>
+    <plurals name="stats_new_tracks_count">
+        <item quantity="zero">%1$d مقطع جديد</item>
+        <item quantity="one">%1$d مقطع جديد</item>
+        <item quantity="two">%1$d مقطعان جديدان</item>
+        <item quantity="few">%1$d مقاطع جديدة</item>
+        <item quantity="many">%1$d مقطعًا جديدًا</item>
+        <item quantity="other">%1$d مقطع جديد</item>
+    </plurals>
+    <plurals name="stats_new_artists_count">
+        <item quantity="zero">%1$d فنان جديد</item>
+        <item quantity="one">%1$d فنان جديد</item>
+        <item quantity="two">%1$d فنانان جديدان</item>
+        <item quantity="few">%1$d فنانين جدد</item>
+        <item quantity="many">%1$d فنانًا جديدًا</item>
+        <item quantity="other">%1$d فنان جديد</item>
+    </plurals>
+    <string name="stats_new_previous">الأيام الـ %1$d السابقة: %2$s جديدة</string>
+    <string name="stats_stuck_artists">فنانون جدد بقوا معك</string>
+    <string name="stats_stuck_artists_recent">فنانون جدد بقوا معك · آخر 3 أشهر</string>
+    <plurals name="stats_log_age">
+        <item quantity="zero">يستمع LatentJam معك منذ %1$d يوم</item>
+        <item quantity="one">يستمع LatentJam معك منذ %1$d يوم</item>
+        <item quantity="two">يستمع LatentJam معك منذ %1$d يومين</item>
+        <item quantity="few">يستمع LatentJam معك منذ %1$d أيام</item>
+        <item quantity="many">يستمع LatentJam معك منذ %1$d يومًا</item>
+        <item quantity="other">يستمع LatentJam معك منذ %1$d يوم</item>
+    </plurals>
+    <string name="stats_new_note">جديدة عليك = شُغّلت لأول مرة في LatentJam. قد تكون مكتبتك أقدم من التطبيق.</string>
+    <plurals name="stats_locked_plays">
+        <item quantity="zero">تظهر بعد %1$d مرة تشغيل في هذه الفترة</item>
+        <item quantity="one">تظهر بعد %1$d مرة تشغيل في هذه الفترة</item>
+        <item quantity="two">تظهر بعد %1$d مرتي تشغيل في هذه الفترة</item>
+        <item quantity="few">تظهر بعد %1$d مرات تشغيل في هذه الفترة</item>
+        <item quantity="many">تظهر بعد %1$d مرة تشغيل في هذه الفترة</item>
+        <item quantity="other">تظهر بعد %1$d مرة تشغيل في هذه الفترة</item>
+    </plurals>
+    <string name="stats_when_you_listen">متى تستمع</string>
+    <string name="stats_night">الليل</string>
+    <string name="stats_morning">الصباح</string>
+    <string name="stats_afternoon">بعد الظهر</string>
+    <string name="stats_evening">المساء</string>
+    <string name="stats_daypart_peak">أكثر استماع: %1$s، %2$s</string>
+    <string name="stats_typical_session">جلسة معتادة</string>
+    <string name="stats_longest_session">أطول جلسة</string>
+    <string name="stats_locked_sessions">تظهر بعد بضع جلسات استماع في هذه الفترة</string>
+    <string name="stats_your_top">الأكثر استماعًا لديك</string>
+    <string name="stats_show_more">عرض 10</string>
+    <string name="stats_show_less">عرض 5</string>
+    <string name="stats_partly_share">مسموعة جزئيًا</string>
+    <string name="stats_smart_mode_share">مشغّلة في وضع SMART</string>
+    <string name="stats_finish_note">نسب من كل مرات البدء. مكتملة = سُمعت حتى 85%، متخطاة = تُركت خلال أول 30 ثانية.</string>
+    <string name="stats_slipping_away">بدأت تُنسى</string>
+    <string name="stats_slipping_note">مقاطع مفضلة كنت تختارها بنفسك كثيرًا، ولم تُشغَّل في LatentJam منذ شهرين أو أكثر.</string>
+    <string name="stats_year_ago">قبل عام</string>
+    <string name="stats_patterns">أنماطك</string>
+    <string name="stats_same_artist_picks">اختيار الفنان نفسه مجددًا</string>
+    <string name="stats_of_100_picks">%1$d من كل 100 اختيار</string>
+    <string name="stats_same_artist_note">عندما تختار المقطع التالي بنفسك. يشمل ذلك البدء من صفحة فنان.</string>
+    <string name="stats_picked_next">غالبًا ما تختاره بعده</string>
+    <string name="stats_sequence_description">بعد %1$s اخترت %2$s %3$d من %4$d مرات</string>
+    <string name="stats_library">مكتبتك</string>
+    <string name="stats_played_once">شُغّلت مرة واحدة على الأقل</string>
+    <string name="stats_x_of_y">%1$s من %2$s</string>
+    <string name="stats_decades">العقود</string>
+    <string name="stats_decade">عقد %1$d</string>
+    <string name="stats_more_appears">سيظهر المزيد كلما استمعت</string>
+    <string name="stats_unlock_on_repeat">تستمع إليها بتكرار الآن — بعد أسبوع من الاستماع</string>
+    <string name="stats_unlock_slipping">بدأت تُنسى — بعد ثلاثة أشهر من الاستماع</string>
+    <string name="stats_part_failed">تعذر تحميل بعض هذه الإحصاءات.</string>
+    <string name="stats_playlist_row">قائمة تشغيل</string>
+    <string name="stats_playlists_note">مرات التشغيل من كل قائمة تشغيل. لا تُحتسب المقاطع التي أضافها SMART ولا الاستماعات السابقة لتسجيل LatentJam لمصدر تشغيل المقطع.</string>
+
+    <!-- Duplicate finder -->
+    <string name="duplicates_summary">المجموعات: %1$d · النسخ الزائدة: %2$d · يمكن تحريره: %3$s</string>
+    <string name="duplicates_keep_recommended">الاحتفاظ بالنسخ الموصى بها</string>
+    <string name="duplicates_keep_selected">الاحتفاظ بالنسخة المحددة</string>
+    <string name="duplicates_not_duplicates">ليست نسخًا مكررة</string>
+    <string name="duplicates_recommended">موصى بها</string>
+    <string name="duplicates_hide_copy">إخفاء هذه النسخة</string>
+    <string name="duplicates_hide_files">إخفاء النسخ الأخرى؛ تبقى الملفات على الجهاز</string>
+    <string name="duplicates_delete_files">حذف الملفات الأخرى من الجهاز</string>
+    <string name="duplicates_merge_all_confirm">سيتم الاحتفاظ بالنسخة الموصى بها في جميع المجموعات (%1$d).</string>
+    <string name="duplicates_merge_confirm_body">ستشير قوائم التشغيل والمفضلة إلى النسخة المحتفظ بها. النسخ الأخرى (%1$d):</string>
+    <string name="duplicates_reclaimable">يمكن تحرير %1$s</string>
+    <string name="duplicates_kbps">%1$d كيلوبت/ث</string>
+    <string name="unit_megabytes">%1$s م.ب</string>
+    <string name="snack_duplicates_dismissed">تم وضع علامة كتسجيلات مختلفة</string>
+    <string name="cd_player_artwork">الغلاف. انقر لعرض تفاصيل المقطع، واضغط مطولًا للإجراءات، واسحب جانبًا لتغيير المقطع، واسحب للأسفل للإغلاق.</string>
+    <string name="details_title">تفاصيل المقطع</string>
+    <string name="details_language">اللغة</string>
+    <string name="details_format">التنسيق</string>
+    <string name="details_file">الملف</string>
+    <string name="details_plays">مرات التشغيل</string>
+    <string name="details_plays_none">لم يُشغَّل بعد</string>
+    <string name="details_original_year">الإصدار الأول</string>
+    <string name="cd_details_close">العودة إلى الغلاف</string>
+    <string name="player_mode_title">وضع التشغيل</string>
+    <string name="player_mode_off">بالترتيب</string>
+    <string name="player_mode_shuffle">تشغيل عشوائي</string>
+    <string name="player_mode_smart">SMART</string>
+    <string name="cd_mode_button">وضع التشغيل: %1$s. انقر للتغيير، واضغط مطولًا للاختيار.</string>
+    <string name="cd_seek_position">موضع التشغيل</string>
+    <string name="cd_time_toggle">التبديل بين الوقت المتبقي والمدة الإجمالية</string>
+    <string name="seek_fine_half">½ السرعة</string>
+    <string name="seek_fine_quarter">¼ السرعة</string>
+    <string name="cd_skip_next_hold">المقطع التالي. اضغط مطولًا للتقديم السريع.</string>
+    <string name="cd_skip_previous_hold">المقطع السابق. اضغط مطولًا للإرجاع.</string>
+    <string name="output_phone_speaker">مكبر صوت الهاتف</string>
+    <string name="output_headphones">سماعات الرأس</string>
+    <string name="output_bluetooth">Bluetooth</string>
+    <string name="cd_output_route">يُشغَّل عبر %1$s. انقر لاختيار مكان التشغيل.</string>
+    <string name="now_playing_next">التالي: %1$s</string>
+    <string name="output_title">إخراج الصوت</string>
+    <string name="output_current">الإخراج الحالي</string>
+    <string name="output_connect_device">توصيل جهاز</string>
+    <string name="output_selection_failed">الجهاز غير متاح. تحقق من الاتصال.</string>
+    <string name="queue_reorder">إعادة ترتيب المقطع</string>
+    <string name="playlists_yours">قوائم التشغيل الخاصة بك</string>
+    <string name="playlists_empty_body">أنشئ قائمة تشغيل أو استورد ملف M3U لجمع موسيقاك.</string>
+    <string name="playlists_automatic">تلقائية</string>
+    <string name="settings_pages_order">الترتيب</string>
+    <string name="settings_opens_on_launch">تُفتح عند التشغيل</string>
+    <string name="settings_reorder_page">إعادة ترتيب %1$s</string>
+    <string name="settings_backup_subtitle">تصدير أو استعادة</string>
+    <string name="duplicates_groups">المجموعات</string>
+    <string name="duplicates_summary_title">المجموعات: %1$d · %2$s</string>
+    <string name="duplicates_summary_extra">النسخ الإضافية: %1$d</string>
+    <string name="duplicates_copy_count">النسخ: %1$d</string>
+    <string name="playlist_reorder_track">اسحب لتغيير ترتيب %1$s</string>
+    <string name="equalizer_custom">مخصص</string>
+    <string name="equalizer_hint">اختر إعدادًا مسبقًا للتشغيل أو اضبط النطاقات حسب ذوقك.</string>
+    <string name="equalizer_reset_short">إعادة ضبط</string>
+    <string name="equalizer_bands_hint">التردد بالهرتز · الكسب بالديسيبل · اسحب لرؤية المزيد من النطاقات</string>
+    <string name="normalization_waiting">شغّل مقطعًا لقياس مستوى صوته.</string>
+    <string name="normalization_measuring">جارٍ قياس هذا المقطع…</string>
+    <string name="normalization_unavailable">تعذر قياس هذا المقطع. يُستخدم مستوى الصوت الأصلي.</string>
+    <string name="normalization_unchanged">لا يحتاج هذا المقطع إلى خفض الصوت. لا يتم تضخيم المقاطع الهادئة.</string>
+    <string name="normalization_reduced">تم خفض صوت هذا المقطع بمقدار %1$s ديسيبل.</string>
+    <string name="equalizer_response">استجابة التردد</string>
+    <string name="equalizer_response_preview">معاينة عند %1$s كيلوهرتز</string>
+    <string name="equalizer_response_headroom">هامش المستوى: %1$s ديسيبل</string>
+    <string name="equalizer_peak_reduction">خفض القمم: %1$s ديسيبل</string>
+    <string name="equalizer_peak_hint">قد تؤدي الزيادات الكبيرة إلى خفض مستوى صوت المقطع بأكمله.</string>
+    <string name="map_memory_limited">لا توجد ذاكرة خالية كافية لحساب الخريطة. أغلق التطبيقات الأخرى وافتح الخريطة مجددًا.</string>
+    <string name="map_unavailable">تعذّر حساب الخريطة. افتحها مجددًا لإعادة المحاولة.</string>
+</resources>

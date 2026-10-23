@@ -1,0 +1,1000 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2026 LatentJam Project
+  SPDX-License-Identifier: Apache-2.0
+
+  Русский. Терминология — как в реальных плеерах (Яндекс Музыка, Apple Music,
+  Spotify): «Очередь», «Перемешать», «Медиатека», «Исполнитель».
+  «LatentJam» и «SMART» не переводятся.
+-->
+<resources>
+
+    <!-- ============================================================ actions -->
+    <string name="action_play">Воспроизвести</string>
+    <string name="action_pause">Пауза</string>
+    <string name="action_next">Следующий трек</string>
+    <string name="action_previous">Предыдущий трек</string>
+    <string name="action_shuffle">Перемешать</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_back">Назад</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_rename">Переименовать</string>
+    <string name="action_clear">Очистить</string>
+    <string name="action_track_options">Действия с треком</string>
+    <string name="action_create">Создать</string>
+    <string name="action_play_all">Воспроизвести всё</string>
+    <string name="action_shuffle_all">Перемешать всё</string>
+    <string name="action_share">Поделиться</string>
+    <string name="action_select_all">Выбрать все</string>
+    <string name="action_deselect_all">Снять выделение</string>
+    <string name="selection_count">Выбрано треков: %1$d</string>
+    <string name="action_add">Добавить</string>
+    <string name="cd_more_options">Другие действия</string>
+    <string name="cd_search_library">Поиск по медиатеке</string>
+    <string name="cd_alphabet_index">Алфавитный указатель</string>
+
+    <!-- ======================================================= track labels -->
+    <string name="label_track">Трек</string>
+    <string name="track_untitled">Без названия</string>
+    <string name="track_unknown_artist">Неизвестный исполнитель</string>
+    <string name="track_unknown_album">Неизвестный альбом</string>
+    <string name="track_unknown_genre">Неизвестный жанр</string>
+    <plurals name="count_tracks">
+        <item quantity="one">%1$d трек</item>
+        <item quantity="few">%1$d трека</item>
+        <item quantity="many">%1$d треков</item>
+        <item quantity="other">%1$d трека</item>
+    </plurals>
+    <string name="cd_track_options_for">Действия с треком «%1$s»</string>
+    <string name="cd_track_options_generic">Действия с этим треком</string>
+
+    <plurals name="count_albums">
+        <item quantity="one">%1$d альбом</item>
+        <item quantity="few">%1$d альбома</item>
+        <item quantity="many">%1$d альбомов</item>
+        <item quantity="other">%1$d альбома</item>
+    </plurals>
+    <plurals name="count_artists">
+        <item quantity="one">%1$d исполнитель</item>
+        <item quantity="few">%1$d исполнителя</item>
+        <item quantity="many">%1$d исполнителей</item>
+        <item quantity="other">%1$d исполнителя</item>
+    </plurals>
+    <plurals name="count_genres">
+        <item quantity="one">%1$d жанр</item>
+        <item quantity="few">%1$d жанра</item>
+        <item quantity="many">%1$d жанров</item>
+        <item quantity="other">%1$d жанра</item>
+    </plurals>
+
+    <!-- ======================================================= browse tabs -->
+    <string name="tab_for_you">Для вас</string>
+    <string name="tab_playlists">Плейлисты</string>
+    <string name="tab_tracks">Треки</string>
+    <string name="tab_albums">Альбомы</string>
+    <string name="tab_artists">Исполнители</string>
+    <string name="tab_genres">Жанры</string>
+    <string name="tab_map">Карта</string>
+
+    <!-- ===================================================== library shell -->
+    <string name="library_empty">На этом устройстве не найдено музыки.</string>
+    <string name="action_rescan_library">Обновить медиатеку</string>
+    <string name="sort_recently_added">Недавно добавленные</string>
+    <string name="sort_custom_order">Свой порядок</string>
+    <string name="sort_name">Имя</string>
+    <string name="sort_direction_ascending">По возрастанию</string>
+    <string name="sort_direction_descending">По убыванию</string>
+    <string name="snack_track_deleted">Трек удалён</string>
+    <string name="snack_track_delete_denied">Для удаления этих треков нужен доступ к файлам.</string>
+    <string name="snack_track_delete_failed">Не удалось удалить файл</string>
+    <string name="snack_track_delete_summary">Удалено: %1$d. Нет доступа: %2$d. Ошибок: %3$d. Отменено: %4$d.</string>
+
+    <!-- =========================================================== for you -->
+    <string name="foryou_empty">Послушайте несколько треков — и здесь появится то, к чему стоит вернуться.</string>
+    <string name="foryou_section_continue">Не дослушано</string>
+    <string name="foryou_section_worth_revisiting">Давно не слушали</string>
+    <string name="foryou_section_worlds">Ваши миксы</string>
+    <string name="foryou_mix_discovery">Микс открытий</string>
+    <string name="foryou_section_never_played">Ещё не слушали</string>
+    <!-- Два действия для мира — предложены, а не угаданы. -->
+    <string name="foryou_world_open">Показать треки</string>
+    <string name="foryou_world_smart">Слушать похожее</string>
+    <string name="foryou_kicker_resume">Продолжить с того же места</string>
+    <plurals name="foryou_kicker_played_times">
+        <item quantity="one">Вы слушали это %1$d раз</item>
+        <item quantity="few">Вы слушали это %1$d раза</item>
+        <item quantity="many">Вы слушали это %1$d раз</item>
+        <item quantity="other">Вы слушали это %1$d раза</item>
+    </plurals>
+    <string name="foryou_kicker_never_played">Ещё не слушали</string>
+    <plurals name="foryou_caption_played_before">
+        <item quantity="one">Слушали %1$d раз</item>
+        <item quantity="few">Слушали %1$d раза</item>
+        <item quantity="many">Слушали %1$d раз</item>
+        <item quantity="other">Слушали %1$d раза</item>
+    </plurals>
+
+    <!-- =============================================================== map -->
+    <string name="map_lens_worlds">Миры</string>
+    <string name="map_lens_plays">Прослушивания</string>
+    <string name="map_lens_never_played">Не слушали</string>
+    <string name="map_lens_skips">Пропуски</string>
+
+    <plurals name="count_regions">
+        <item quantity="one">%1$d область</item>
+        <item quantity="few">%1$d области</item>
+        <item quantity="many">%1$d областей</item>
+        <item quantity="other">%1$d области</item>
+    </plurals>
+
+    <string name="map_headline_worlds">Карта делит %1$s на %2$s. Коснитесь любой, чтобы услышать, что внутри.</string>
+    <string name="map_headline_worlds_partial">Карта делит %1$d из %2$s на %3$s. Коснитесь любой, чтобы услышать, что внутри.</string>
+    <string name="map_headline_plays">В областях карты половина прослушиваний приходится на %1$s — %2$d\u0025 треков.</string>
+    <string name="map_headline_never_played">В областях карты %2$s; не слушали: %1$d. Область «%3$s» не прослушана на %4$d\u0025.</string>
+    <string name="map_headline_skips">Чаще всего вы бросаете треки здесь: «%1$s» — %2$d\u0025 запусков.</string>
+
+    <string name="map_headline_unplayed_total">В областях карты: %2$s · Ещё не слушали: %1$d.</string>
+    <string name="map_select_region">Выбрать область</string>
+    <string name="map_fullscreen">Открыть карту на весь экран</string>
+    <string name="map_exit_fullscreen">Закрыть полноэкранную карту</string>
+    <string name="map_gesture_hint">Перемещайте и масштабируйте карту двумя пальцами.</string>
+    <string name="map_reset_view">Сбросить вид карты</string>
+    <string name="map_region_unplayed">Ещё не слушали здесь: %1$d</string>
+    <string name="map_action_play_unheard">Слушать новое</string>
+    <string name="map_action_play_region">Слушать область</string>
+    <string name="map_action_smart_here">SMART отсюда</string>
+    <string name="map_empty_indexing">Медиатека ещё читается. Карта появится, когда закончится индексация.</string>
+    <string name="map_empty_building">Строим карту вашей медиатеки. Для большой медиатеки это может занять некоторое время.</string>
+    <string name="map_empty_too_large">В вашей медиатеке %1$s — это больше, чем %2$s, которые карта может показать сейчас.</string>
+
+    <string name="map_legend_selected">выбранная область</string>
+    <string name="map_legend_rest">остальная медиатека</string>
+    <string name="map_dot_outside_hint">Ближайшая область: %1$s</string>
+    <string name="map_legend_never">ни разу не слушали</string>
+    <string name="map_legend_played">слушали хотя бы раз</string>
+    <string name="map_legend_never_skips">никогда не пропускали</string>
+    <string name="map_legend_always_skips">всегда пропускали</string>
+
+    <!-- ================================================== now playing/queue -->
+    <string name="now_playing_nothing">Ничего не играет</string>
+    <string name="now_playing_source">Играет из: %1$s</string>
+    <string name="cd_now_playing">Сейчас играет</string>
+    <string name="queue_title">Очередь</string>
+    <string name="queue_title_count">Очередь · %1$d</string>
+    <string name="queue_row_continuation">Не рекомендация — чтобы музыка не прерывалась</string>
+    <string name="cd_repeat_off">Повтор выключен. Нажмите, чтобы повторять очередь.</string>
+    <string name="cd_repeat_all">Повтор очереди. Нажмите, чтобы повторять один трек.</string>
+    <string name="cd_repeat_one">Повтор одного трека. Нажмите, чтобы выключить повтор.</string>
+    <string name="cd_shuffle_off">Перемешивание выключено. Нажмите, чтобы изменить.</string>
+    <string name="cd_shuffle_on">Перемешивание включено. Нажмите, чтобы изменить.</string>
+    <string name="cd_shuffle_smart">Перемешивание SMART включено. Нажмите, чтобы изменить.</string>
+
+    <!-- ============================================================= search -->
+    <string name="search_placeholder">Трек, автор или слова</string>
+    <string name="cd_close_search">Закрыть поиск</string>
+    <string name="cd_clear_query">Очистить запрос</string>
+    <string name="search_no_matches">Ничего не найдено по запросу «%1$s».</string>
+    <plurals name="search_hint_count">
+        <item quantity="one">Поиск по %1$d треку.</item>
+        <item quantity="few">Поиск по %1$d трекам.</item>
+        <item quantity="many">Поиск по %1$d трекам.</item>
+        <item quantity="other">Поиск по %1$d трекам.</item>
+    </plurals>
+    <string name="search_recent_title">Недавние запросы</string>
+    <string name="cd_forget_search">Забыть «%1$s»</string>
+
+    <!-- ========================================================== playlists -->
+    <string name="playlists_empty">Плейлистов пока нет — нажмите +, чтобы создать.</string>
+    <string name="playlist_name_placeholder">Название плейлиста</string>
+    <string name="playlist_new">Новый плейлист</string>
+    <string name="cd_playlist_options">Действия с плейлистом «%1$s»</string>
+    <string name="playlist_add_to_title">Добавить «%1$s» в плейлист</string>
+    <string name="playlist_add_to_title_generic">Добавить трек в плейлист</string>
+    <string name="playlist_rename_title">Переименовать плейлист</string>
+    <string name="action_change_playlist_cover">Изменить обложку</string>
+    <string name="action_reset_playlist_cover">Использовать автоматическую обложку</string>
+    <string name="playlist_cover_error">Не удалось изменить обложку плейлиста. Попробуйте другое изображение.</string>
+    <string name="snack_playlist_created">Плейлист «%1$s» создан</string>
+    <string name="snack_playlist_deleted">Плейлист «%1$s» удалён</string>
+    <string name="snack_added_to_playlist">Добавлено в «%1$s»</string>
+    <string name="auto_playlist_favorites">Любимые</string>
+    <string name="auto_playlist_recently_added">Недавно добавленные</string>
+    <string name="auto_playlist_most_played">Самые прослушиваемые</string>
+    <string name="auto_playlist_recently_played">Недавно прослушанные</string>
+    <string name="auto_playlist_never_played">Ни разу не слушали</string>
+    <string name="auto_playlist_rediscover">Вспомнить забытое</string>
+
+    <!-- ============================================== track actions + sheet -->
+    <string name="action_play_next">Слушать следующим</string>
+    <string name="action_add_to_queue">Добавить в очередь</string>
+    <string name="action_add_to_playlist">Добавить в плейлист</string>
+    <string name="action_add_favorite">В любимые</string>
+    <string name="action_remove_favorite">Убрать из любимых</string>
+    <string name="action_add_all_favorites">Добавить все в любимые</string>
+    <plurals name="snack_favorites_added">
+        <item quantity="one">В любимые добавлен %1$d трек</item>
+        <item quantity="few">В любимые добавлено %1$d трека</item>
+        <item quantity="many">В любимые добавлено %1$d треков</item>
+        <item quantity="other">В любимые добавлено %1$d трека</item>
+    </plurals>
+    <plurals name="snack_favorites_removed">
+        <item quantity="one">Из любимых убран %1$d трек</item>
+        <item quantity="few">Из любимых убрано %1$d трека</item>
+        <item quantity="many">Из любимых убрано %1$d треков</item>
+        <item quantity="other">Из любимых убрано %1$d трека</item>
+    </plurals>
+    <plurals name="snack_favorites_already">
+        <item quantity="one">%1$d уже был в любимых</item>
+        <item quantity="few">%1$d уже были в любимых</item>
+        <item quantity="many">%1$d уже были в любимых</item>
+        <item quantity="other">%1$d уже были в любимых</item>
+    </plurals>
+    <string name="action_remove_from_playlist">Убрать из этого плейлиста</string>
+    <string name="snack_playlist_track_removed">Убрано из "%1$s"</string>
+    <plurals name="playlist_unavailable_tracks">
+        <item quantity="one">%1$d трек из этого плейлиста отсутствует на этом устройстве.</item>
+        <item quantity="few">%1$d трека из этого плейлиста отсутствуют на этом устройстве.</item>
+        <item quantity="many">%1$d треков из этого плейлиста отсутствуют на этом устройстве.</item>
+        <item quantity="other">%1$d трека из этого плейлиста отсутствуют на этом устройстве.</item>
+    </plurals>
+    <string name="action_go_to_album">Перейти к альбому</string>
+    <string name="action_go_to_artist">Перейти к исполнителю</string>
+    <string name="action_show_on_map">Показать на карте</string>
+    <string name="action_export_m3u">Экспорт в M3U</string>
+    <string name="action_smart_keep_together">Держать вместе в SMART</string>
+    <string name="action_import_m3u">Импорт M3U</string>
+    <plurals name="snack_m3u_imported_all">
+        <item quantity="one">Импортирован %1$d трек</item>
+        <item quantity="few">Импортировано %1$d трека</item>
+        <item quantity="many">Импортировано %1$d треков</item>
+        <item quantity="other">Импортировано %1$d трека</item>
+    </plurals>
+    <plurals name="snack_m3u_imported_partial">
+        <item quantity="one">Импортировано %1$d из %2$d трека</item>
+        <item quantity="few">Импортировано %1$d из %2$d треков</item>
+        <item quantity="many">Импортировано %1$d из %2$d треков</item>
+        <item quantity="other">Импортировано %1$d из %2$d трека</item>
+    </plurals>
+    <string name="snack_m3u_import_failed">Не удалось импортировать плейлист</string>
+    <plurals name="m3u_import_found">
+        <item quantity="one">Найдено %1$d из %2$d трека</item>
+        <item quantity="few">Найдено %1$d из %2$d треков</item>
+        <item quantity="many">Найдено %1$d из %2$d треков</item>
+        <item quantity="other">Найдено %1$d из %2$d трека</item>
+    </plurals>
+    <plurals name="m3u_import_playlists">
+        <item quantity="one">%1$d плейлист</item>
+        <item quantity="few">%1$d плейлиста</item>
+        <item quantity="many">%1$d плейлистов</item>
+        <item quantity="other">%1$d плейлиста</item>
+    </plurals>
+    <plurals name="m3u_import_skipped_files">
+        <item quantity="one">Пропущен %1$d файл</item>
+        <item quantity="few">Пропущено %1$d файла</item>
+        <item quantity="many">Пропущено %1$d файлов</item>
+        <item quantity="other">Пропущено %1$d файла</item>
+    </plurals>
+    <string name="m3u_import_playlists_partial">Создано плейлистов: %1$d из %2$d. Остальные не удалось сохранить.</string>
+    <plurals name="playlist_new_count">
+        <item quantity="one">%1$d новый плейлист</item>
+        <item quantity="few">%1$d новых плейлиста</item>
+        <item quantity="many">%1$d новых плейлистов</item>
+        <item quantity="other">%1$d нового плейлиста</item>
+    </plurals>
+    <string name="playlist_imported_name">Импортированный плейлист</string>
+    <string name="action_information">Информация</string>
+    <string name="action_delete_from_device">Удалить с устройства</string>
+    <string name="dialog_delete_tracks_message">Выбранные треки (%1$d) будут удалены с этого устройства. Это действие нельзя отменить.</string>
+    <string name="dialog_delete_track_title">Удалить этот трек?</string>
+    <plurals name="dialog_delete_tracks_title">
+        <item quantity="one">Удалить %1$d трек?</item>
+        <item quantity="few">Удалить %1$d трека?</item>
+        <item quantity="many">Удалить %1$d треков?</item>
+        <item quantity="other">Удалить %1$d трека?</item>
+    </plurals>
+    <string name="dialog_delete_track_message">«%1$s» будет удалён с этого устройства. Это действие нельзя отменить.</string>
+    <string name="dialog_delete_track_message_generic">Этот трек будет удалён с этого устройства. Это действие нельзя отменить.</string>
+
+    <!-- ======================================================== track info -->
+    <string name="info_title">Название</string>
+    <string name="info_artist">Исполнитель</string>
+    <string name="info_album">Альбом</string>
+    <string name="info_genre">Жанр</string>
+    <string name="info_year">Год</string>
+    <string name="info_duration">Длительность</string>
+    <string name="info_location">Расположение</string>
+    <string name="info_not_set">Не указано</string>
+    <string name="info_edit">Изменить теги</string>
+    <string name="info_save">Сохранить</string>
+    <string name="info_cancel">Отмена</string>
+    <string name="editor_discard_title">Отбросить изменения?</string>
+    <string name="editor_discard">Отбросить</string>
+    <string name="editor_keep_editing">Продолжить редактирование</string>
+    <string name="info_saving">Сохранение…</string>
+    <string name="info_edit_note">Сохраняется в сам файл, поэтому исправление увидят все приложения. Возможно, потребуется разрешение на изменение файла.</string>
+    <string name="info_edit_refused">Теги этого файла записаны так, что их нельзя перезаписать безопасно — ничего не изменено.</string>
+    <string name="info_edit_failed">Не удалось записать файл. Он остался прежним.</string>
+    <string name="info_edit_no_space">Недостаточно свободного места, чтобы безопасно сохранить теги. Ничего не изменено.</string>
+    <string name="info_edit_recovery_pending">Сохранение было прервано. LatentJam завершит или отменит его, когда ему снова разрешат изменить файл.</string>
+    <string name="tag_recovery_title">Завершить сохранение тегов</string>
+    <plurals name="tag_recovery_body">
+        <item quantity="one">Сохранение тегов в %1$d файл было прервано. LatentJam может завершить его сейчас, а если файл завершить нельзя — вернуть как было.</item>
+        <item quantity="few">Сохранение тегов в %1$d файла было прервано. LatentJam может завершить его сейчас, а если какой-то файл завершить нельзя — вернуть его как было.</item>
+        <item quantity="many">Сохранение тегов в %1$d файлов было прервано. LatentJam может завершить его сейчас, а если какой-то файл завершить нельзя — вернуть его как было.</item>
+        <item quantity="other">Сохранение тегов в %1$d файла было прервано. LatentJam может завершить его сейчас, а если какой-то файл завершить нельзя — вернуть его как было.</item>
+    </plurals>
+    <string name="tag_recovery_finish">Завершить</string>
+    <string name="tag_recovery_later">Позже</string>
+    <string name="tag_problem_unsupported_format">LatentJam не может изменять файлы такого типа.</string>
+    <string name="tag_problem_damaged">Этот файл выглядит повреждённым, поэтому оставлен как есть.</string>
+    <string name="tag_problem_protected">Этот файл защищён от копирования, его нельзя изменить.</string>
+    <string name="tag_problem_tags_too_large">Теги были бы слишком велики для этого файла.</string>
+    <string name="tag_problem_bad_number">Номера трека и диска должны быть целыми числами от 1 до 999.</string>
+    <string name="tag_problem_number_unreadable">Номер трека или диска в самом файле не является обычным числом, поэтому общее количество нельзя изменить отдельно.</string>
+    <string name="tag_problem_bad_image">Изображение не в формате JPEG или PNG.</string>
+    <string name="tag_problem_read_only_storage">Этот файл находится на носителе, на который нельзя записывать.</string>
+    <string name="tag_problem_music_library">Песни из медиатеки изменять нельзя, только импортированные в LatentJam.</string>
+    <string name="tag_problem_unreadable">Не удалось прочитать этот файл.</string>
+    <string name="tag_problem_not_allowed">Разрешение на изменение файла не было дано.</string>
+    <string name="tag_problem_missing">Файла больше нет.</string>
+    <string name="tag_problem_stopped">Остановлено перед этим файлом.</string>
+    <string name="tag_problem_cancelled">Запрос разрешения был закрыт.</string>
+    <string name="tag_problem_undone">Прерванное сохранение отменено: файл в прежнем виде.</string>
+    <string name="tag_problem_changed_elsewhere">Другое приложение изменило файл после прерванного сохранения, поэтому он оставлен как есть.</string>
+    <string name="tag_problem_lost">LatentJam не удалось узнать, чем закончилось это сохранение. Проверьте теги файла.</string>
+
+    <!-- =========================================================== settings -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_section_appearance">Внешний вид</string>
+    <string name="settings_theme">Тема</string>
+    <string name="theme_system">Как в системе</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="settings_section_playback">Воспроизведение</string>
+    <string name="settings_equalizer">Эквалайзер</string>
+    <string name="settings_equalizer_subtitle">Настройка звучания для аудиовыхода этого устройства</string>
+    <string name="settings_intelligence">Движок SMART</string>
+    <string name="settings_smart_engine">Движок SMART</string>
+    <string name="settings_smart_engine_subtitle">Что модель на устройстве знает о вашей медиатеке</string>
+    <string name="settings_about_body">LatentJam — локальный музыкальный плеер с рекомендациями прямо на устройстве. Ничего о том, что вы слушаете, не покидает это устройство.</string>
+
+    <!-- ========================================================== equalizer -->
+    <string name="state_on">Включён</string>
+    <string name="state_off">Выключен</string>
+    <string name="equalizer_presets">Пресеты</string>
+    <string name="equalizer_bands">Полосы</string>
+    <string name="equalizer_bass_boost">Усиление баса</string>
+    <string name="equalizer_reset">Сбросить</string>
+
+    <!-- ======================================================= intelligence -->
+    <string name="intelligence_section_status">Состояние</string>
+    <string name="intelligence_engine">Движок</string>
+    <string name="intelligence_library">Медиатека</string>
+    <string name="intelligence_fingerprints">Звуковые отпечатки</string>
+    <string name="intelligence_indexed_of">%1$d из %2$d</string>
+    <string name="engine_state_not_started">Не запущен</string>
+    <string name="engine_state_starting">Запускается…</string>
+    <string name="engine_state_ready">Готов</string>
+    <string name="engine_state_unavailable">Недоступен — %1$s</string>
+
+    <!-- ========================================================= permission -->
+    <string name="permission_audio_rationale">Чтобы просканировать медиатеку, приложению LatentJam нужен доступ к вашей музыке.</string>
+    <string name="permission_grant">Предоставить доступ</string>
+    <string name="permission_audio_settings_rationale">Доступ к музыке заблокирован. Откройте системные настройки и разрешите LatentJam доступ к музыке и аудиофайлам.</string>
+    <string name="permission_open_settings">Открыть настройки</string>
+    <string name="permission_notifications_title">Показывать ход анализа?</string>
+    <string name="permission_notifications_rationale">SMART анализирует медиатеку на этом устройстве. Разрешите уведомления, чтобы видеть ход работы и возвращаться в LatentJam. Если выбрать «Не сейчас», анализ продолжится.</string>
+    <string name="permission_not_now">Не сейчас</string>
+    <string name="permission_continue">Продолжить</string>
+
+
+    <string name="engine_error_model_unavailable">SMART не удалось загрузить встроенные модели. Повторите настройку; если ошибка останется, переустановите приложение или сообщите о проблеме.</string>
+    <string name="engine_error_not_indexed">Медиатека ещё не проиндексирована.</string>
+    <string name="engine_error_audio_unavailable">Не удалось прочитать или декодировать трек. Проверьте, что файл всё ещё доступен, и повторите попытку.</string>
+    <string name="engine_error_backend">В SMART произошла внутренняя ошибка. Повторите настройку; если ошибка останется, сообщите о проблеме.</string>
+
+    <string name="indexing_notification_title">Анализ музыки</string>
+    <string name="indexing_notification_progress">%1$d из %2$d</string>
+    <string name="indexing_notification_progress_eta">%1$d из %2$d · осталось около %3$d мин</string>
+
+    <!-- =================================================== expanded settings -->
+    <string name="settings_appearance">Внешний вид</string>
+    <string name="settings_appearance_subtitle">Тема, цвета плеера и язык</string>
+    <string name="settings_library">Медиатека</string>
+    <string name="settings_library_subtitle">Обновление, импорт и скрытые треки</string>
+    <string name="settings_playback">Воспроизведение</string>
+    <string name="settings_playback_subtitle">Эквалайзер и настройки звука</string>
+    <string name="settings_privacy">Конфиденциальность и данные</string>
+    <string name="settings_privacy_subtitle">История прослушиваний и недавние запросы</string>
+    <string name="settings_about">О LatentJam</string>
+    <string name="settings_about_subtitle">Лицензия, исходный код и поддержка</string>
+    <string name="settings_section_library">Медиатека</string>
+    <string name="settings_section_navigation">Навигация</string>
+    <string name="settings_section_privacy">Данные на устройстве</string>
+
+    <string name="settings_track_colors">Цвета плеера</string>
+    <string name="settings_page_header">Заголовок страниц</string>
+    <string name="settings_page_header_dots">Точки</string>
+    <string name="settings_page_header_neighbours">Соседние страницы</string>
+    <string name="settings_page_header_tabs">Вкладки</string>
+    <string name="settings_page_header_pills">Пилюли</string>
+    <string name="settings_page_header_menu">Меню</string>
+    <string name="settings_color_custom">Свой</string>
+    <string name="settings_color_custom_body">Свой цвет красит плеер, облако, мини-плеер, переключатели и кнопку Play — что бы ни играло.</string>
+    <string name="settings_accent_swatch">Цвет %1$d из %2$d</string>
+    <string name="settings_pure_black">Чёрный фон</string>
+    <string name="settings_pure_black_body">Для OLED-экранов: чистый чёрный вместо тёмно-серого</string>
+    <string name="settings_cloud">Облако</string>
+    <string name="settings_cloud_off">Выкл</string>
+    <string name="settings_cloud_soft">Мягко</string>
+    <string name="settings_cloud_normal">Обычно</string>
+    <string name="settings_cloud_vivid">Ярко</string>
+    <string name="settings_cloud_motion">Движение в плеере</string>
+    <string name="settings_cloud_motion_body">Облако медленно плывёт, пока играет музыка</string>
+    <string name="settings_player_background">Фон плеера</string>
+    <string name="settings_player_background_cloud">Облако</string>
+    <string name="settings_player_background_cover">Размытая обложка</string>
+    <string name="settings_shape">Форма</string>
+    <string name="settings_shape_round">Круглая</string>
+    <string name="settings_shape_soft">Мягкая</string>
+    <string name="settings_shape_sharp">Строгая</string>
+    <string name="settings_shape_body">Скругление меню, листов, кнопок, чипов и обложек во всём приложении.</string>
+    <string name="settings_mini_player">Мини-плеер</string>
+    <string name="settings_mini_player_card">Карточка</string>
+    <string name="settings_mini_player_bar">Полоса</string>
+    <string name="settings_section_handling">Удобство</string>
+    <string name="settings_left_handed">Для левой руки</string>
+    <string name="settings_left_handed_body">Кнопка перемешивания и алфавит — слева</string>
+    <string name="settings_color_dynamic">Обложка</string>
+    <string name="settings_color_dynamic_body">Использовать цвета из обложки, а если их определить не удалось — цвета SMART.</string>
+    <string name="settings_color_smart">SMART</string>
+    <string name="settings_color_smart_body">Подбирать цвета по звуковому отпечатку каждого трека.</string>
+    <string name="settings_color_theme">Тема</string>
+    <string name="settings_color_theme_body">Использовать цвета темы приложения вместо цветов отдельных треков.</string>
+    <string name="settings_start_page">Стартовый раздел</string>
+    <string name="settings_start_page_body">Откроется при следующем запуске LatentJam.</string>
+
+    <string name="settings_library_count">Треков в медиатеке</string>
+    <string name="settings_library_refresh">Обновить медиатеку</string>
+    <string name="settings_library_refresh_body">Найти новую музыку и убрать записи о файлах, которые больше недоступны.</string>
+    <string name="settings_library_import">Импортировать музыку</string>
+    <string name="settings_library_import_body">Выбрать аудиофайлы и скопировать их в LatentJam.</string>
+    <string name="settings_library_restore">Восстановить скрытые треки</string>
+    <string name="settings_library_restore_body">Снова показать в медиатеке все треки, удалённые из LatentJam. Файлы на устройстве не изменятся.</string>
+    <string name="settings_playlist_relative_paths">Относительные пути в экспортированных плейлистах</string>
+    <string name="settings_playlist_relative_paths_body">Записывать путь к каждому треку от папки плейлиста (../Music/…), чтобы плейлист работал и на других устройствах. При сохранении в место без пути к папке записываются полные пути.</string>
+
+    <string name="settings_equalizer_unavailable">Недоступен для текущего аудиовыхода</string>
+    <string name="equalizer_unavailable_body">Текущий аудиовыход не предоставляет LatentJam доступ к эквалайзеру. Попробуйте выбрать другой выход. Музыка продолжит воспроизводиться как обычно.</string>
+    <string name="equalizer_bass_value">%1$d\u0025</string>
+    <string name="equalizer_preset_flat">Ровный</string>
+    <string name="equalizer_preset_bass">Басы</string>
+    <string name="equalizer_preset_treble">Высокие частоты</string>
+    <string name="equalizer_preset_vocal">Вокал</string>
+    <string name="equalizer_preset_electronic">Электроника</string>
+
+    <string name="intelligence_syncing">Синхронизация медиатеки…</string>
+    <string name="intelligence_analysis_progress">Проанализировано %1$d из %2$d</string>
+    <string name="intelligence_analysis_failed">Не удалось проанализировать: %1$d</string>
+    <string name="intelligence_failures_more">И ещё %1$d</string>
+    <string name="intelligence_retry">Повторить настройку SMART</string>
+    <string name="intelligence_section_recommendations">Рекомендации</string>
+    <string name="intelligence_queue_length">Длина очереди SMART</string>
+    <string name="intelligence_queue_length_body">Выберите, сколько треков SMART будет добавлять при создании очереди.</string>
+    <string name="intelligence_artist_variety">Разнообразие исполнителей</string>
+    <string name="intelligence_artist_variety_body">Насколько SMART разносит песни одного исполнителя. Песня, которая подходит явно лучше, всё равно прозвучит, даже сразу после того же исполнителя.</string>
+    <string name="intelligence_artist_variety_free">Выкл.</string>
+    <string name="intelligence_artist_variety_low">Низкое</string>
+    <string name="intelligence_artist_variety_balanced">Сбалансированное</string>
+    <string name="intelligence_artist_variety_high">Высокое</string>
+    <string name="intelligence_artist_variety_max">Максимальное</string>
+    <string name="intelligence_include_novelty_mixes">Показывать необычные миксы</string>
+    <string name="intelligence_include_novelty_mixes_body">Показывать в разделе «Для вас» отдельные миксы с мемами, вирусными аудиозаписями и звуковыми эффектами.</string>
+    <string name="foryou_mix_meme_viral">Мемы и вирусные аудиозаписи</string>
+    <string name="foryou_mix_sound_effects">Звуковые эффекты</string>
+    <string name="foryou_mix_spoken_audio">Разговорное аудио</string>
+    <string name="foryou_mix_instrumental">Инструментальная музыка</string>
+    <string name="intelligence_how_it_works">SMART сравнивает звуковые отпечатки прямо на устройстве, а затем сочетает музыкальное сходство с историей прослушиваний. Аккаунт и интернет не нужны.</string>
+
+    <string name="privacy_local_body">Медиатека, история прослушиваний и данные SMART остаются на этом устройстве. В LatentJam нет аккаунта, и эти данные не отправляются на сервер.</string>
+    <string name="privacy_save_history_body">Сохранять прослушивания и пропуски на этом устройстве для раздела «Для вас» и рекомендаций SMART.</string>
+    <string name="privacy_remember_searches_body">Сохранять запросы на этом устройстве, чтобы показывать их при пустом поиске.</string>
+    <string name="privacy_disable_history_body">Перестать сохранять новые прослушивания. Что сделать с историей, уже сохранённой на этом устройстве?</string>
+    <string name="privacy_disable_searches_body">Перестать сохранять новые запросы. Что сделать с запросами, уже сохранёнными на этом устройстве?</string>
+    <string name="privacy_keep_existing">Сохранить существующие</string>
+    <string name="privacy_delete_existing">Удалить существующие</string>
+    <string name="privacy_setting_save_failed">Не удалось сохранить настройку конфиденциальности. Повторите попытку.</string>
+    <string name="privacy_data_clear_failed">Не удалось удалить данные с устройства. Повторите попытку.</string>
+    <string name="privacy_clear_history">Очистить историю прослушиваний</string>
+    <string name="privacy_clear_history_body">Удалить данные о прослушиваниях и пропусках, которые используются для персонализации рекомендаций.</string>
+    <string name="privacy_clear_history_confirm">Очистить всю историю прослушиваний? Рекомендации начнут заново изучать ваши предпочтения.</string>
+    <string name="privacy_history_empty">История прослушиваний пуста</string>
+    <plurals name="privacy_history_listens">
+        <item quantity="one">%1$d прослушивание</item>
+        <item quantity="few">%1$d прослушивания</item>
+        <item quantity="many">%1$d прослушиваний</item>
+        <item quantity="other">%1$d прослушивания</item>
+    </plurals>
+    <string name="privacy_recent_searches">Недавние запросы</string>
+    <string name="privacy_clear_searches">Очистить недавние запросы</string>
+    <string name="privacy_clear_searches_body">Удалить запросы, которые показываются в пустом поиске.</string>
+    <string name="privacy_clear_searches_confirm">Очистить все недавние запросы?</string>
+
+    <string name="settings_license">Лицензия</string>
+    <string name="settings_license_body">LatentJam — бесплатное приложение с открытым исходным кодом по лицензии Apache 2.0.</string>
+    <string name="settings_open_source">Исходный код</string>
+    <string name="settings_open_source_body">Открыть проект на GitHub</string>
+    <string name="settings_report_issue">Сообщить о проблеме</string>
+    <string name="settings_section_preferences">Предпочтения</string>
+    <string name="settings_section_music">Музыка</string>
+    <string name="settings_section_data_support">Данные и поддержка</string>
+    <string name="privacy_listening_history">История прослушиваний</string>
+    <string name="settings_version">Версия</string>
+    <string name="settings_library_loading">Загрузка медиатеки…</string>
+    <string name="settings_library_refreshing">Обновление…</string>
+    <string name="snack_library_refreshed">Медиатека обновлена</string>
+    <string name="action_exclude_track_from_smart">Не рекомендовать этот трек</string>
+    <string name="action_exclude_artist_from_smart">Не рекомендовать этого исполнителя</string>
+    <string name="action_include_track_in_smart">Снова рекомендовать этот трек</string>
+    <string name="action_include_artist_in_smart">Снова рекомендовать этого исполнителя</string>
+    <string name="snack_track_excluded_from_smart">Трек исключён из рекомендаций SMART</string>
+    <string name="snack_artist_excluded_from_smart">Исполнитель исключён из рекомендаций SMART</string>
+    <string name="snack_track_included_in_smart">Трек возвращён в рекомендации SMART</string>
+    <string name="snack_artist_included_in_smart">Исполнитель возвращён в рекомендации SMART</string>
+    <string name="snack_smart_exclusion_failed">Не удалось обновить рекомендации SMART. Повторите попытку.</string>
+    <string name="action_retry">Повторить</string>
+
+    <string name="settings_language">Язык</string>
+    <string name="settings_language_body">Изменить язык в системных настройках.</string>
+    <string name="settings_audio_access">Доступ к музыке</string>
+    <string name="settings_audio_access_allowed">Разрешён</string>
+    <string name="settings_audio_access_blocked">Заблокирован</string>
+    <string name="settings_audio_access_not_requested">Не запрошен</string>
+    <string name="settings_audio_access_not_required">Не требуется</string>
+    <string name="settings_sources">Источники музыки</string>
+    <string name="settings_sources_body">Выберите папки и коллекции устройства, которые видны в LatentJam. Файлы на устройстве не изменяются.</string>
+    <string name="settings_sources_empty">Управляемые источники музыки не найдены.</string>
+    <string name="settings_source_unnamed">Музыка на устройстве</string>
+    <string name="settings_source_music_library">Медиатека</string>
+    <string name="settings_hidden_tracks">Скрытые треки</string>
+    <string name="settings_hidden_tracks_body">Треки, скрытые только в LatentJam. Любой трек можно вернуть, не изменяя его файл.</string>
+    <string name="settings_hidden_tracks_empty">В LatentJam нет скрытых треков.</string>
+    <string name="settings_interrupted_saves">Прерванные сохранения</string>
+    <plurals name="settings_interrupted_saves_body">
+        <item quantity="one">Сохранение тегов в %1$d файл было прервано. LatentJam завершит его или отменит, когда ему снова разрешат изменить файл.</item>
+        <item quantity="few">Сохранение тегов в %1$d файла было прервано. LatentJam завершит или отменит каждое сохранение, когда ему снова разрешат изменить файл.</item>
+        <item quantity="many">Сохранение тегов в %1$d файлов было прервано. LatentJam завершит или отменит каждое сохранение, когда ему снова разрешат изменить файл.</item>
+        <item quantity="other">Сохранение тегов в %1$d файла было прервано. LatentJam завершит или отменит каждое сохранение, когда ему снова разрешат изменить файл.</item>
+    </plurals>
+    <string name="settings_interrupted_finish">Завершить сейчас</string>
+    <string name="settings_interrupted_being_repaired">Восстанавливается: не воспроизводится, пока не будет завершено</string>
+    <string name="settings_interrupted_forget">Забыть</string>
+    <string name="settings_interrupted_forget_title">Забыть это сохранение?</string>
+    <string name="settings_interrupted_forget_body">Файл останется точно таким, как сейчас, а LatentJam перестанет пытаться завершить или отменить сохранение. Это нельзя отменить.</string>
+    <string name="settings_interrupted_forget_damaged_body">Это сохранение прервалось на середине. Файл может быть повреждён и не воспроизводиться, а если забыть сохранение, будут удалены копии, по которым LatentJam мог бы его восстановить. Это нельзя отменить.</string>
+    <string name="settings_duplicates">Дубликаты по звуку</string>
+    <string name="settings_duplicates_body">Ищет копии одной записи по звуку, независимо от тегов</string>
+    <string name="settings_duplicates_scanning">Сравниваю треки между собой…</string>
+    <string name="settings_duplicates_empty">Дубликатов нет — все треки звучат по-разному</string>
+    <string name="settings_restore">Восстановить</string>
+    <string name="settings_restore_all">Восстановить все</string>
+    <string name="settings_library_manage_failed">Не удалось обновить медиатеку. Повторите попытку.</string>
+    <string name="settings_lyrics_folders">Папки с файлами .lrc</string>
+    <string name="settings_lyrics_folders_body">Android спросит, к какой папке дать доступ. Файл .lrc с тем же именем, что и трек, станет его текстом.</string>
+    <string name="settings_lyrics_folders_add">Добавить папку</string>
+    <string name="settings_lyrics_folders_remove">Убрать</string>
+    <string name="settings_lyrics_folders_failed">Эту папку нельзя использовать. Выберите папку в памяти этого устройства.</string>
+
+    <string name="settings_licenses">Лицензии открытого ПО</string>
+    <string name="settings_licenses_body">Сведения о LatentJam, встроенных моделях и стороннем ПО</string>
+    <string name="settings_license_models">Аудиомодель и модели SMART</string>
+    <string name="settings_license_models_body">Созданные LatentJam веса аудиомодели MobileNetV4 распространяются по Apache-2.0. Студент использует timm (Apache-2.0) и дистиллирован из EfficientAT (MIT, © 2022 Florian Schmid).</string>
+    <string name="settings_license_text_model">Текстовая модель</string>
+    <string name="settings_license_text_model_body">Встроенный текстовый кодировщик и его словарь обучены LatentJam воспроизводить sentence-transformers/all-MiniLM-L6-v2 (Apache-2.0) и распространяются по Apache-2.0.</string>
+    <string name="settings_license_runtime">ONNX Runtime</string>
+    <string name="settings_license_runtime_body">Для выполнения моделей на устройстве используется Microsoft ONNX Runtime по лицензии MIT. © Microsoft Corporation.</string>
+    <string name="settings_license_aliases">MusicBrainz и Wikidata</string>
+    <string name="settings_license_aliases_body">Встроенные данные для поиска по псевдонимам исполнителей получены из MusicBrainz и Wikidata и предоставлены по CC0.</string>
+    <string name="settings_license_libraries">Сторонние библиотеки</string>
+    <string name="settings_license_libraries_body">LatentJam использует Kotlin, coroutines, Compose Multiplatform, AndroidX Media3, Koin и Coil по разрешительным лицензиям Apache-2.0 или MIT. Полные уведомления входят в исходный код.</string>
+
+    <string name="sleep_timer">Таймер сна</string>
+    <string name="sleep_timer_off">Выкл.</string>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d минута</item>
+        <item quantity="few">%1$d минуты</item>
+        <item quantity="many">%1$d минут</item>
+        <item quantity="other">%1$d минуты</item>
+    </plurals>
+    <string name="sleep_timer_end_of_track">В конце текущего трека</string>
+    <string name="sleep_timer_active_minutes">Осталось %1$d мин</string>
+    <string name="sleep_timer_active_end_of_track">Остановится после этого трека</string>
+
+    <string name="intelligence_problems">Проблемы анализа</string>
+    <string name="intelligence_problems_body">Треки, которые SMART не удалось проанализировать. Музыку по-прежнему можно воспроизводить.</string>
+    <string name="intelligence_no_problems">Проблем анализа нет</string>
+    <string name="intelligence_manage_exclusions">Исключения из рекомендаций</string>
+    <string name="intelligence_manage_exclusions_body">Треки и исполнители, которых SMART не должен рекомендовать</string>
+    <string name="intelligence_exclusions_empty">Исключений из рекомендаций нет</string>
+    <string name="intelligence_excluded_tracks">Исключённые треки</string>
+    <string name="intelligence_excluded_artists">Исключённые исполнители</string>
+    <string name="intelligence_rebuild">Перестроить анализ SMART</string>
+    <string name="intelligence_rebuild_body">Удалить локальные отпечатки и заново проанализировать видимую медиатеку.</string>
+    <string name="intelligence_rebuild_confirm">Перестроить весь анализ SMART? Музыкальные файлы, плейлисты и история прослушивания не изменятся.</string>
+    <string name="intelligence_how_title">Как работает SMART</string>
+    <string name="intelligence_notifications">Уведомления об анализе</string>
+    <string name="intelligence_notifications_body">Показывать ход индексации вне LatentJam</string>
+    <string name="intelligence_exclusions_clear">Очистить все исключения</string>
+
+    <string name="settings_backup">Локальная резервная копия</string>
+    <string name="settings_backup_body">Экспортируйте или восстанавливайте плейлисты, любимые треки, настройки, историю, скрытые треки, исключения SMART и решения поиска дубликатов. Музыкальные файлы и данные моделей не включаются.</string>
+    <string name="backup_export">Экспортировать копию</string>
+    <string name="backup_import">Импортировать копию</string>
+    <string name="backup_import_title">Восстановить локальную копию</string>
+    <string name="backup_import_body">Выберите, как объединить импортированные данные с данными на этом устройстве.</string>
+    <string name="backup_section_duplicate_decisions">Решения поиска дубликатов</string>
+    <string name="backup_merge">Объединить</string>
+    <string name="backup_replace">Заменить</string>
+    <string name="backup_replace_warning">Заменить выбранные данные приложения этой копией? Музыкальные файлы никогда не изменяются.</string>
+    <string name="backup_export_success">Резервная копия экспортирована</string>
+    <string name="backup_import_success">Резервная копия восстановлена</string>
+    <string name="backup_import_success_unmatched">Резервная копия восстановлена; %1$d ссылок на треки не удалось сопоставить на этом устройстве.</string>
+    <plurals name="backup_import_decisions_not_kept">
+        <item quantity="one">%1$d решение поиска дубликатов не удалось сохранить на этом устройстве.</item>
+        <item quantity="few">%1$d решения поиска дубликатов не удалось сохранить на этом устройстве.</item>
+        <item quantity="many">%1$d решений поиска дубликатов не удалось сохранить на этом устройстве.</item>
+        <item quantity="other">%1$d решения поиска дубликатов не удалось сохранить на этом устройстве.</item>
+    </plurals>
+    <string name="backup_import_partial">Часть данных была восстановлена до возникновения ошибки.</string>
+    <string name="backup_failed">Не удалось завершить операцию с резервной копией.</string>
+    <string name="backup_invalid">Это не резервная копия LatentJam.</string>
+    <string name="backup_destination_warning">Резервная копия содержит личные данные приложения. Облачное или стороннее хранилище, выбранное в системном окне, может синхронизировать их.</string>
+    <string name="settings_stats">Статистика</string>
+    <string name="settings_stats_subtitle">Ваше прослушивание в цифрах</string>
+    <string name="stats_period_week">7 дней</string>
+    <string name="stats_period_month">30 дней</string>
+    <string name="stats_period_all">Всё время</string>
+    <string name="stats_time_listened">Прослушано</string>
+    <string name="stats_plays">Прослушиваний</string>
+    <string name="stats_distinct_tracks">Треков</string>
+    <string name="stats_streak_current">Серия</string>
+    <string name="stats_streak_longest">Рекорд</string>
+    <string name="stats_days_short">дн.</string>
+    <string name="stats_hours_short">ч</string>
+    <string name="stats_minutes_short">мин</string>
+    <string name="stats_finished_share">Дослушано</string>
+    <string name="stats_skipped_share">Пропущено</string>
+    <string name="stats_empty">За этот период пока ничего не сыграно.</string>
+    <string name="stats_load_failed">Не удалось загрузить статистику прослушивания.</string>
+    <string name="settings_normalize_volume">Выравнивание громкости</string>
+    <string name="settings_normalize_volume_subtitle">Снижает громкие треки до более ровного уровня</string>
+    <string name="settings_crossfade">Плавные переходы</string>
+    <string name="settings_crossfade_subtitle">Затухание громкости на границах треков</string>
+    <string name="settings_crossfade_value">%1$d с</string>
+    <string name="duplicates_keep_this">Оставить этот</string>
+    <string name="snack_duplicates_merged">Дубликаты объединены: плейлисты теперь указывают на оставленную копию</string>
+    <string name="info_lyrics">Текст песни</string>
+    <string name="info_album_artist">Исполнитель альбома</string>
+    <string name="info_track_number">Номер трека</string>
+    <string name="info_track_total">Всего треков</string>
+    <string name="info_disc_number">Номер диска</string>
+    <string name="info_disc_total">Всего дисков</string>
+    <string name="info_cover">Обложка</string>
+    <string name="info_cover_replace">Заменить</string>
+    <string name="info_cover_remove">Удалить</string>
+    <string name="info_cover_keep">Оставить текущую</string>
+    <string name="info_cover_new">Новая обложка</string>
+    <string name="info_cover_removed">Обложка будет удалена.</string>
+    <plurals name="info_cover_more">
+        <item quantity="one">+%1$d другое изображение в файле, сохранится</item>
+        <item quantity="few">+%1$d других изображения в файле, сохранятся</item>
+        <item quantity="many">+%1$d других изображений в файле, сохранятся</item>
+        <item quantity="other">+%1$d другого изображения в файле, сохранятся</item>
+    </plurals>
+    <string name="info_reading_file">Чтение файла…</string>
+    <string name="action_edit_album">Изменить альбом</string>
+    <string name="action_edit_artist">Изменить исполнителя</string>
+    <string name="action_favorite_short">В любимые</string>
+    <string name="action_unfavorite_short">Из любимых</string>
+    <plurals name="count_files">
+        <item quantity="one">%1$d файл</item>
+        <item quantity="few">%1$d файла</item>
+        <item quantity="many">%1$d файлов</item>
+        <item quantity="other">%1$d файла</item>
+    </plurals>
+    <plurals name="count_fields">
+        <item quantity="one">%1$d поле</item>
+        <item quantity="few">%1$d поля</item>
+        <item quantity="many">%1$d полей</item>
+        <item quantity="other">%1$d поля</item>
+    </plurals>
+    <string name="bulk_save">Изменить %1$s (%2$s)</string>
+    <string name="bulk_reading">Чтение: %1$d из %2$d…</string>
+    <plurals name="bulk_not_editable">
+        <item quantity="one">%1$d файл нельзя изменить, он останется как есть:</item>
+        <item quantity="few">%1$d файла нельзя изменить, они останутся как есть:</item>
+        <item quantity="many">%1$d файлов нельзя изменить, они останутся как есть:</item>
+        <item quantity="other">%1$d файла нельзя изменить, они останутся как есть:</item>
+    </plurals>
+    <plurals name="bulk_more_files">
+        <item quantity="one">и ещё %1$d</item>
+        <item quantity="few">и ещё %1$d</item>
+        <item quantity="many">и ещё %1$d</item>
+        <item quantity="other">и ещё %1$d</item>
+    </plurals>
+    <string name="bulk_nothing_editable">Ни один из этих файлов нельзя изменить.</string>
+    <string name="bulk_different">Разные значения</string>
+    <plurals name="bulk_removed">
+        <item quantity="one">Удалено из %1$d файла</item>
+        <item quantity="few">Удалено из всех %1$d</item>
+        <item quantity="many">Удалено из всех %1$d</item>
+        <item quantity="other">Удалено из всех %1$d</item>
+    </plurals>
+    <string name="bulk_remove_field">Удалить из всех файлов</string>
+    <string name="bulk_keep_field">Оставить как есть</string>
+    <string name="bulk_kept">Останется как есть: %1$s</string>
+    <string name="bulk_saving">Сохранено %1$d из %2$d</string>
+    <string name="bulk_stop">Остановить</string>
+    <string name="bulk_result">Сохранено %1$d из %2$d.</string>
+    <plurals name="bulk_not_changed">
+        <item quantity="one">%1$d файл не изменён:</item>
+        <item quantity="few">%1$d файла не изменены:</item>
+        <item quantity="many">%1$d файлов не изменены:</item>
+        <item quantity="other">%1$d файла не изменены:</item>
+    </plurals>
+    <string name="bulk_done">Готово</string>
+    <string name="bulk_file_reason">%1$s — %2$s</string>
+    <plurals name="tags_saved">
+        <item quantity="one">Теги сохранены в %1$d файле</item>
+        <item quantity="few">Теги сохранены в %1$d файлах</item>
+        <item quantity="many">Теги сохранены в %1$d файлах</item>
+        <item quantity="other">Теги сохранены в %1$d файла</item>
+    </plurals>
+    <string name="tags_saved_partly">Теги сохранены в %1$d из %2$d файлов</string>
+    <plurals name="tag_recovery_done">
+        <item quantity="one">Сохранение завершено для %1$d файла</item>
+        <item quantity="few">Сохранение завершено для %1$d файлов</item>
+        <item quantity="many">Сохранение завершено для %1$d файлов</item>
+        <item quantity="other">Сохранение завершено для %1$d файла</item>
+    </plurals>
+    <plurals name="tag_recovery_undone">
+        <item quantity="one">%1$d прерванное сохранение отменено; файл в прежнем виде</item>
+        <item quantity="few">%1$d прерванных сохранения отменены; файлы в прежнем виде</item>
+        <item quantity="many">%1$d прерванных сохранений отменено; файлы в прежнем виде</item>
+        <item quantity="other">%1$d прерванного сохранения отменено; файлы в прежнем виде</item>
+    </plurals>
+    <plurals name="tag_recovery_left">
+        <item quantity="one">%1$d файл изменён другим приложением и оставлен как есть</item>
+        <item quantity="few">%1$d файла изменены другим приложением и оставлены как есть</item>
+        <item quantity="many">%1$d файлов изменено другим приложением и оставлено как есть</item>
+        <item quantity="other">%1$d файла изменено другим приложением и оставлено как есть</item>
+    </plurals>
+    <plurals name="tag_recovery_waiting">
+        <item quantity="one">Сохранение в %1$d файл пока не удалось завершить. См. Настройки → Медиатека.</item>
+        <item quantity="few">Сохранение в %1$d файла пока не удалось завершить. См. Настройки → Медиатека.</item>
+        <item quantity="many">Сохранение в %1$d файлов пока не удалось завершить. См. Настройки → Медиатека.</item>
+        <item quantity="other">Сохранение в %1$d файла пока не удалось завершить. См. Настройки → Медиатека.</item>
+    </plurals>
+    <string name="lyrics_not_found">Текст песни для этого трека не найден.</string>
+    <string name="cd_scroll_to_top">Наверх списка</string>
+    <string name="foryou_section_daypart_morning">Ваше утро</string>
+    <string name="foryou_section_daypart_day">Ваш день</string>
+    <string name="foryou_section_daypart_evening">Ваш вечер</string>
+    <string name="foryou_section_daypart_night">Ваша ночь</string>
+    <string name="foryou_section_on_a_roll">Сейчас часто: %1$s</string>
+    <string name="foryou_caption_left_turn">Если нравится «%1$s»</string>
+    <string name="settings_pages">Страницы</string>
+    <string name="settings_pages_subtitle">Видимость, порядок и стартовая страница</string>
+    <string name="settings_pages_body">Перетащите, чтобы изменить порядок. Отключите ненужные страницы.</string>
+    <string name="settings_pages_last_visible">Оставьте хотя бы одну страницу включённой.</string>
+    <string name="settings_page_position">Позиция %1$d из %2$d</string>
+    <string name="settings_page_move_up">Переместить «%1$s» выше</string>
+    <string name="settings_page_move_down">Переместить «%1$s» ниже</string>
+    <string name="settings_pages_reset">Сбросить страницы</string>
+    <string name="settings_pages_reset_body">Восстановить порядок, видимость и стартовую страницу по умолчанию.</string>
+
+    <!-- Listening dashboard -->
+    <string name="stats_dashboard_title">Ваше прослушивание</string>
+    <string name="stats_recording_off">История прослушиваний приостановлена. Сохранённая статистика остаётся доступной; новые прослушивания появятся после включения истории в настройках конфиденциальности.</string>
+    <string name="stats_comparison_more">На %1$s больше, чем за предыдущие %2$d дн.</string>
+    <string name="stats_comparison_less">На %1$s меньше, чем за предыдущие %2$d дн.</string>
+    <string name="stats_comparison_same">Столько же времени, сколько за предыдущие %1$d дн.</string>
+    <string name="stats_comparison_first">За предыдущие %1$d дн. прослушиваний не было</string>
+    <string name="stats_under_minute">&lt; 1 мин</string>
+    <string name="stats_activity">Ваш ежедневный ритм</string>
+    <string name="stats_calendar_days">Последние %1$d календарных дн. · время прослушивания</string>
+    <string name="stats_today">Сегодня</string>
+    <string name="stats_yesterday">Вчера</string>
+    <string name="stats_new_tracks">Первые прослушивания</string>
+    <string name="stats_smart_detail">Доля прослушиваний, начатых с включённым перемешиванием SMART</string>
+    <string name="stats_listening_style">Как вы слушаете</string>
+    <string name="stats_recent_empty">В эти календарные дни прослушиваний пока нет.</string>
+    <string name="stats_history_note">На основе сохранённой истории, в часовом поясе этого устройства; обновляется по окончании или смене трека. В списках — только треки, которые есть в медиатеке. Восстановленная резервная копия сохраняет лишь те треки, которые удалось найти, а исполнитель, известный только по удалённым трекам, может показаться новым.</string>
+    <string name="stats_chart_day_summary">%1$s: %2$s · %3$s</string>
+    <plurals name="stats_days_ago">
+        <item quantity="one">%1$d день назад</item>
+        <item quantity="few">%1$d дня назад</item>
+        <item quantity="many">%1$d дней назад</item>
+        <item quantity="other">%1$d дня назад</item>
+    </plurals>
+    <string name="stats_section_lately">Вы в последнее время</string>
+    <string name="stats_section_numbers">Ваши цифры</string>
+    <string name="stats_section_over_time">Со временем</string>
+    <string name="stats_on_repeat">Сейчас на повторе</string>
+    <string name="stats_artists_on_repeat">Исполнители на повторе</string>
+    <plurals name="stats_on_days">
+        <item quantity="one">%1$d день</item>
+        <item quantity="few">%1$d дня</item>
+        <item quantity="many">%1$d дней</item>
+        <item quantity="other">%1$d дня</item>
+    </plurals>
+    <string name="stats_week_days">%1$d из последних 7 дней</string>
+    <plurals name="stats_days_of_music">
+        <item quantity="one">≈ %1$d день музыки</item>
+        <item quantity="few">≈ %1$d дня музыки</item>
+        <item quantity="many">≈ %1$d дней музыки</item>
+        <item quantity="other">≈ %1$d дня музыки</item>
+    </plurals>
+    <plurals name="stats_activity_last_months">
+        <item quantity="one">Последний %1$d месяц · время прослушивания</item>
+        <item quantity="few">Последние %1$d месяца · время прослушивания</item>
+        <item quantity="many">Последние %1$d месяцев · время прослушивания</item>
+        <item quantity="other">Последние %1$d месяца · время прослушивания</item>
+    </plurals>
+    <string name="stats_activity_years">По годам · время прослушивания</string>
+    <string name="stats_activity_over_time">Ваше прослушивание со временем</string>
+    <string name="stats_this_month">Этот месяц</string>
+    <string name="stats_this_year">Этот год</string>
+    <plurals name="stats_months_ago">
+        <item quantity="one">%1$d месяц назад</item>
+        <item quantity="few">%1$d месяца назад</item>
+        <item quantity="many">%1$d месяцев назад</item>
+        <item quantity="other">%1$d месяца назад</item>
+    </plurals>
+    <plurals name="stats_years_ago">
+        <item quantity="one">%1$d год назад</item>
+        <item quantity="few">%1$d года назад</item>
+        <item quantity="many">%1$d лет назад</item>
+        <item quantity="other">%1$d года назад</item>
+    </plurals>
+    <string name="stats_new_and_familiar">Новое и знакомое</string>
+    <string name="stats_familiar">Знакомое</string>
+    <plurals name="stats_new_tracks_count">
+        <item quantity="one">%1$d новый трек</item>
+        <item quantity="few">%1$d новых трека</item>
+        <item quantity="many">%1$d новых треков</item>
+        <item quantity="other">%1$d нового трека</item>
+    </plurals>
+    <plurals name="stats_new_artists_count">
+        <item quantity="one">%1$d новый исполнитель</item>
+        <item quantity="few">%1$d новых исполнителя</item>
+        <item quantity="many">%1$d новых исполнителей</item>
+        <item quantity="other">%1$d нового исполнителя</item>
+    </plurals>
+    <string name="stats_new_previous">Предыдущие %1$d дн.: %2$s нового</string>
+    <string name="stats_stuck_artists">Новые исполнители, которые прижились</string>
+    <string name="stats_stuck_artists_recent">Новые исполнители, которые прижились · последние 3 месяца</string>
+    <plurals name="stats_log_age">
+        <item quantity="one">LatentJam слушает вместе с вами %1$d день</item>
+        <item quantity="few">LatentJam слушает вместе с вами %1$d дня</item>
+        <item quantity="many">LatentJam слушает вместе с вами %1$d дней</item>
+        <item quantity="other">LatentJam слушает вместе с вами %1$d дня</item>
+    </plurals>
+    <string name="stats_new_note">Первое прослушивание = впервые сыграно в LatentJam. Ваша медиатека может быть старше приложения.</string>
+    <plurals name="stats_locked_plays">
+        <item quantity="one">Появится после %1$d прослушивания за этот период</item>
+        <item quantity="few">Появится после %1$d прослушиваний за этот период</item>
+        <item quantity="many">Появится после %1$d прослушиваний за этот период</item>
+        <item quantity="other">Появится после %1$d прослушивания за этот период</item>
+    </plurals>
+    <string name="stats_when_you_listen">Когда вы слушаете</string>
+    <string name="stats_night">Ночь</string>
+    <string name="stats_morning">Утро</string>
+    <string name="stats_afternoon">День</string>
+    <string name="stats_evening">Вечер</string>
+    <string name="stats_daypart_peak">Больше всего слушаете: %1$s, %2$s</string>
+    <string name="stats_typical_session">Обычная сессия</string>
+    <string name="stats_longest_session">Самая длинная сессия</string>
+    <string name="stats_locked_sessions">Появится после нескольких сессий прослушивания за этот период</string>
+    <string name="stats_your_top">Ваш топ</string>
+    <string name="stats_show_more">Показать 10</string>
+    <string name="stats_show_less">Показать 5</string>
+    <string name="stats_partly_share">Прослушано частично</string>
+    <string name="stats_smart_mode_share">В режиме SMART</string>
+    <string name="stats_finish_note">Доли от всех запусков. Дослушано = до 85%, пропущено = переключено в первые 30 с.</string>
+    <string name="stats_slipping_away">Ускользают</string>
+    <string name="stats_slipping_note">Любимые треки, которые вы часто выбирали сами, но не слушали в LatentJam два месяца и больше.</string>
+    <string name="stats_year_ago">Год назад</string>
+    <string name="stats_patterns">Ваши привычки</string>
+    <string name="stats_same_artist_picks">Снова тот же исполнитель</string>
+    <string name="stats_of_100_picks">%1$d из 100 выборов</string>
+    <string name="stats_same_artist_note">Когда вы сами выбираете следующий трек. Включая запуск со страницы исполнителя.</string>
+    <string name="stats_picked_next">Часто выбираете следом</string>
+    <string name="stats_sequence_description">После %1$s вы выбирали %2$s: %3$d из %4$d</string>
+    <string name="stats_library">Ваша медиатека</string>
+    <string name="stats_played_once">Сыграно хотя бы раз</string>
+    <string name="stats_x_of_y">%1$s из %2$s</string>
+    <string name="stats_decades">Десятилетия</string>
+    <string name="stats_decade">%1$d-е</string>
+    <string name="stats_more_appears">Больше появится по мере прослушивания</string>
+    <string name="stats_unlock_on_repeat">Сейчас на повторе — через неделю прослушивания</string>
+    <string name="stats_unlock_slipping">Ускользают — через три месяца прослушивания</string>
+    <string name="stats_part_failed">Часть статистики не удалось загрузить.</string>
+    <string name="stats_playlist_row">Плейлист</string>
+    <string name="stats_playlists_note">Прослушивания из каждого плейлиста. Не учитываются треки, добавленные SMART, и прослушивания до того, как LatentJam начал записывать, откуда запущен трек.</string>
+
+    <!-- Duplicate finder -->
+    <string name="duplicates_summary">Групп: %1$d · Лишних копий: %2$d · Освободится: %3$s</string>
+    <string name="duplicates_keep_recommended">Оставить рекомендованные копии</string>
+    <string name="duplicates_keep_selected">Оставить выбранную копию</string>
+    <string name="duplicates_not_duplicates">Это не дубликаты</string>
+    <string name="duplicates_recommended">Рекомендуется</string>
+    <string name="duplicates_hide_copy">Скрыть эту копию</string>
+    <string name="duplicates_hide_files">Скрыть остальные копии, файлы остаются на устройстве</string>
+    <string name="duplicates_delete_files">Удалить остальные файлы с устройства</string>
+    <string name="duplicates_merge_all_confirm">Во всех группах (%1$d) будет оставлена рекомендованная копия.</string>
+    <string name="duplicates_merge_confirm_body">Плейлисты и избранное будут указывать на оставленную копию. Остальные копии (%1$d):</string>
+    <string name="duplicates_reclaimable">Освободится %1$s</string>
+    <string name="duplicates_kbps">%1$d кбит/с</string>
+    <string name="unit_megabytes">%1$s МБ</string>
+    <string name="snack_duplicates_dismissed">Отмечено как разные записи</string>
+    <string name="cd_player_artwork">Обложка. Нажмите, чтобы увидеть сведения о треке, удерживайте для действий, смахните в сторону, чтобы сменить трек, потяните вниз, чтобы свернуть.</string>
+    <string name="details_title">Сведения о треке</string>
+    <string name="details_language">Язык</string>
+    <string name="details_format">Формат</string>
+    <string name="details_file">Файл</string>
+    <string name="details_plays">Прослушиваний</string>
+    <string name="details_plays_none">Ещё не слушали</string>
+    <string name="details_original_year">Первое издание</string>
+    <string name="cd_details_close">Вернуться к обложке</string>
+    <string name="player_mode_title">Режим воспроизведения</string>
+    <string name="player_mode_off">По порядку</string>
+    <string name="player_mode_shuffle">Перемешать</string>
+    <string name="player_mode_smart">SMART</string>
+    <string name="cd_mode_button">Режим воспроизведения: %1$s. Нажмите, чтобы переключить, удерживайте, чтобы выбрать.</string>
+    <string name="cd_seek_position">Позиция воспроизведения</string>
+    <string name="cd_time_toggle">Показать остаток или общую длительность</string>
+    <string name="seek_fine_half">½ скорости</string>
+    <string name="seek_fine_quarter">¼ скорости</string>
+    <string name="cd_skip_next_hold">Следующий трек. Удерживайте для перемотки вперёд.</string>
+    <string name="cd_skip_previous_hold">Предыдущий трек. Удерживайте для перемотки назад.</string>
+    <string name="output_phone_speaker">Динамик телефона</string>
+    <string name="output_headphones">Наушники</string>
+    <string name="output_bluetooth">Bluetooth</string>
+    <string name="cd_output_route">Звук идёт в %1$s. Нажмите, чтобы выбрать, куда играть.</string>
+    <string name="now_playing_next">Дальше: %1$s</string>
+    <string name="output_title">Вывод звука</string>
+    <string name="output_current">Текущий выход</string>
+    <string name="output_connect_device">Подключить устройство</string>
+    <string name="output_selection_failed">Устройство недоступно. Проверьте подключение.</string>
+    <string name="queue_reorder">Изменить порядок трека</string>
+    <string name="playlists_yours">Ваши плейлисты</string>
+    <string name="playlists_empty_body">Создайте плейлист или импортируйте файл M3U, чтобы собрать музыку вместе.</string>
+    <string name="playlists_automatic">Автоматические</string>
+    <string name="settings_pages_order">Порядок</string>
+    <string name="settings_opens_on_launch">При запуске</string>
+    <string name="settings_reorder_page">Изменить порядок: %1$s</string>
+    <string name="settings_backup_subtitle">Экспорт или восстановление</string>
+    <string name="duplicates_groups">Группы</string>
+    <string name="duplicates_summary_title">Группы: %1$d · %2$s</string>
+    <string name="duplicates_summary_extra">Лишние копии: %1$d</string>
+    <string name="duplicates_copy_count">Копии: %1$d</string>
+    <string name="playlist_reorder_track">Потяните, чтобы переместить %1$s</string>
+    <string name="equalizer_custom">Своя настройка</string>
+    <string name="equalizer_hint">Выберите пресет, чтобы включить эквалайзер, или настройте полосы по вкусу.</string>
+    <string name="equalizer_reset_short">Сбросить</string>
+    <string name="equalizer_bands_hint">Частота в Гц · усиление в дБ · листайте полосы</string>
+    <string name="normalization_waiting">Включите трек, чтобы измерить его громкость.</string>
+    <string name="normalization_measuring">Измеряем громкость трека…</string>
+    <string name="normalization_unavailable">Не удалось измерить этот трек. Громкость остаётся исходной.</string>
+    <string name="normalization_unchanged">Этому треку снижение не нужно. Тихие треки не усиливаются.</string>
+    <string name="normalization_reduced">Громкость этого трека снижена на %1$s дБ.</string>
+    <string name="equalizer_response">Частотная характеристика</string>
+    <string name="equalizer_response_preview">Предпросмотр при %1$s кГц</string>
+    <string name="equalizer_response_headroom">Запас уровня: %1$s дБ</string>
+    <string name="equalizer_peak_reduction">Снижение пиков: %1$s дБ</string>
+    <string name="equalizer_peak_hint">Сильное усиление может снижать громкость всего трека.</string>
+    <string name="map_memory_limited">Недостаточно свободной памяти для расчёта карты. Закройте другие приложения и откройте карту снова.</string>
+    <string name="map_unavailable">Не удалось рассчитать карту. Откройте её снова, чтобы повторить попытку.</string>
+</resources>

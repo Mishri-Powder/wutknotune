@@ -1,0 +1,1808 @@
+/*
+ * Copyright (c) 2026 LatentJam Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package io.github.nikitasud.latentjam.smart
+
+import io.github.nikitasud.latentjam.smart.chain.PredictorRuntime
+import io.github.nikitasud.latentjam.smart.text.ArtistKnowledge
+import io.github.nikitasud.latentjam.smart.text.AssetBytes
+import io.github.nikitasud.latentjam.smart.text.EntityIndexBytes
+import io.github.nikitasud.latentjam.smart.text.KnowledgePackBytes
+import io.github.nikitasud.latentjam.smart.text.MusicEntityResolver
+import io.github.nikitasud.latentjam.smart.text.TextEncoder
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.runTest
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+internal class DefaultSimilarityEngineTest {
+
+    private val seed = TrackDescriptor(id = TrackId("seed"), audioUri = "test://seed")
+    private val near = TrackDescriptor(id = TrackId("near"), audioUri = "test://near")
+    private val far = TrackDescriptor(id = TrackId("far"), audioUri = "test://far")
+
+    private class Harness {
+        val backend = FakeEmbeddingBackend()
+        val index = InMemoryVectorIndex(dim = 3)
+        val store = FakeIndexStore()
+        val engine = DefaultSimilarityEngine(
+            backend = backend,
+            index = index,
+            store = store,
+            config = SmartEngineConfig(embeddingDim = 3, modelVersion = "test-model"),
+            dispatcher = Dispatchers.Default.limitedParallelism(1, "test-smart-engine"),
+        )
+    }
+
+    private fun engine(
+        backend: EmbeddingBackend,
+        store: IndexStore,
+        textEncoder: TextEncoder? = null,
+        textIndex: VectorIndex? = null,
+        textStore: IndexStore? = null,
+        modelVersion: String = "test-model",
+        artistKnowledge: ArtistKnowledge? = null,
+    ) = DefaultSimilarityEngine(
+        backend = backend,
+        index = InMemoryVectorIndex(dim = 3),
+        store = store,
+        config = SmartEngineConfig(embeddingDim = 3, modelVersion = modelVersion),
+        dispatcher = Dispatchers.Default.limitedParallelism(1, "restart-smart-engine"),
+        textEncoder = textEncoder,
+        textIndex = textIndex,
+        textStore = textStore,
+        artistKnowledge = artistKnowledge,
+    )
+
+    private fun Harness.registerTriangle() {
+        backend.vectors[seed.id] = floatArrayOf(1f, 0f, 0f)
+        backend.vectors[near.id] = floatArrayOf(0.9f, 0.1f, 0f)
+        backend.vectors[far.id] = floatArrayOf(0f, 1f, 0f)
+    }
+
+    // ---------------------------------------------------------------- initialize
+
+    @Test
+    fun initializeTransitionsToReady() = runTest {
+        val harness = Harness()
+        assertEquals(EngineState.Uninitialized, harness.engine.state.value)
+        assertTrue(harness.engine.initialize().isSuccess)
+        assertEquals(EngineState.Ready(indexedCount = 0), harness.engine.state.value)
+    }
+
+    @Test
+    fun initializeIsIdempotentAndNeverTouchesTheAudioBackend() = runTest {
+        val harness = Harness()
+        assertTrue(harness.engine.initialize().isSuccess)
+        assertTrue(harness.engine.initialize().isSuccess)
+        assertEquals(0, harness.backend.loadModelCalls, "launch must not pay for the audio model")
+    }
+
+    @Test
+    fun brokenAudioModelFailsPerOperationNotStartup() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.backend.loadModelResult =
+            Result.failure(SmartEngineException(EngineError.ModelUnavailable))
+
+        // A corrupt audio model must not brick the engine: restored vectors and
+        // the metadata fallback still serve queries without it.
+        assertTrue(harness.engine.initialize().isSuccess)
+        assertEquals(EngineState.Ready(indexedCount = 0), harness.engine.state.value)
+
+        // The failure surfaces, typed, on the operation that actually needed the model…
+        val report = harness.engine.indexLibrary(listOf(seed, near))
+        assertEquals(0, report.indexed)
+        assertEquals(2, report.failed)
+        assertTrue(report.errors.values.all { it == EngineError.ModelUnavailable })
+        assertEquals(EngineState.Ready(indexedCount = 0), harness.engine.state.value)
+
+        // …and is never latched: the next operation retries the load.
+        harness.backend.loadModelResult = Result.success(Unit)
+        val retried = harness.engine.indexLibrary(listOf(seed, near))
+        assertEquals(2, retried.indexed)
+        assertEquals(2, harness.backend.loadModelCalls)
+    }
+
+    @Test
+    fun fullyIndexedLibraryNeverLoadsTheAudioModel() = runTest {
+        val harness = Harness()
+        harness.store.snapshots["test-model"] = mapOf(
+            seed.id to floatArrayOf(1f, 0f, 0f),
+            near.id to floatArrayOf(0.9f, 0.1f, 0f),
+            far.id to floatArrayOf(0f, 1f, 0f),
+        )
+        harness.engine.initialize()
+
+        val features = assertNotNull(
+            harness.engine.libraryMixFeatures(listOf(seed.id, near.id, far.id)),
+        )
+        assertEquals(3, features.vectorSpace.size)
+        assertTrue(features.semantics.isEmpty())
+        val report = harness.engine.indexLibrary(listOf(seed, near, far))
+        assertEquals(3, report.skipped)
+        val result = harness.engine.nextTrack(ListeningContext(seed = seed))
+        assertEquals(near.id, assertIs<NextTrackResult.Match>(result).trackId)
+        assertEquals(
+            0,
+            harness.backend.loadModelCalls,
+            "restored vectors and optional background mix semantics must keep the model lazy",
+        )
+        assertEquals(0, harness.backend.loadSemanticModelCalls)
+    }
+
+    @Test
+    fun explicitSemanticMixOptInMayLoadTheModelForUsefulClassification() = runTest {
+        val harness = Harness()
+        harness.store.snapshots["test-model"] = mapOf(
+            seed.id to floatArrayOf(1f, 0f, 0f),
+        )
+        harness.engine.initialize()
+
+        assertNotNull(
+            harness.engine.libraryMixFeatures(
+                ids = listOf(seed.id),
+                loadMissingSemantics = true,
+            ),
+        )
+
+        assertEquals(0, harness.backend.loadModelCalls, "semantic routing must not load audio")
+        assertEquals(1, harness.backend.loadSemanticModelCalls)
+    }
+
+    @Test
+    fun audioModelLoadsOnceAcrossEmbeddingBatches() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+
+        harness.engine.indexLibrary(listOf(seed, near))
+        harness.engine.indexLibrary(listOf(seed, near, far))
+
+        assertEquals(1, harness.backend.loadModelCalls)
+        assertEquals(EngineState.Ready(indexedCount = 3), harness.engine.state.value)
+    }
+
+    @Test
+    fun `unchanged audio decode failure survives restart without loading model again`() = runTest {
+        val store = FakeIndexStore()
+        val broken = TrackDescriptor(
+            id = TrackId("broken-file"),
+            audioUri = "content://media/42",
+            durationMs = 12_345,
+            sourceRevision = "android-mediastore-v1:100:200:3",
+        )
+        val firstBackend = FakeEmbeddingBackend().apply {
+            failures[broken.id] = EngineError.InvalidAudio("decoder rejected test input")
+        }
+        val first = engine(firstBackend, store)
+        first.initialize()
+
+        val firstReport = first.indexLibrary(listOf(broken))
+
+        assertEquals(1, firstReport.failed)
+        assertIs<EngineError.InvalidAudio>(firstReport.errors[broken.id])
+        assertEquals(1, firstBackend.loadModelCalls)
+        assertEquals(1, firstBackend.embedCalls)
+        assertEquals(setOf(broken.id), store.failureSnapshots["test-model"]?.keys)
+
+        val restartedBackend = FakeEmbeddingBackend(
+            mutableMapOf(broken.id to floatArrayOf(1f, 0f, 0f)),
+        )
+        val restarted = engine(restartedBackend, store)
+        restarted.initialize()
+        restarted.synchronizeLibrary(listOf(broken))
+
+        assertEquals(0, restarted.missingFromIndex(listOf(broken.id)))
+        val rememberedReport = restarted.indexLibrary(listOf(broken))
+        assertEquals(1, rememberedReport.failed)
+        assertIs<EngineError.InvalidAudio>(rememberedReport.errors[broken.id])
+        assertEquals(0, restartedBackend.loadModelCalls)
+        assertEquals(0, restartedBackend.embedCalls)
+    }
+
+    @Test
+    fun `tracks without audio URI never load the model and remain remembered`() = runTest {
+        val store = FakeIndexStore()
+        val protected = TrackDescriptor(
+            id = TrackId("protected-library-row"),
+            audioUri = null,
+            durationMs = 12_345,
+            sourceRevision = "protected-v1",
+        )
+        val firstBackend = FakeEmbeddingBackend()
+        val first = engine(firstBackend, store)
+        first.initialize()
+
+        val firstReport = first.indexLibrary(listOf(protected))
+
+        assertIs<EngineError.InvalidAudio>(firstReport.errors[protected.id])
+        assertEquals(0, firstBackend.loadModelCalls)
+        assertEquals(0, firstBackend.embedCalls)
+        assertEquals(setOf(protected.id), store.failureSnapshots["test-model"]?.keys)
+
+        val restartedBackend = FakeEmbeddingBackend()
+        val restarted = engine(restartedBackend, store)
+        restarted.initialize()
+        restarted.synchronizeLibrary(listOf(protected))
+        assertEquals(0, restarted.missingFromIndex(listOf(protected.id)))
+        assertIs<EngineError.InvalidAudio>(
+            restarted.indexLibrary(listOf(protected)).errors[protected.id],
+        )
+        assertEquals(0, restartedBackend.loadModelCalls)
+        assertEquals(0, restartedBackend.embedCalls)
+    }
+
+    @Test
+    fun `unindexed seed without audio URI never loads model for direct or smart query`() = runTest {
+        val store = FakeIndexStore().apply {
+            snapshots["test-model"] = mapOf(
+                near.id to floatArrayOf(0.9f, 0.1f, 0f),
+                far.id to floatArrayOf(0f, 1f, 0f),
+            )
+        }
+        val backend = FakeEmbeddingBackend()
+        val engine = engine(backend, store)
+        engine.initialize()
+        val protectedSeed = TrackDescriptor(
+            id = TrackId("protected-seed"),
+            title = "Protected seed",
+            genre = "Rock",
+            audioUri = null,
+        )
+
+        assertIs<EngineError.InvalidAudio>(
+            assertIs<NextTrackResult.Failure>(
+                engine.nextTrack(ListeningContext(seed = protectedSeed)),
+            ).error,
+        )
+        engine.smartQueue(protectedSeed, listOf(near, far), length = 1)
+        assertEquals(0, backend.loadModelCalls)
+        assertEquals(0, backend.embedCalls)
+    }
+
+    @Test
+    fun `ambiguous empty scan preserves remembered audio failure until authoritative scan`() = runTest {
+        val store = FakeIndexStore()
+        val broken = TrackDescriptor(
+            id = TrackId("permission-hidden-failure"),
+            audioUri = "content://media/73",
+            sourceRevision = "android-mediastore-v1:10:20:3",
+        )
+        val firstBackend = FakeEmbeddingBackend().apply {
+            failures[broken.id] = EngineError.InvalidAudio("unsupported stream")
+        }
+        val first = engine(firstBackend, store)
+        first.initialize()
+        first.indexLibrary(listOf(broken))
+
+        val restarted = engine(FakeEmbeddingBackend(), store)
+        restarted.initialize()
+        restarted.synchronizeLibrary(emptyList(), pruneMissing = false)
+
+        assertEquals(setOf(broken.id), store.failureSnapshots["test-model"]?.keys)
+        assertEquals(
+            1,
+            restarted.missingFromIndex(listOf(broken.id)),
+            "legacy untyped markers are intentionally retried after classification migration",
+        )
+
+        restarted.synchronizeLibrary(emptyList(), pruneMissing = true)
+
+        assertTrue(store.failureSnapshots["test-model"].orEmpty().isEmpty())
+        assertEquals(1, restarted.missingFromIndex(listOf(broken.id)))
+    }
+
+    @Test
+    fun `changed failed track is retried and replaces its failure marker`() = runTest {
+        val store = FakeIndexStore()
+        val original = TrackDescriptor(
+            id = TrackId("replaced-file"),
+            audioUri = "file:///music/replaced.mp3",
+            durationMs = 1_000,
+            sourceRevision = "size=10|mtime=20",
+        )
+        val firstBackend = FakeEmbeddingBackend().apply {
+            failures[original.id] = EngineError.InvalidAudio("truncated")
+        }
+        val first = engine(firstBackend, store)
+        first.initialize()
+        first.indexLibrary(listOf(original))
+
+        val changed = original.copy(sourceRevision = "size=12|mtime=21")
+        val restartedBackend = FakeEmbeddingBackend(
+            mutableMapOf(changed.id to floatArrayOf(0f, 1f, 0f)),
+        )
+        val restarted = engine(restartedBackend, store)
+        restarted.initialize()
+        restarted.synchronizeLibrary(listOf(changed))
+
+        assertEquals(1, restarted.missingFromIndex(listOf(changed.id)))
+        val report = restarted.indexLibrary(listOf(changed))
+        assertEquals(1, report.indexed)
+        assertEquals(0, report.failed)
+        assertEquals(1, restartedBackend.loadModelCalls)
+        assertEquals(1, restartedBackend.embedCalls)
+        assertTrue(store.failureSnapshots["test-model"].orEmpty().isEmpty())
+        assertContentEquals(floatArrayOf(0f, 1f, 0f), restarted.embedding(changed.id))
+    }
+
+    @Test
+    fun `backend failures stay retryable across restart`() = runTest {
+        val store = FakeIndexStore()
+        val track = TrackDescriptor(
+            TrackId("transient-backend-failure"),
+            audioUri = "test://transient-backend-failure",
+        )
+        val first = engine(FakeEmbeddingBackend(), store)
+        first.initialize()
+        assertIs<EngineError.BackendFailure>(first.indexLibrary(listOf(track)).errors[track.id])
+        assertTrue(store.failureSnapshots["test-model"].orEmpty().isEmpty())
+
+        val restartedBackend = FakeEmbeddingBackend(
+            mutableMapOf(track.id to floatArrayOf(1f, 0f, 0f)),
+        )
+        val restarted = engine(restartedBackend, store)
+        restarted.initialize()
+        restarted.synchronizeLibrary(listOf(track))
+
+        assertEquals(1, restarted.indexLibrary(listOf(track)).indexed)
+        assertEquals(1, restartedBackend.loadModelCalls)
+        assertEquals(1, restartedBackend.embedCalls)
+    }
+
+    @Test
+    fun `temporary audio failure stays retryable across restart`() = runTest {
+        val store = FakeIndexStore()
+        val track = TrackDescriptor(
+            TrackId("temporarily-unreadable"),
+            audioUri = "test://temporarily-unreadable",
+        )
+        val firstBackend = FakeEmbeddingBackend().apply {
+            failures[track.id] = EngineError.AudioUnavailable("permission temporarily unavailable")
+        }
+        val first = engine(firstBackend, store)
+        first.initialize()
+
+        assertIs<EngineError.AudioUnavailable>(first.indexLibrary(listOf(track)).errors[track.id])
+        assertTrue(store.failureSnapshots["test-model"].orEmpty().isEmpty())
+
+        val restartedBackend = FakeEmbeddingBackend(
+            mutableMapOf(track.id to floatArrayOf(1f, 0f, 0f)),
+        )
+        val restarted = engine(restartedBackend, store)
+        restarted.initialize()
+        restarted.synchronizeLibrary(listOf(track))
+
+        assertEquals(1, restarted.missingFromIndex(listOf(track.id)))
+        assertEquals(1, restarted.indexLibrary(listOf(track)).indexed)
+        assertEquals(1, restartedBackend.loadModelCalls)
+        assertEquals(1, restartedBackend.embedCalls)
+    }
+
+    @Test
+    fun `explicit retry clears unchanged invalid-audio marker durably`() = runTest {
+        val store = FakeIndexStore()
+        val track = TrackDescriptor(
+            id = TrackId("retry-invalid-audio"),
+            audioUri = "file:///music/retry.mp3",
+            sourceRevision = "size=10|mtime=20",
+        )
+        val failedBackend = FakeEmbeddingBackend().apply {
+            failures[track.id] = EngineError.InvalidAudio("no decodable audio")
+        }
+        val first = engine(failedBackend, store)
+        first.initialize()
+        first.indexLibrary(listOf(track))
+        assertEquals(setOf(track.id), store.failureSnapshots["test-model"]?.keys)
+
+        val retryBackend = FakeEmbeddingBackend(
+            mutableMapOf(track.id to floatArrayOf(0f, 1f, 0f)),
+        )
+        val retrying = engine(retryBackend, store)
+        retrying.initialize()
+        retrying.synchronizeLibrary(listOf(track))
+
+        assertEquals(1, retrying.retryFailedTracks(listOf(track.id, track.id)))
+        assertTrue(store.failureSnapshots["test-model"].orEmpty().isEmpty())
+        assertEquals(1, retrying.missingFromIndex(listOf(track.id)))
+        assertEquals(1, retrying.indexLibrary(listOf(track)).indexed)
+        assertEquals(1, retryBackend.loadModelCalls)
+        assertEquals(1, retryBackend.embedCalls)
+    }
+
+    @Test
+    fun `legacy untyped failure marker is retried`() = runTest {
+        val store = FakeIndexStore().apply {
+            snapshots["test-model"] = emptyMap()
+            failureSnapshots["test-model"] = mapOf(
+                seed.id to "audio-v1|legacy-marker-from-untyped-failure-cache",
+            )
+        }
+        val backend = FakeEmbeddingBackend(
+            mutableMapOf(seed.id to floatArrayOf(1f, 0f, 0f)),
+        )
+        val restarted = engine(backend, store)
+        restarted.initialize()
+
+        restarted.synchronizeLibrary(listOf(seed))
+
+        assertEquals(1, restarted.missingFromIndex(listOf(seed.id)))
+        assertTrue(store.failureSnapshots["test-model"].orEmpty().isEmpty())
+        assertEquals(1, restarted.indexLibrary(listOf(seed)).indexed)
+    }
+
+    // --------------------------------------------------------------- indexLibrary
+
+    @Test
+    fun indexLibraryEmbedsAndReports() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        val unknown = TrackDescriptor(id = TrackId("unknown"), audioUri = "test://unknown")
+        harness.engine.initialize()
+
+        val report = harness.engine.indexLibrary(listOf(seed, near, far, unknown))
+
+        assertEquals(3, report.indexed)
+        assertEquals(1, report.failed)
+        assertIs<EngineError.BackendFailure>(report.errors[unknown.id])
+        assertEquals(EngineState.Ready(indexedCount = 3), harness.engine.state.value)
+    }
+
+    @Test
+    fun indexLibraryWithoutInitializeFailsEveryTrack() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        val report = harness.engine.indexLibrary(listOf(seed, near))
+        assertEquals(0, report.indexed)
+        assertEquals(2, report.failed)
+        assertTrue(report.errors.values.all { it == EngineError.ModelUnavailable })
+    }
+
+    @Test
+    fun indexLibraryRejectsWrongDimensionVectors() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.backend.vectors[far.id] = floatArrayOf(1f, 0f) // wrong dim
+        harness.engine.initialize()
+
+        val report = harness.engine.indexLibrary(listOf(seed, near, far))
+
+        assertEquals(2, report.indexed)
+        assertEquals(1, report.failed)
+        assertIs<EngineError.BackendFailure>(report.errors[far.id])
+    }
+
+    @Test
+    fun libraryMixMatrixCannotMutateTheLiveIndex() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near))
+
+        val space = assertNotNull(harness.engine.libraryMixVectors(listOf(seed.id, near.id)))
+        val detached = assertNotNull(space.vector(seed.id))
+        assertContentEquals(floatArrayOf(1f, 0f, 0f), detached)
+        detached[0] = 0f
+
+        assertContentEquals(floatArrayOf(1f, 0f, 0f), harness.engine.embedding(seed.id))
+    }
+
+    // ----------------------------------------------------------------- nextTrack
+
+    @Test
+    fun nextTrackReturnsNearestNeighbor() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near, far))
+
+        val result = harness.engine.nextTrack(ListeningContext(seed = seed))
+
+        val match = assertIs<NextTrackResult.Match>(result)
+        assertEquals(near.id, match.trackId)
+        assertTrue(match.similarity > 0.9f)
+    }
+
+    @Test
+    fun nextTrackUsesStoredSeedVectorWithoutReEmbedding() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near, far))
+        val embedCallsAfterIndexing = harness.backend.embedCalls
+
+        harness.engine.nextTrack(ListeningContext(seed = seed))
+
+        assertEquals(embedCallsAfterIndexing, harness.backend.embedCalls)
+    }
+
+    @Test
+    fun nextTrackEmbedsUnindexedSeedOnTheFly() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(near, far)) // seed NOT indexed
+        val embedCallsAfterIndexing = harness.backend.embedCalls
+
+        val result = harness.engine.nextTrack(ListeningContext(seed = seed))
+
+        assertEquals(near.id, assertIs<NextTrackResult.Match>(result).trackId)
+        assertEquals(embedCallsAfterIndexing + 1, harness.backend.embedCalls)
+    }
+
+    @Test
+    fun nextTrackHonorsExclusions() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near, far))
+
+        val skippingNear = harness.engine.nextTrack(
+            ListeningContext(seed = seed, recentTrackIds = listOf(near.id)),
+        )
+        assertEquals(far.id, assertIs<NextTrackResult.Match>(skippingNear).trackId)
+
+        val skippingEverything = harness.engine.nextTrack(
+            ListeningContext(
+                seed = seed,
+                recentTrackIds = listOf(near.id),
+                excludedTrackIds = setOf(far.id),
+            ),
+        )
+        assertEquals(NextTrackResult.NoCandidates, skippingEverything)
+    }
+
+    @Test
+    fun nextTrackFailsTypedWhenNotReadyOrNotIndexed() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+
+        val beforeInitialize = harness.engine.nextTrack(ListeningContext(seed = seed))
+        assertEquals(NextTrackResult.Failure(EngineError.ModelUnavailable), beforeInitialize)
+
+        harness.engine.initialize()
+        val beforeIndexing = harness.engine.nextTrack(ListeningContext(seed = seed))
+        assertEquals(NextTrackResult.Failure(EngineError.NotIndexed), beforeIndexing)
+    }
+
+    @Test
+    fun nextTrackPropagatesBackendFailureForUnknownSeed() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(near, far))
+
+        val unknownSeed = TrackDescriptor(
+            id = TrackId("not-registered"),
+            audioUri = "test://not-registered",
+        )
+        val result = harness.engine.nextTrack(ListeningContext(seed = unknownSeed))
+
+        assertIs<EngineError.BackendFailure>(assertIs<NextTrackResult.Failure>(result).error)
+    }
+
+    // ------------------------------------------------------------------- release
+
+    @Test
+    fun releaseResetsEngineAndAllowsReInitialize() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near, far))
+
+        harness.engine.release()
+
+        assertEquals(EngineState.Uninitialized, harness.engine.state.value)
+        assertTrue(harness.backend.closed)
+        assertEquals(
+            NextTrackResult.Failure(EngineError.ModelUnavailable),
+            harness.engine.nextTrack(ListeningContext(seed = seed)),
+        )
+
+        assertTrue(harness.engine.initialize().isSuccess)
+        // release() clears the in-memory index but NOT the persisted snapshot:
+        // re-initialize restores the three indexed tracks from the store, and the
+        // restored vectors mean the audio model is not reloaded either.
+        assertEquals(EngineState.Ready(indexedCount = 3), harness.engine.state.value)
+        assertEquals(1, harness.backend.loadModelCalls)
+    }
+
+    // --------------------------------------------------------------- persistence
+
+    @Test
+    fun initializeRestoresPersistedSnapshot() = runTest {
+        val harness = Harness()
+        harness.store.snapshots["test-model"] = mapOf(
+            near.id to floatArrayOf(0.9f, 0.1f, 0f),
+            far.id to floatArrayOf(0f, 1f, 0f),
+        )
+        harness.registerTriangle()
+
+        harness.engine.initialize()
+
+        assertEquals(EngineState.Ready(indexedCount = 2), harness.engine.state.value)
+        // Query works purely from restored vectors: seed embeds on the fly,
+        // neighbors come from the snapshot.
+        val result = harness.engine.nextTrack(ListeningContext(seed = seed))
+        assertEquals(near.id, assertIs<NextTrackResult.Match>(result).trackId)
+    }
+
+    @Test
+    fun `cancelled audio snapshot restore propagates instead of latching an empty ready engine`() =
+        runTest {
+            val backing = FakeIndexStore().apply {
+                snapshots["test-model"] = mapOf(near.id to floatArrayOf(0.9f, 0.1f, 0f))
+            }
+            var cancelRestore = true
+            val store = object : IndexStore by backing {
+                override suspend fun loadSnapshot(modelVersion: String): StoredIndexSnapshot? {
+                    if (cancelRestore) throw CancellationException("cancelled restore")
+                    return backing.loadSnapshot(modelVersion)
+                }
+            }
+            val engine = engine(FakeEmbeddingBackend(), store)
+
+            assertFailsWith<CancellationException> { engine.initialize() }
+
+            assertEquals(
+                EngineState.Initializing,
+                engine.state.value,
+                "cancellation must not be published as Ready(0)",
+            )
+
+            // Not latched: the next attempt restores the snapshot that was never read.
+            cancelRestore = false
+            assertTrue(engine.initialize().isSuccess)
+            assertEquals(EngineState.Ready(indexedCount = 1), engine.state.value)
+        }
+
+    @Test
+    fun `cancelled metadata snapshot restore propagates instead of latching an empty ready engine`() =
+        runTest {
+            val textStore = object : IndexStore by FakeIndexStore() {
+                override suspend fun loadSnapshot(modelVersion: String): StoredIndexSnapshot? {
+                    throw CancellationException("cancelled metadata restore")
+                }
+            }
+            val engine = engine(
+                backend = FakeEmbeddingBackend(),
+                store = FakeIndexStore(),
+                textEncoder = FakeTextEncoder(),
+                textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+                textStore = textStore,
+            )
+
+            assertFailsWith<CancellationException> { engine.initialize() }
+
+            assertEquals(
+                EngineState.Initializing,
+                engine.state.value,
+                "cancellation must not be published as Ready(0)",
+            )
+        }
+
+    @Test
+    fun clearAnalysisDeletesMemoryAndPersistedSnapshotWithoutUnloadingModel() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near))
+        assertTrue(harness.store.snapshots.isNotEmpty())
+
+        harness.engine.clearAnalysis()
+
+        assertEquals(EngineState.Ready(indexedCount = 0), harness.engine.state.value)
+        assertEquals(null, harness.engine.embedding(seed.id))
+        assertTrue(harness.store.snapshots.isEmpty())
+        assertEquals(1, harness.backend.loadModelCalls, "clearing analysis must not reload the model")
+    }
+
+    @Test
+    fun `cancelled clear analysis propagates instead of reporting a clear failure`() = runTest {
+        val backing = FakeIndexStore()
+        val store = object : IndexStore by backing {
+            override suspend fun clear() {
+                throw CancellationException("cancelled clear")
+            }
+        }
+        val engine = engine(
+            FakeEmbeddingBackend(mutableMapOf(seed.id to floatArrayOf(1f, 0f, 0f))),
+            store,
+        )
+        engine.initialize()
+        engine.indexLibrary(listOf(seed))
+
+        assertFailsWith<CancellationException> { engine.clearAnalysis() }
+
+        // The clear was cancelled, not failed: nothing was deleted and the live index survives.
+        assertEquals(EngineState.Ready(indexedCount = 1), engine.state.value)
+        assertNotNull(engine.embedding(seed.id))
+        assertEquals(setOf(seed.id), backing.snapshots["test-model"]?.keys)
+    }
+
+    @Test
+    fun `a clear cancelled after its deletion writes both snapshots back from memory`() = runTest {
+        // The audio store deletes its snapshot, then the caller's scope is cancelled on the way back.
+        val audioBacking = FakeIndexStore()
+        val audioStore = object : IndexStore by audioBacking {
+            override suspend fun clear() {
+                audioBacking.clear()
+                throw CancellationException("cancelled after deletion")
+            }
+        }
+        val textStore = FakeIndexStore()
+        val engine = engine(
+            backend = FakeEmbeddingBackend(mutableMapOf(seed.id to floatArrayOf(1f, 0f, 0f))),
+            store = audioStore,
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        engine.initialize()
+        engine.indexLibrary(listOf(seed.copy(genre = "Rock")))
+
+        assertFailsWith<CancellationException> { engine.clearAnalysis() }
+        assertTrue(audioBacking.snapshots.isEmpty(), "the fixture must delete before cancelling")
+        assertNotNull(engine.embedding(seed.id))
+
+        // The next checkpoint repairs the deletion; the two snapshots stay one generation.
+        engine.persistPendingAnalysis()
+
+        assertEquals(setOf(seed.id), audioBacking.snapshots["test-model"]?.keys)
+        assertEquals(setOf(seed.id), textStore.snapshots[TEXT_INDEX_VERSION]?.keys)
+    }
+
+    @Test
+    fun indexLibrarySkipsAlreadyIndexedTracks() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near))
+        val embedCallsAfterFirst = harness.backend.embedCalls
+
+        val report = harness.engine.indexLibrary(listOf(seed, near, far))
+
+        assertEquals(1, report.indexed, "only the new track embeds")
+        assertEquals(2, report.skipped)
+        assertEquals(0, report.failed)
+        assertEquals(embedCallsAfterFirst + 1, harness.backend.embedCalls)
+    }
+
+    @Test
+    fun indexLibraryPersistsSnapshotAfterBatch() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+
+        harness.engine.indexLibrary(listOf(seed, near, far))
+
+        assertEquals(1, harness.store.saveCalls)
+        assertEquals(3, harness.store.snapshots["test-model"]?.size)
+    }
+
+    @Test
+    fun synchronizeLibraryPrunesStalePersistedFingerprintsAndUpdatesState() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near, far))
+
+        val removed = harness.engine.synchronizeLibrary(listOf(seed, near))
+
+        assertEquals(1, removed)
+        assertEquals(null, harness.engine.embedding(far.id))
+        assertEquals(EngineState.Ready(indexedCount = 2), harness.engine.state.value)
+        assertEquals(setOf(seed.id, near.id), harness.store.snapshots["test-model"]?.keys)
+    }
+
+    @Test
+    fun ambiguousPartialScanPreservesMissingVectorsButInvalidatesChangedVisibleRows() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near, far))
+        val changedSeed = seed.copy(audioUri = "file:///changed-seed.mp3")
+
+        val removed = harness.engine.synchronizeLibrary(
+            library = listOf(changedSeed),
+            pruneMissing = false,
+        )
+
+        assertEquals(1, removed, "the supplied changed row is still reconciled")
+        assertEquals(null, harness.engine.embedding(seed.id))
+        assertNotNull(harness.engine.embedding(near.id))
+        assertNotNull(harness.engine.embedding(far.id))
+        assertEquals(setOf(near.id, far.id), harness.store.snapshots["test-model"]?.keys)
+    }
+
+    @Test
+    fun ambiguousEmptyScanPreservesDurableVectors() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near, far))
+
+        val removed = harness.engine.synchronizeLibrary(emptyList(), pruneMissing = false)
+
+        assertEquals(0, removed)
+        assertEquals(EngineState.Ready(indexedCount = 3), harness.engine.state.value)
+        assertEquals(setOf(seed.id, near.id, far.id), harness.store.snapshots["test-model"]?.keys)
+    }
+
+    @Test
+    fun authoritativeEmptyScanClearsDurableVectors() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(seed, near, far))
+
+        val removed = harness.engine.synchronizeLibrary(emptyList(), pruneMissing = true)
+
+        assertEquals(3, removed)
+        assertEquals(EngineState.Ready(indexedCount = 0), harness.engine.state.value)
+        assertEquals(emptySet(), harness.store.snapshots["test-model"]?.keys)
+    }
+
+    @Test
+    fun semanticSearchEncodesTheQueryAgainstTheStoredTextIndex() = runTest {
+        val textEncoder = FakeTextEncoder()
+        val engine = DefaultSimilarityEngine(
+            backend = FakeEmbeddingBackend(),
+            index = InMemoryVectorIndex(dim = 3),
+            store = FakeIndexStore(),
+            config = SmartEngineConfig(embeddingDim = 3, modelVersion = "semantic-test"),
+            dispatcher = Dispatchers.Default.limitedParallelism(1, "semantic-test-engine"),
+            textEncoder = textEncoder,
+            textIndex = InMemoryVectorIndex(dim = TextEncoder.TEXT_DIM),
+            textStore = FakeIndexStore(),
+        )
+        val rock = TrackDescriptor(TrackId("rock"), genre = "Rock", artist = "Band")
+        val dance = TrackDescriptor(TrackId("dance"), genre = "Dance", artist = "DJ")
+        engine.initialize()
+        engine.ensureMetadataVectors(listOf(dance, rock))
+
+        val results = engine.semanticSearch("guitars", limit = 2)
+
+        assertEquals(rock.id, results.first().trackId)
+        assertTrue(results.first().score > results.last().score)
+    }
+
+    @Test
+    fun synchronizeLibraryReencodesChangedMetadataForSemanticSearch() = runTest {
+        val textEncoder = FakeTextEncoder()
+        val engine = DefaultSimilarityEngine(
+            backend = FakeEmbeddingBackend(),
+            index = InMemoryVectorIndex(dim = 3),
+            store = FakeIndexStore(),
+            config = SmartEngineConfig(embeddingDim = 3, modelVersion = "metadata-refresh-test"),
+            dispatcher = Dispatchers.Default.limitedParallelism(1, "metadata-refresh-engine"),
+            textEncoder = textEncoder,
+            textIndex = InMemoryVectorIndex(dim = TextEncoder.TEXT_DIM),
+            textStore = FakeIndexStore(),
+        )
+        val original = TrackDescriptor(TrackId("same-id"), genre = "Dance", artist = "DJ")
+        val edited = original.copy(genre = "Rock", artist = "Band")
+        engine.initialize()
+        engine.ensureMetadataVectors(listOf(original))
+        val scoreBefore = engine.semanticSearch("guitars", limit = 1).single().score
+
+        engine.synchronizeLibrary(listOf(edited))
+        engine.ensureMetadataVectors(listOf(edited))
+        val scoreAfter = engine.semanticSearch("guitars", limit = 1).single().score
+
+        assertTrue(scoreBefore < 0.1f)
+        assertTrue(scoreAfter > 0.99f)
+    }
+
+    @Test
+    fun synchronizeLibraryReembedsChangedAudioSourceWithTheSameId() = runTest {
+        val harness = Harness()
+        harness.registerTriangle()
+        val original = seed.copy(audioUri = "file:///old", durationMs = 1_000)
+        val replaced = original.copy(audioUri = "file:///new", durationMs = 2_000)
+        harness.engine.initialize()
+        harness.engine.indexLibrary(listOf(original))
+        val callsBefore = harness.backend.embedCalls
+
+        val removed = harness.engine.synchronizeLibrary(listOf(replaced))
+        val report = harness.engine.indexLibrary(listOf(replaced))
+
+        assertEquals(1, removed)
+        assertEquals(1, report.indexed)
+        assertEquals(callsBefore + 1, harness.backend.embedCalls)
+    }
+
+    @Test
+    fun `restart invalidates audio vector when same source gets a new content revision`() = runTest {
+        val store = FakeIndexStore()
+        val id = TrackId("opaque,|\u0000id")
+        val original = TrackDescriptor(
+            id = id,
+            audioUri = "file:///same/path",
+            durationMs = 1_000,
+            sourceRevision = "size=10|mtime=20",
+        )
+        val changed = original.copy(sourceRevision = "size=10|mtime=21")
+        val firstBackend = FakeEmbeddingBackend(mutableMapOf(id to floatArrayOf(1f, 0f, 0f)))
+        val first = engine(firstBackend, store)
+        first.initialize()
+        first.indexLibrary(listOf(original))
+
+        val secondBackend = FakeEmbeddingBackend(mutableMapOf(id to floatArrayOf(0f, 1f, 0f)))
+        val restarted = engine(secondBackend, store)
+        restarted.initialize()
+        assertNotNull(restarted.embedding(id), "the persisted vector restores before reconciliation")
+
+        assertEquals(1, restarted.synchronizeLibrary(listOf(changed)))
+        assertEquals(null, restarted.embedding(id))
+        val report = restarted.indexLibrary(listOf(changed))
+        assertEquals(1, report.indexed)
+        assertEquals(1, secondBackend.embedCalls)
+        assertContentEquals(floatArrayOf(0f, 1f, 0f), restarted.embedding(id))
+    }
+
+    @Test
+    fun `restart reuses audio vector when persisted identity is unchanged`() = runTest {
+        val store = FakeIndexStore()
+        val track = TrackDescriptor(
+            id = TrackId("same"),
+            audioUri = "content://media/1",
+            durationMs = 1_000,
+            sourceRevision = "android-mediastore-v1:10:20:30",
+        )
+        val firstBackend = FakeEmbeddingBackend(
+            mutableMapOf(track.id to floatArrayOf(1f, 0f, 0f)),
+        )
+        val first = engine(firstBackend, store)
+        first.initialize()
+        first.indexLibrary(listOf(track))
+
+        val secondBackend = FakeEmbeddingBackend()
+        val restarted = engine(secondBackend, store)
+        restarted.initialize()
+
+        assertEquals(0, restarted.synchronizeLibrary(listOf(track)))
+        val report = restarted.indexLibrary(listOf(track))
+        assertEquals(1, report.skipped)
+        assertEquals(0, secondBackend.embedCalls)
+        assertContentEquals(floatArrayOf(1f, 0f, 0f), restarted.embedding(track.id))
+    }
+
+    @Test
+    fun `legacy restart snapshot is reindexed on first full synchronization`() = runTest {
+        val store = FakeIndexStore()
+        store.snapshots["test-model"] = mapOf(seed.id to floatArrayOf(1f, 0f, 0f))
+        val backend = FakeEmbeddingBackend(
+            mutableMapOf(seed.id to floatArrayOf(0f, 1f, 0f)),
+        )
+        val restarted = engine(backend, store)
+        restarted.initialize()
+
+        assertEquals(1, restarted.synchronizeLibrary(listOf(seed)))
+        assertEquals(null, restarted.embedding(seed.id))
+        assertEquals(1, restarted.indexLibrary(listOf(seed)).indexed)
+    }
+
+    @Test
+    fun `restart invalidates metadata vector after tag edit and reuses unchanged identity`() = runTest {
+        val audioStore = FakeIndexStore()
+        val textStore = FakeIndexStore()
+        val original = TrackDescriptor(TrackId("meta|id"), genre = "Dance", artist = "DJ")
+        val edited = original.copy(genre = "Rock", artist = "Band")
+
+        val first = engine(
+            backend = FakeEmbeddingBackend(),
+            store = audioStore,
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        first.initialize()
+        assertEquals(1, first.ensureMetadataVectors(listOf(original)))
+
+        val unchanged = engine(
+            backend = FakeEmbeddingBackend(),
+            store = audioStore,
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        unchanged.initialize()
+        unchanged.synchronizeLibrary(listOf(original))
+        assertEquals(0, unchanged.ensureMetadataVectors(listOf(original)))
+
+        val changedAfterRestart = engine(
+            backend = FakeEmbeddingBackend(),
+            store = audioStore,
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        changedAfterRestart.initialize()
+        changedAfterRestart.synchronizeLibrary(listOf(edited))
+        assertEquals(1, changedAfterRestart.ensureMetadataVectors(listOf(edited)))
+        assertTrue(changedAfterRestart.semanticSearch("guitars", 1).single().score > 0.99f)
+    }
+
+    @Test
+    fun `the pack's language and decade enter the string and only a changed string re-encodes`() = runTest {
+        val audioStore = FakeIndexStore()
+        val textStore = FakeIndexStore()
+        val knowledge = ArtistKnowledge(MusicEntityResolver { AssetBytes.of(EntityIndexBytes.of("alpha" to intArrayOf(0))) }) {
+            AssetBytes.of(KnowledgePackBytes.tiny())
+        }
+        val track = TrackDescriptor(TrackId("pack|id"), genre = "Pop", artist = "Alpha")
+        fun restart(knowledge: ArtistKnowledge?, encoder: FakeTextEncoder) = engine(
+            backend = FakeEmbeddingBackend(), store = audioStore, textEncoder = encoder,
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM), textStore = textStore, artistKnowledge = knowledge,
+        )
+
+        val firstEncoder = FakeTextEncoder()
+        val first = restart(knowledge, firstEncoder)
+        first.initialize()
+        assertEquals(1, first.ensureMetadataVectors(listOf(track)))
+        assertEquals(listOf("Pop; Alpha; romanian; 1980s"), firstEncoder.encodedMetadata)
+
+        val sameEncoder = FakeTextEncoder()
+        val same = restart(knowledge, sameEncoder)
+        same.initialize()
+        same.synchronizeLibrary(listOf(track))
+        assertEquals(0, same.ensureMetadataVectors(listOf(track)))
+        assertTrue(sameEncoder.encodedMetadata.isEmpty())
+
+        // Without the pack the string is different, so the stored vector no longer describes the track.
+        val packlessEncoder = FakeTextEncoder()
+        val packless = restart(null, packlessEncoder)
+        packless.initialize()
+        packless.synchronizeLibrary(listOf(track))
+        assertEquals(1, packless.ensureMetadataVectors(listOf(track)))
+        assertEquals(listOf("Pop; Alpha"), packlessEncoder.encodedMetadata)
+    }
+
+    @Test
+    fun `restart reencodes original year and language edits while audio stays warm`() = runTest {
+        val original = seed.copy(
+            title = "Song", artist = "Band", genre = "Rock", year = 2012,
+            originalYear = 1987, language = "rus",
+        )
+        val edits = listOf(
+            original.copy(originalYear = 1988) to "Rock; Band; 1988; russian",
+            original.copy(language = "eng") to "Rock; Band; 1987; english",
+            original.copy(originalYear = null) to "Rock; Band; 2012; russian",
+            original.copy(language = null) to "Rock; Band; 1987",
+        )
+        for ((edited, expectedText) in edits) {
+            val audioStore = FakeIndexStore()
+            val textStore = FakeIndexStore()
+            val firstEncoder = FakeTextEncoder()
+            val first = engine(
+                backend = FakeEmbeddingBackend(mutableMapOf(seed.id to floatArrayOf(1f, 0f, 0f))),
+                store = audioStore, textEncoder = firstEncoder,
+                textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM), textStore = textStore,
+            )
+            first.initialize()
+            first.indexLibrary(listOf(original))
+            assertEquals(listOf("Rock; Band; 1987; russian"), firstEncoder.encodedMetadata)
+
+            val encoder = FakeTextEncoder()
+            val backend = FakeEmbeddingBackend()
+            val restarted = engine(
+                backend = backend, store = audioStore, textEncoder = encoder,
+                textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM), textStore = textStore,
+            )
+            restarted.initialize()
+            assertEquals(0, restarted.synchronizeLibrary(listOf(edited)))
+            assertEquals(1, restarted.ensureMetadataVectors(listOf(edited)))
+            assertEquals(listOf(expectedText), encoder.encodedMetadata)
+            assertNotNull(restarted.embedding(seed.id))
+            assertEquals(0, backend.embedCalls)
+            assertEquals(0, backend.loadModelCalls)
+
+            val warmEncoder = FakeTextEncoder()
+            val warm = engine(
+                backend = FakeEmbeddingBackend(), store = audioStore, textEncoder = warmEncoder,
+                textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM), textStore = textStore,
+            )
+            warm.initialize()
+            warm.synchronizeLibrary(listOf(edited))
+            assertEquals(0, warm.ensureMetadataVectors(listOf(edited)))
+            assertTrue(warmEncoder.encodedMetadata.isEmpty())
+        }
+    }
+
+    @Test
+    fun `text v1 snapshot migrates once independently of the audio snapshot`() = runTest {
+        val audioStore = FakeIndexStore()
+        val textStore = FakeIndexStore()
+        val track = seed.copy(title = "Song", artist = "Band", genre = "Rock", year = 2012)
+        val first = engine(
+            backend = FakeEmbeddingBackend(mutableMapOf(seed.id to floatArrayOf(1f, 0f, 0f))),
+            store = audioStore, textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM), textStore = textStore,
+        )
+        first.initialize()
+        first.indexLibrary(listOf(track))
+        textStore.identitySnapshots[TEXT_INDEX_VERSION] = mapOf(
+            track.id to "text-v1|4:Song|4:Band|4:Rock|4:2012",
+        )
+        for (pass in 0..1) {
+            val backend = FakeEmbeddingBackend()
+            val encoder = FakeTextEncoder()
+            val restarted = engine(
+                backend = backend, store = audioStore, textEncoder = encoder,
+                textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM), textStore = textStore,
+            )
+            restarted.initialize()
+            restarted.synchronizeLibrary(listOf(track))
+            assertEquals(if (pass == 0) 1 else 0, restarted.ensureMetadataVectors(listOf(track)))
+            assertEquals(if (pass == 0) listOf("Rock; Band; 2012") else emptyList(), encoder.encodedMetadata)
+            assertNotNull(restarted.embedding(track.id))
+            assertEquals(0, backend.embedCalls)
+        }
+    }
+
+    @Test
+    fun `index save failure is observable to the indexing caller`() = runTest {
+        val failingStore = object : IndexStore {
+            override suspend fun load(modelVersion: String): Map<TrackId, FloatArray>? = null
+            override suspend fun save(modelVersion: String, entries: Map<TrackId, FloatArray>) {
+                error("disk full")
+            }
+            override suspend fun clear(): Unit = Unit
+        }
+        val backend = FakeEmbeddingBackend(
+            mutableMapOf(seed.id to floatArrayOf(1f, 0f, 0f)),
+        )
+        val engine = engine(backend, failingStore)
+        engine.initialize()
+
+        kotlin.test.assertFailsWith<IllegalStateException> {
+            engine.indexLibrary(listOf(seed))
+        }
+    }
+
+    /**
+     * Stands in for the file-backed stores' 64 MiB envelope: a snapshot over [maxRows] rows is
+     * refused with the [IllegalArgumentException] a `require` raises — before anything is written —
+     * and a snapshot inside the envelope is stored through the [FakeIndexStore] backing.
+     */
+    private class EnvelopeLimitedIndexStore(
+        private val maxRows: Int,
+        private val backing: FakeIndexStore = FakeIndexStore(),
+    ) : IndexStore by backing {
+        /** Every saveSnapshot call, refused or accepted. */
+        var saveAttempts = 0
+            private set
+
+        /** Snapshots actually written. */
+        val writes: Int get() = backing.saveCalls
+
+        val snapshots: Map<String, Map<TrackId, FloatArray>> get() = backing.snapshots
+
+        override suspend fun saveSnapshot(modelVersion: String, snapshot: StoredIndexSnapshot) {
+            saveAttempts++
+            require(snapshot.entries.size <= maxRows) {
+                "Index snapshot is too large: ${snapshot.entries.size} rows (limit $maxRows)"
+            }
+            backing.saveSnapshot(modelVersion, snapshot)
+        }
+    }
+
+    @Test
+    fun `snapshot envelope refusal keeps the analysis pass running on the in-memory index`() = runTest {
+        val extra = TrackDescriptor(id = TrackId("extra"), audioUri = "test://extra")
+        val store = EnvelopeLimitedIndexStore(maxRows = 2)
+        val engine = engine(
+            backend = FakeEmbeddingBackend(
+                mutableMapOf(
+                    seed.id to floatArrayOf(1f, 0f, 0f),
+                    near.id to floatArrayOf(0.9f, 0.1f, 0f),
+                    far.id to floatArrayOf(0f, 1f, 0f),
+                    extra.id to floatArrayOf(0f, 0f, 1f),
+                ),
+            ),
+            store = store,
+        )
+        engine.initialize()
+
+        // The pass stages batch by batch and checkpoints with persistPendingAnalysis; AppGraph
+        // reads any throw from that checkpoint as an interrupted analysis.
+        engine.stageLibraryIndex(listOf(seed, near))
+        engine.persistPendingAnalysis()
+        assertEquals(setOf(seed.id, near.id), store.snapshots["test-model"]?.keys)
+        assertEquals(1, store.writes)
+
+        // The next batch pushes the snapshot past the store envelope. The refusal must end neither
+        // the pass nor the checkpoint that is already durable.
+        engine.stageLibraryIndex(listOf(far))
+        engine.persistPendingAnalysis()
+        engine.stageLibraryIndex(listOf(extra))
+        engine.persistPendingAnalysis()
+
+        assertEquals(EngineState.Ready(indexedCount = 4), engine.state.value)
+        assertNotNull(engine.embedding(seed.id))
+        assertNotNull(engine.embedding(far.id))
+        assertNotNull(engine.embedding(extra.id))
+        assertEquals(setOf(seed.id, near.id), store.snapshots["test-model"]?.keys)
+        // Attempted once, then remembered: the once-per-episode report is not a per-batch alarm,
+        // and a growing library does not rebuild the whole snapshot at every checkpoint.
+        assertEquals(2, store.saveAttempts)
+        assertEquals(1, store.writes)
+    }
+
+    @Test
+    fun `an index that shrinks under the envelope retries the refused checkpoint`() = runTest {
+        val store = EnvelopeLimitedIndexStore(maxRows = 2)
+        val engine = engine(
+            backend = FakeEmbeddingBackend(
+                mutableMapOf(
+                    seed.id to floatArrayOf(1f, 0f, 0f),
+                    near.id to floatArrayOf(0.9f, 0.1f, 0f),
+                    far.id to floatArrayOf(0f, 1f, 0f),
+                ),
+            ),
+            store = store,
+        )
+        engine.initialize()
+        engine.stageLibraryIndex(listOf(seed, near, far))
+        engine.persistPendingAnalysis()
+
+        assertEquals(1, store.saveAttempts)
+        assertEquals(0, store.writes, "an oversized snapshot is never written")
+
+        // Reconciliation prunes one row. The dirty flag survived the refusal, so the smaller
+        // snapshot is written instead of the analysis silently losing its durable cache.
+        engine.synchronizeLibrary(listOf(seed, near), pruneMissing = true)
+
+        assertEquals(2, store.saveAttempts)
+        assertEquals(1, store.writes)
+        assertEquals(setOf(seed.id, near.id), store.snapshots["test-model"]?.keys)
+        assertEquals(EngineState.Ready(indexedCount = 2), engine.state.value)
+    }
+
+    @Test
+    fun `a real checkpoint write failure stays visible and is retried`() = runTest {
+        val store = FakeIndexStore().apply { saveFailuresRemaining = 1 }
+        val engine = engine(
+            backend = FakeEmbeddingBackend(
+                mutableMapOf(
+                    seed.id to floatArrayOf(1f, 0f, 0f),
+                    near.id to floatArrayOf(0.9f, 0.1f, 0f),
+                ),
+            ),
+            store = store,
+        )
+        engine.initialize()
+        engine.stageLibraryIndex(listOf(seed, near))
+
+        // The checkpoint the indexing pass uses must not hide a genuine write failure, and the
+        // dirty flag has to survive it so the retry persists the vectors already in memory.
+        assertFailsWith<IllegalStateException> { engine.persistPendingAnalysis() }
+        assertTrue(store.snapshots.isEmpty())
+
+        engine.persistPendingAnalysis()
+
+        assertEquals(2, store.saveCalls)
+        assertEquals(setOf(seed.id, near.id), store.snapshots["test-model"]?.keys)
+    }
+
+    @Test
+    fun `a cancelled checkpoint still propagates through the refusal handling`() = runTest {
+        val store = object : IndexStore by FakeIndexStore() {
+            override suspend fun saveSnapshot(modelVersion: String, snapshot: StoredIndexSnapshot) {
+                throw CancellationException("cancelled checkpoint")
+            }
+        }
+        val engine = engine(
+            backend = FakeEmbeddingBackend(mutableMapOf(seed.id to floatArrayOf(1f, 0f, 0f))),
+            store = store,
+        )
+        engine.initialize()
+        engine.stageLibraryIndex(listOf(seed))
+
+        assertFailsWith<CancellationException> { engine.persistPendingAnalysis() }
+    }
+
+    @Test
+    fun `staged audio and metadata become restart durable at explicit checkpoint`() = runTest {
+        val audioStore = FakeIndexStore()
+        val textStore = FakeIndexStore()
+        val track = seed.copy(title = "Checkpoint", artist = "LatentJam", genre = "Electronic")
+        val first = engine(
+            backend = FakeEmbeddingBackend(
+                mutableMapOf(track.id to floatArrayOf(1f, 0f, 0f)),
+            ),
+            store = audioStore,
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        first.initialize()
+
+        assertEquals(1, first.stageMetadataVectors(listOf(track)))
+        assertEquals(1, first.stageLibraryIndex(listOf(track)).indexed)
+        assertEquals(0, audioStore.saveCalls)
+        assertEquals(0, textStore.saveCalls)
+
+        // Model a hard process death before the cadence boundary: a fresh engine cannot see the
+        // staged in-memory rows because no snapshot has been committed yet.
+        val beforeCheckpoint = engine(
+            backend = FakeEmbeddingBackend(),
+            store = audioStore,
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        beforeCheckpoint.initialize()
+        assertEquals(null, beforeCheckpoint.embedding(track.id))
+        assertTrue(beforeCheckpoint.metadataVectors().isEmpty())
+
+        first.persistPendingAnalysis()
+        assertEquals(1, audioStore.saveCalls)
+        assertEquals(1, textStore.saveCalls)
+
+        val restarted = engine(
+            backend = FakeEmbeddingBackend(),
+            store = audioStore,
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        restarted.initialize()
+
+        assertNotNull(restarted.embedding(track.id))
+        assertEquals(setOf(track.id), restarted.metadataVectors().keys)
+    }
+
+    @Test
+    fun `failed audio snapshot save is retried even when every track is already indexed`() = runTest {
+        val store = FakeIndexStore().apply { saveFailuresRemaining = 1 }
+        val backend = FakeEmbeddingBackend(
+            mutableMapOf(seed.id to floatArrayOf(1f, 0f, 0f)),
+        )
+        val engine = engine(backend, store)
+        engine.initialize()
+
+        assertFailsWith<IllegalStateException> {
+            engine.indexLibrary(listOf(seed))
+        }
+        assertEquals(1, store.saveCalls)
+        assertTrue(store.snapshots.isEmpty())
+
+        val retry = engine.indexLibrary(listOf(seed))
+
+        assertEquals(0, retry.indexed)
+        assertEquals(1, retry.skipped)
+        assertEquals(2, store.saveCalls)
+        assertEquals(setOf(seed.id), store.snapshots["test-model"]?.keys)
+    }
+
+    @Test
+    fun `failed metadata snapshot save is retried without reencoding the vector`() = runTest {
+        val textStore = FakeIndexStore().apply { saveFailuresRemaining = 1 }
+        val engine = engine(
+            backend = FakeEmbeddingBackend(),
+            store = FakeIndexStore(),
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        val track = TrackDescriptor(TrackId("metadata-retry"), genre = "Rock")
+        engine.initialize()
+
+        assertFailsWith<IllegalStateException> {
+            engine.ensureMetadataVectors(listOf(track))
+        }
+        assertEquals(1, textStore.saveCalls)
+        assertTrue(textStore.snapshots.isEmpty())
+
+        assertEquals(0, engine.ensureMetadataVectors(listOf(track)))
+        assertEquals(2, textStore.saveCalls)
+        assertEquals(setOf(track.id), textStore.snapshots[TEXT_INDEX_VERSION]?.keys)
+    }
+
+    @Test
+    fun `smart queue retries a dirty metadata snapshot before returning`() = runTest {
+        val textStore = FakeIndexStore().apply { saveFailuresRemaining = 1 }
+        val engine = engine(
+            backend = FakeEmbeddingBackend(),
+            store = FakeIndexStore(),
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        val track = TrackDescriptor(TrackId("metadata-smart-retry"), genre = "Rock")
+        engine.initialize()
+        assertFailsWith<IllegalStateException> {
+            engine.ensureMetadataVectors(listOf(track))
+        }
+
+        engine.smartQueue(track, listOf(track), length = 1, history = emptyList())
+
+        assertEquals(2, textStore.saveCalls)
+        assertEquals(setOf(track.id), textStore.snapshots[TEXT_INDEX_VERSION]?.keys)
+    }
+
+    @Test
+    fun `partial durable clear is repaired while memory stays live and retry clears everything`() =
+        runTest {
+            val audioStore = FakeIndexStore()
+            val textStore = FakeIndexStore()
+            val backend = FakeEmbeddingBackend(
+                mutableMapOf(seed.id to floatArrayOf(1f, 0f, 0f)),
+            )
+            val engine = engine(
+                backend = backend,
+                store = audioStore,
+                textEncoder = FakeTextEncoder(),
+                textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+                textStore = textStore,
+            )
+            engine.initialize()
+            engine.indexLibrary(listOf(seed.copy(genre = "Rock")))
+            audioStore.clearFailuresRemaining = 1
+            audioStore.failClearAfterDeletion = true
+
+            assertFailsWith<IllegalStateException> { engine.clearAnalysis() }
+
+            assertEquals(1, audioStore.clearCalls)
+            assertEquals(1, textStore.clearCalls, "the second store must still be attempted")
+            assertEquals(EngineState.Ready(indexedCount = 1), engine.state.value)
+            assertNotNull(engine.embedding(seed.id))
+            assertEquals(setOf(seed.id), engine.metadataVectors().keys)
+            assertEquals(setOf(seed.id), audioStore.snapshots["test-model"]?.keys)
+            assertEquals(setOf(seed.id), textStore.snapshots[TEXT_INDEX_VERSION]?.keys)
+
+            engine.clearAnalysis()
+
+            assertEquals(2, audioStore.clearCalls)
+            assertEquals(2, textStore.clearCalls)
+            assertEquals(EngineState.Ready(indexedCount = 0), engine.state.value)
+            assertEquals(null, engine.embedding(seed.id))
+            assertTrue(engine.metadataVectors().isEmpty())
+            assertTrue(audioStore.snapshots.isEmpty())
+            assertTrue(textStore.snapshots.isEmpty())
+        }
+
+    @Test
+    fun `57 track library uses the zero padded learned scorer`() = runTest {
+        val predictor = CountingPredictor()
+        val tracks = smartLibrary(57)
+        val backend = FakeEmbeddingBackend(
+            tracks.associateTo(mutableMapOf()) { track ->
+                track.id to FloatArray(PredictorRuntime.EMBEDDING_DIM).also { vector ->
+                    vector[track.id.value.removePrefix("smart-").toInt()] = 1f
+                }
+            },
+        )
+        val engine = DefaultSimilarityEngine(
+            backend = backend,
+            index = InMemoryVectorIndex(PredictorRuntime.EMBEDDING_DIM),
+            store = FakeIndexStore(),
+            config = SmartEngineConfig(
+                embeddingDim = PredictorRuntime.EMBEDDING_DIM,
+                modelVersion = "short-pool-test",
+            ),
+            dispatcher = Dispatchers.Default.limitedParallelism(1, "short-pool-test"),
+            predictor = predictor,
+        )
+        engine.initialize()
+        engine.indexLibrary(tracks)
+
+        val queue = engine.smartQueue(tracks.first(), tracks.drop(1), length = 5)
+
+        assertEquals(5, queue.size)
+        assertTrue(predictor.scoreCalls > 0, "57 local tracks must reach the trained scorer")
+    }
+
+    @Test
+    fun `a SMART queue never loads the semantic head just to read energy`() = runTest {
+        val tracks = smartLibrary(57)
+        val backend = FakeEmbeddingBackend(
+            tracks.associateTo(mutableMapOf()) { track ->
+                track.id to FloatArray(PredictorRuntime.EMBEDDING_DIM).also { vector ->
+                    vector[track.id.value.removePrefix("smart-").toInt()] = 1f
+                }
+            },
+        )
+        val engine = DefaultSimilarityEngine(
+            backend = backend,
+            index = InMemoryVectorIndex(PredictorRuntime.EMBEDDING_DIM),
+            store = FakeIndexStore(),
+            config = SmartEngineConfig(
+                embeddingDim = PredictorRuntime.EMBEDDING_DIM,
+                modelVersion = "energy-lazy-test",
+            ),
+            dispatcher = Dispatchers.Default.limitedParallelism(1, "energy-lazy-test"),
+            predictor = CountingPredictor(),
+        )
+        engine.initialize()
+        engine.indexLibrary(tracks)
+
+        assertEquals(5, engine.smartQueue(tracks.first(), tracks.drop(1), length = 5).size)
+        assertEquals(
+            0,
+            backend.loadSemanticModelCalls,
+            "energy only sequences the queue; building one must never wait on loading the head",
+        )
+    }
+
+    @Test
+    fun `fully indexed tiny audio corpus uses the zero padded scorer`() = runTest {
+        val predictor = CountingPredictor()
+        val tracks = smartLibrary(23)
+        val backend = FakeEmbeddingBackend(
+            tracks.associateTo(mutableMapOf()) { track ->
+                track.id to FloatArray(PredictorRuntime.EMBEDDING_DIM).also { vector ->
+                    vector[track.id.value.removePrefix("smart-").toInt()] = 1f
+                }
+            },
+        )
+        val engine = DefaultSimilarityEngine(
+            backend = backend,
+            index = InMemoryVectorIndex(PredictorRuntime.EMBEDDING_DIM),
+            store = FakeIndexStore(),
+            config = SmartEngineConfig(
+                embeddingDim = PredictorRuntime.EMBEDDING_DIM,
+                modelVersion = "tiny-pool-test",
+            ),
+            dispatcher = Dispatchers.Default.limitedParallelism(1, "tiny-pool-test"),
+            predictor = predictor,
+        )
+        engine.initialize()
+        engine.indexLibrary(tracks)
+
+        val queue = engine.smartQueue(tracks.first(), tracks.drop(1), length = 5)
+
+        assertEquals(5, queue.size)
+        assertEquals(5, queue.toSet().size)
+        assertTrue(predictor.scoreCalls > 0)
+    }
+
+    @Test
+    fun `partially indexed small library metadata fallback still honors marked playlist quota`() = runTest {
+        val tracks = smartLibrary(23)
+        val remote = tracks.last().copy(genre = "Dance")
+        val library = tracks.dropLast(1) + remote
+        val backend = FakeEmbeddingBackend(
+            library.associateTo(mutableMapOf()) { track ->
+                track.id to FloatArray(PredictorRuntime.EMBEDDING_DIM).also { vector ->
+                    vector[track.id.value.removePrefix("smart-").toInt()] = 1f
+                }
+            },
+        )
+        val engine = DefaultSimilarityEngine(
+            backend = backend,
+            index = InMemoryVectorIndex(PredictorRuntime.EMBEDDING_DIM),
+            store = FakeIndexStore(),
+            config = SmartEngineConfig(
+                embeddingDim = PredictorRuntime.EMBEDDING_DIM,
+                modelVersion = "metadata-companion-test",
+            ),
+            dispatcher = Dispatchers.Default.limitedParallelism(1, "metadata-companion-test"),
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = FakeIndexStore(),
+        )
+        engine.initialize()
+        engine.indexLibrary(library.dropLast(1))
+        engine.ensureMetadataVectors(library)
+        val seed = library.first()
+
+        val queue = engine.smartQueue(
+            seed = seed,
+            library = library.drop(1),
+            length = 3,
+            companionGroups = listOf(setOf(seed.id, remote.id)),
+        )
+
+        assertEquals(remote.id, queue[2])
+    }
+
+    private fun smartLibrary(size: Int): List<TrackDescriptor> = (0 until size).map { row ->
+        TrackDescriptor(
+            id = TrackId("smart-$row"),
+            title = "Track $row",
+            artist = "Artist $row",
+            genre = if (row % 2 == 0) "Rock" else "Electronic",
+            audioUri = "test://smart-$row",
+        )
+    }
+
+    private class CountingPredictor : PredictorRuntime {
+        var scoreCalls = 0
+
+        override suspend fun load(): Result<Unit> = Result.success(Unit)
+
+        override fun encodeState(
+            historySmall: FloatArray,
+            historyMedium: FloatArray,
+            historyLarge: FloatArray,
+            timeFeatures: FloatArray,
+            sessionFeatures: FloatArray,
+        ): FloatArray = historySmall.copyOfRange(
+            (PredictorRuntime.CONTEXT_K - 1) * PredictorRuntime.TOKEN_DIM,
+            (PredictorRuntime.CONTEXT_K - 1) * PredictorRuntime.TOKEN_DIM +
+                PredictorRuntime.EMBEDDING_DIM,
+        )
+
+        override fun score(
+            state: FloatArray,
+            candidates: FloatArray,
+        ): FloatArray {
+            scoreCalls++
+            return FloatArray(PredictorRuntime.POOL_SIZE)
+        }
+
+        override fun close(): Unit = Unit
+    }
+
+    private class FakeTextEncoder : TextEncoder {
+        val encodedMetadata = mutableListOf<String>()
+        override suspend fun load(): Result<Unit> = Result.success(Unit)
+
+        override fun encode(metadata: String): FloatArray = FloatArray(TextEncoder.TEXT_DIM).also { vector ->
+            encodedMetadata += metadata
+            when {
+                metadata.contains("Rock", ignoreCase = true) ||
+                    metadata.equals("guitars", ignoreCase = true) -> vector[0] = 1f
+                metadata.contains("Dance", ignoreCase = true) -> vector[1] = 1f
+                else -> vector[2] = 1f
+            }
+        }
+
+        override fun close(): Unit = Unit
+    }
+
+    @Test
+    fun missingFromIndexCountsOnlyUnembeddedTracks() = runTest {
+        val harness = Harness()
+        harness.engine.initialize()
+        val indexed = TrackDescriptor(id = TrackId("indexed"))
+        val absent = TrackDescriptor(id = TrackId("absent"))
+        harness.backend.vectors[indexed.id] = floatArrayOf(1f, 0f, 0f)
+        harness.engine.indexLibrary(listOf(indexed))
+
+        assertEquals(1, harness.engine.missingFromIndex(listOf(indexed.id, absent.id)))
+        assertEquals(0, harness.engine.missingFromIndex(listOf(indexed.id)))
+        assertEquals(0, harness.engine.missingFromIndex(emptyList()))
+    }
+
+    // ---------------------------------------------------------------- memory
+
+    /** A real index that counts the calls copying every vector it holds, and the rows handed over to it. */
+    private class CopyCountingIndex(private val inner: InMemoryVectorIndex) : VectorIndex by inner {
+        var wholeIndexCopies = 0
+            private set
+        var adopted = 0
+            private set
+
+        override fun entries(): Map<TrackId, FloatArray> {
+            wholeIndexCopies++
+            return inner.entries()
+        }
+
+        override fun adopt(id: TrackId, vector: FloatArray) {
+            adopted++
+            inner.adopt(id, vector)
+        }
+    }
+
+    @Test
+    fun `a launch restores and reconciles and checkpoints without copying either index`() = runTest {
+        val audioStore = FakeIndexStore()
+        val textStore = FakeIndexStore()
+        val rock = seed.copy(genre = "Rock")
+        val dance = near.copy(genre = "Dance")
+        val jazz = far.copy(genre = "Jazz")
+        val first = engine(
+            backend = FakeEmbeddingBackend(
+                mutableMapOf(
+                    seed.id to floatArrayOf(1f, 0f, 0f),
+                    near.id to floatArrayOf(0.9f, 0.1f, 0f),
+                    far.id to floatArrayOf(0f, 1f, 0f),
+                ),
+            ),
+            store = audioStore,
+            textEncoder = FakeTextEncoder(),
+            textIndex = InMemoryVectorIndex(TextEncoder.TEXT_DIM),
+            textStore = textStore,
+        )
+        first.initialize()
+        assertEquals(3, first.indexLibrary(listOf(rock, dance, jazz)).indexed)
+
+        // The next launch, as the app runs it: restore, reconcile against a library that lost a
+        // track, encode what is new, checkpoint.
+        val audio = CopyCountingIndex(InMemoryVectorIndex(dim = 3))
+        val text = CopyCountingIndex(InMemoryVectorIndex(TextEncoder.TEXT_DIM))
+        val launch = DefaultSimilarityEngine(
+            backend = FakeEmbeddingBackend(),
+            index = audio,
+            store = audioStore,
+            config = SmartEngineConfig(embeddingDim = 3, modelVersion = "test-model"),
+            dispatcher = Dispatchers.Default.limitedParallelism(1, "launch-smart-engine"),
+            textEncoder = FakeTextEncoder(),
+            textIndex = text,
+            textStore = textStore,
+        )
+        launch.initialize()
+        assertEquals(1, launch.synchronizeLibrary(listOf(rock, dance), pruneMissing = true))
+        val added = TrackDescriptor(TrackId("added"), genre = "Rock")
+        assertEquals(1, launch.stageMetadataVectors(listOf(rock, dance, added)))
+        launch.persistPendingAnalysis()
+
+        assertEquals(0, audio.wholeIndexCopies, "an audio vector copy per track is a second audio index")
+        assertEquals(0, text.wholeIndexCopies, "a text vector copy per track is a second text index")
+        assertEquals(3, audio.adopted, "restored audio rows are handed over, not copied")
+        assertEquals(3, text.adopted, "restored text rows are handed over, not copied")
+        // …and nothing about the result changed: the checkpoints hold exactly the reconciled indexes.
+        assertEquals(listOf(seed.id, near.id), assertNotNull(audioStore.snapshots["test-model"]).keys.toList())
+        assertEquals(
+            listOf(seed.id, near.id, added.id),
+            assertNotNull(textStore.snapshots[TEXT_INDEX_VERSION]).keys.toList(),
+        )
+        assertTrue(launch.semanticSearch("guitars", 2).map { it.trackId }.containsAll(listOf(seed.id, added.id)))
+    }
+
+    // ---------------------------------------------------------------- tag-edit carry-over
+
+    private val edited = TrackId("edited")
+    private val beforeEdit = TrackDescriptor(
+        id = edited,
+        audioUri = "content://media/1",
+        durationMs = 1_000,
+        sourceRevision = "android-mediastore-v1:10:20:30",
+        sizeBytes = 10,
+    )
+    private val afterEdit = beforeEdit.copy(sourceRevision = "android-mediastore-v1:12:25:31", sizeBytes = 12, title = "New")
+
+    @Test
+    fun aVerifiedTagEditKeepsTheAudioVectorAcrossARestart() = runTest {
+        val store = FakeIndexStore()
+        val first = engine(FakeEmbeddingBackend(mutableMapOf(edited to floatArrayOf(1f, 0f, 0f))), store)
+        first.initialize()
+        first.indexLibrary(listOf(beforeEdit))
+
+        val result = first.carryOverAudio(listOf(afterEdit), listOf(AudioCarryOver(edited, beforeEdit.sourceRevision, 12)))
+        assertEquals(setOf(edited), result.applied)
+        assertEquals(setOf(edited), result.settled)
+        assertEquals(0, first.synchronizeLibrary(listOf(afterEdit)))
+        assertContentEquals(floatArrayOf(1f, 0f, 0f), first.embedding(edited))
+
+        val secondBackend = FakeEmbeddingBackend()
+        val restarted = engine(secondBackend, store)
+        restarted.initialize()
+        assertEquals(0, restarted.synchronizeLibrary(listOf(afterEdit)))
+        assertEquals(1, restarted.indexLibrary(listOf(afterEdit)).skipped)
+        assertEquals(0, secondBackend.embedCalls)
+    }
+
+    @Test
+    fun aFileThatChangedAgainIsReanalysed() = runTest {
+        val engine = engine(FakeEmbeddingBackend(mutableMapOf(edited to floatArrayOf(1f, 0f, 0f))), FakeIndexStore())
+        engine.initialize()
+        engine.indexLibrary(listOf(beforeEdit))
+        val changedAgain = afterEdit.copy(sizeBytes = 13)
+        val result = engine.carryOverAudio(listOf(changedAgain), listOf(AudioCarryOver(edited, beforeEdit.sourceRevision, 12)))
+        assertEquals(emptySet(), result.applied)
+        assertEquals(setOf(edited), result.settled)
+        assertEquals(1, engine.synchronizeLibrary(listOf(changedAgain)))
+    }
+
+    @Test
+    fun aCarryOverWaitsWhileItsTrackStillShowsTheOldRevision() = runTest {
+        val engine = engine(FakeEmbeddingBackend(mutableMapOf(edited to floatArrayOf(1f, 0f, 0f))), FakeIndexStore())
+        engine.initialize()
+        engine.indexLibrary(listOf(beforeEdit))
+        val result = engine.carryOverAudio(listOf(beforeEdit), listOf(AudioCarryOver(edited, beforeEdit.sourceRevision, 12)))
+        assertEquals(AudioCarryOverResult(emptySet(), emptySet()), result)
+    }
+}
